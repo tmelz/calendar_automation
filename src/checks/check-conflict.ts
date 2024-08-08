@@ -2,12 +2,14 @@ import { EventUtil } from "./event-util";
 import { CheckTypes } from "./check-types";
 import { GetEvents } from "./get-events";
 import { ModifyEvent } from "./modify-event";
-import { LogLevel, Log } from "./log";
+import { Log } from "./log";
+import { Analytics } from "../analytics";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace CheckConflict {
+  export const ID = "Conflict";
   export const ConflictCheck: CheckTypes.CalendarCheck = {
-    id: "Conflict",
+    id: CheckConflict.ID,
     shouldModifyEvent: checkShouldModifyEvent,
     modifyEventLocally: modifyEventLocally,
   };
@@ -53,6 +55,7 @@ export namespace CheckConflict {
           CheckConflict.CONFLICT_DESCRIPTION_BLURB
         )
       ) {
+        Analytics.recordModification(CheckConflict.ID);
         return CheckTypes.ModificationType.YES_ADD_LABEL;
       }
       return undefined;

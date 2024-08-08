@@ -1,4 +1,5 @@
 import { Orchestrator } from "./orchestrator";
+import { Analytics } from "./analytics";
 
 // README
 // To install, select setupTriggers function in IDE and click run
@@ -31,7 +32,11 @@ export function setupTriggers(): void {
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace Install {
-  export function removeAllTriggers(): void {
+  export function removeAllTriggers(bypassAnalytics: boolean = false): void {
+    if (!bypassAnalytics) {
+      Analytics.recordUserUnregister(Session.getActiveUser().getEmail());
+    }
+
     // Remove all existing triggers to avoid duplicates
     const triggers = ScriptApp.getProjectTriggers();
     for (const trigger of triggers) {
@@ -39,8 +44,11 @@ export namespace Install {
     }
   }
 
-  export function setupTriggers(): void {
-    removeAllTriggers();
+  export function setupTriggers(bypassAnalytics: boolean = false): void {
+    if (!bypassAnalytics) {
+      Analytics.recordUserRegister(Session.getActiveUser().getEmail());
+    }
+    removeAllTriggers(true);
 
     // Create a daily trigger at 8 AM Pacific Time
     ScriptApp.newTrigger("runDailyChecks")
@@ -57,4 +65,12 @@ export namespace Install {
       .onEventUpdated()
       .create();
   }
+}
+
+export function getAnalytics(): { [key: string]: string } {
+  const scriptProperties = PropertiesService.getScriptProperties();
+  const allProperties = scriptProperties.getProperties();
+
+  Logger.log(allProperties); // View in Apps Script Logs
+  return allProperties; // Or return as JSON for an API endpoint
 }

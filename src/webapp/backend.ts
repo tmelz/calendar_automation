@@ -10,7 +10,7 @@ function doGet() {
   template.email = statusData.email;
   return template
     .evaluate()
-    .setTitle("Block Calendar Automation")
+    .setTitle("Calendar Automation")
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 

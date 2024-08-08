@@ -3,11 +3,13 @@ import { CheckTypes } from "./check-types";
 import { GetEvents } from "./get-events";
 import { ModifyEvent } from "./modify-event";
 import { LogLevel, Log } from "./log";
+import { Analytics } from "../analytics";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace CheckOOO {
+  export const ID = "OutOfOffice";
   export const OutOfOfficeCheck: CheckTypes.CalendarCheck = {
-    id: "OutOfOffice",
+    id: CheckOOO.ID,
     shouldModifyEvent: checkShouldModifyEvent,
     modifyEventLocally: modifyEventLocally,
   };
@@ -64,6 +66,7 @@ export namespace CheckOOO {
           CheckOOO.OOO_DESCRIPTION_BLURB
         )
       ) {
+        Analytics.recordModification(CheckOOO.ID);
         return CheckTypes.ModificationType.YES_ADD_LABEL;
       }
       return undefined;

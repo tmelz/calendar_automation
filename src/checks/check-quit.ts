@@ -2,12 +2,13 @@ import { EventUtil } from "./event-util";
 import { CheckTypes } from "./check-types";
 import { GetEvents } from "./get-events";
 import { ModifyEvent } from "./modify-event";
-import { LogLevel, Log } from "./log";
+import { Analytics } from "../analytics";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace CheckQuit {
+  export const ID = "Quit";
   export const QuitCheck: CheckTypes.CalendarCheck = {
-    id: "Quit",
+    id: CheckQuit.ID,
     shouldModifyEvent: checkShouldModifyEvent,
     modifyEventLocally: modifyEventLocally,
   };
@@ -51,6 +52,7 @@ export namespace CheckQuit {
           CheckQuit.QUIT_DESCRIPTION_BLURB
         )
       ) {
+        Analytics.recordModification(CheckQuit.ID);
         return CheckTypes.ModificationType.YES_ADD_LABEL;
       }
       return undefined;

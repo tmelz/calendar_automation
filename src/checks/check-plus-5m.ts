@@ -1,12 +1,14 @@
 import { EventUtil } from "./event-util";
 import { CheckTypes } from "./check-types";
 import { ModifyEvent } from "./modify-event";
-import { LogLevel, Log } from "./log";
+import { Log } from "./log";
+import { Analytics } from "../analytics";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace CheckPlus5m {
+  export const ID = "PlusFiveMinutes";
   export const PlusFiveMinutesCheck: CheckTypes.CalendarCheck = {
-    id: "PlusFiveMinutes",
+    id: CheckPlus5m.ID,
     shouldModifyEvent: checkShouldModifyEvent,
     modifyEventLocally: modifyEventLocally,
   };
@@ -39,6 +41,7 @@ export namespace CheckPlus5m {
 
     // If the meeting starts on the hour or half hour, update
     if (meetingStartMinute === 0 || meetingStartMinute === 30) {
+      Analytics.recordModification(CheckPlus5m.ID);
       return CheckTypes.ModificationType.YES_ADD_LABEL;
       // If meeting already starts past 5m check if the label needs updating
     } else if (meetingStartMinute === 5 || meetingStartMinute === 35) {
@@ -54,6 +57,7 @@ export namespace CheckPlus5m {
           CheckPlus5m.TITLE_SUFFIX_NOTICES_DEPRECATED
         )
       ) {
+        Analytics.recordModification(CheckPlus5m.ID);
         return CheckTypes.ModificationType.YES_ADD_LABEL;
       }
       // label doenst need updating

@@ -40,6 +40,7 @@ describe("Cache.calculateMostAggressiveUpdatedMin", () => {
       timeMin: new Date("2024-08-01T00:00:00Z"),
       timeMax: new Date("2024-08-02T00:00:00Z"),
       updatedMin: undefined,
+      dateFinished: new Date("2024-07-31T00:00:00Z"),
     };
     const timeRange: Time.Range = {
       timeMin: new Date("2024-07-01T00:00:00Z"),
@@ -61,6 +62,7 @@ describe("Cache.calculateMostAggressiveUpdatedMin", () => {
       timeMin: new Date("2024-08-01T00:00:00Z"),
       timeMax: new Date("2024-08-02T00:00:00Z"),
       updatedMin: undefined,
+      dateFinished: new Date("2024-08-01T12:05:00Z"),
     };
     const timeRange: Time.Range = {
       timeMin: new Date("2024-08-01T00:00:00Z"),
@@ -73,7 +75,7 @@ describe("Cache.calculateMostAggressiveUpdatedMin", () => {
       timeRange,
       defaultUpdateMin
     );
-    expect(result).toBe(cachedExecutionParams.dateRun);
+    expect(result).toBe(cachedExecutionParams.dateFinished);
   });
 
   test("should return default update min when cached execution date is not more recent", () => {
@@ -82,6 +84,7 @@ describe("Cache.calculateMostAggressiveUpdatedMin", () => {
       timeMin: new Date("2024-08-01T00:00:00Z"),
       timeMax: new Date("2024-08-02T00:00:00Z"),
       updatedMin: undefined,
+      dateFinished: new Date("2024-06-01T12:00:00Z"),
     };
     const timeRange: Time.Range = {
       timeMin: new Date("2024-08-01T00:00:00Z"),

@@ -8,6 +8,7 @@ import { GetEvents } from "./checks/get-events";
 import { Time } from "./checks/time";
 import { Cache } from "./cache";
 import { LogLevel, Log } from "./checks/log";
+import { Analytics } from "./analytics";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace Orchestrator {
@@ -37,8 +38,11 @@ export namespace Orchestrator {
   export const experimentalChecks: CheckTypes.CalendarCheck[] = [];
 
   export function runFastChecks(isDryRun: boolean = true): void {
+    if (isDryRun) {
+      Analytics.disable();
+    }
     const now = new Date();
-    Log.logPhase("Fetching events to analyze 🛜");
+    Log.logPhase("Looking up last execution details from cache 📦");
     let shouldCacheRun = !isDryRun;
 
     const timeRange = Time.todayThroughEndOfNextWeek();
@@ -47,6 +51,7 @@ export namespace Orchestrator {
       timeRange,
       Time.oneHourAgo()
     );
+    Log.logPhase("Fetching events to analyze 🛜");
     const events = GetEvents.getEvents(timeRange, updatedMin);
     if (events.length === GetEvents.MAX_EVENTS_ALLOWED_TO_FETCH) {
       shouldCacheRun = false;
@@ -61,6 +66,7 @@ export namespace Orchestrator {
 
     shouldCacheRun = shouldCacheRun && withinModificationLimit;
 
+    Log.logPhase("Post execution caching 📦");
     if (shouldCacheRun) {
       Log.log("Caching execution params");
       Cache.saveLastExecutionParams(now, timeRange, updatedMin, new Date());
@@ -70,6 +76,9 @@ export namespace Orchestrator {
   }
 
   export function runAllChecks(isDryRun: boolean = true): void {
+    if (isDryRun) {
+      Analytics.disable();
+    }
     Log.logPhase("Fetching events to analyze 🛜");
 
     const events = GetEvents.getEvents(
@@ -172,7 +181,7 @@ export namespace Orchestrator {
   export function saveEvent(
     event: GoogleAppsScript.Calendar.Schema.Event
   ): boolean {
-    Log.log(`🛟 Saving event, "${event.summary}"`);
+    Log.log(`💾 Saving event, "${event.summary}"`);
     // My event, I can modify
     if (EventUtil.amITheOrganizer(event)) {
       Log.log(
