@@ -1,4 +1,4 @@
-[![CI](https://github.com/tmelz/calendar_automation/actions/workflows/ci.yml/badge.svg)](https://github.com/tmelz/calendar_automation/actions/workflows/ci.yml)
+[![CI](https://github.com/tmelz/calendar_automation/actions/workflows/ci.yml/badge.svg)](https://github.com/tmelz/calendar_automation/actions/workflows/ci.yml)[![codecov](https://codecov.io/github/tmelz/calendar_automation/graph/badge.svg?token=RZUDBKNLY6)](https://codecov.io/github/tmelz/calendar_automation)
 
 # Install
 
