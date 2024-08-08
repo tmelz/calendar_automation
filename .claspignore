@@ -1,0 +1,15 @@
+# ignore all files…
+**/**
+
+# except the extensions…
+!appsscript.json
+!src/**/*.gs
+!src/**/*.js
+!src/**/*.ts
+!src/**/*.html
+
+# ignore even valid files if in…
+.git/**
+node_modules/**
+jest.config.js
+

@@ -1,0 +1,18 @@
+{
+  "timeZone": "America/Los_Angeles",
+  "dependencies": {
+    "enabledAdvancedServices": [
+      {
+        "userSymbol": "Calendar",
+        "version": "v3",
+        "serviceId": "calendar"
+      }
+    ]
+  },
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8",
+  "webapp": {
+    "executeAs": "USER_ACCESSING",
+    "access": "DOMAIN"
+  }
+}

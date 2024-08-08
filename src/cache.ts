@@ -1,0 +1,128 @@
+import { Time } from "./checks/time";
+import { LogLevel, Log } from "./checks/log";
+
+// eslint-disable-next-line @typescript-eslint/no-namespace
+export namespace Cache {
+  export const ALL_CHECKS_RUNS_CACHE_KEY: string = "allChecksRuns_v1";
+
+  interface ExecutionParams {
+    dateRun: Date;
+    timeMin: Date;
+    timeMax: Date;
+    updatedMin: Date | undefined;
+  }
+
+  export function calculateMostAggressiveUpdatedMin(
+    cachedExecutionParams: ExecutionParams | undefined,
+    timeRange: Time.Range,
+    defaultUpdatedMin: Date,
+    ifNoCachedResultsUseDefault: boolean = true
+  ): Date | undefined {
+    Log.log("Calculating most aggressive updatedMin for event query");
+    Log.log("Cached execution params:");
+    Log.log(`\tDate run: ${cachedExecutionParams?.dateRun.toLocaleString()}`);
+    Log.log(`\tTime min: ${cachedExecutionParams?.timeMin.toLocaleString()}`);
+    Log.log(`\tTime max: ${cachedExecutionParams?.timeMax.toLocaleString()}`);
+    Log.log(
+      `\tUpdated min: ${cachedExecutionParams?.updatedMin?.toLocaleString()}`
+    );
+    Log.log(
+      `\tTime range: ${timeRange.timeMin.toLocaleString()} -- ${timeRange.timeMax.toLocaleString()}`
+    );
+    Log.log(`\tDefault update min: ${defaultUpdatedMin.toLocaleString()}`);
+
+    if (cachedExecutionParams === undefined) {
+      if (ifNoCachedResultsUseDefault) {
+        Log.log(
+          `No cached execution params found, returning defaultupdatedMin ${defaultUpdatedMin.toLocaleString()}`
+        );
+        return defaultUpdatedMin;
+      } else {
+        Log.log(
+          `No cached execution params found, returning defaultupdatedMin undefined}`
+        );
+        return undefined;
+      }
+    }
+
+    if (
+      timeRange.timeMin >= cachedExecutionParams.timeMin &&
+      timeRange.timeMax <= cachedExecutionParams.timeMax
+    ) {
+      Log.log(
+        "Time range is a subset of cached time range, will try to leverage cached info to set aggressive updatedMin"
+      );
+      if (cachedExecutionParams.dateRun > defaultUpdatedMin) {
+        Log.log(
+          "Cached execution date is more recent than default update min, using dateRun as new updatedMin"
+        );
+        return cachedExecutionParams.dateRun;
+      } else {
+        Log.log(
+          "Cached execution date is older than default update min, won't use cached info"
+        );
+      }
+    }
+
+    Log.log("Returning default update min");
+    return defaultUpdatedMin;
+  }
+
+  export function saveLastExecutionParams(
+    dateRun: Date,
+    timeRange: Time.Range,
+    updatedMin: Date | undefined
+  ): void {
+    Log.log("Saving last execution params in cache");
+    Log.log(`\tDate run: ${dateRun.toLocaleString()}`);
+    Log.log(`\tTime min: ${timeRange.timeMin.toLocaleString()}`);
+    Log.log(`\tTime max: ${timeRange.timeMax.toLocaleString()}`);
+    Log.log(`\tUpdated min: ${updatedMin?.toLocaleString()}`);
+
+    const userProperties = PropertiesService.getUserProperties();
+
+    const dateStruct: ExecutionParams = {
+      dateRun: dateRun,
+      timeMin: timeRange.timeMin,
+      timeMax: timeRange.timeMax,
+      updatedMin: updatedMin,
+    };
+
+    userProperties.setProperty(
+      Cache.ALL_CHECKS_RUNS_CACHE_KEY,
+      JSON.stringify(dateStruct)
+    );
+
+    Log.log("Execution params saved successfully");
+  }
+
+  export function getLastExecutionParams(): ExecutionParams | undefined {
+    Log.log("Getting cached last execution params");
+
+    const userProperties = PropertiesService.getUserProperties();
+    const data = userProperties.getProperty(Cache.ALL_CHECKS_RUNS_CACHE_KEY);
+
+    if (data) {
+      LogLevel.DEBUG && Log.log(`Found cached execution params: ${data}`);
+      const dateStruct: ExecutionParams = JSON.parse(data);
+      // Converting strings back to Date objects
+      dateStruct.dateRun = new Date(dateStruct.dateRun);
+      dateStruct.timeMin = new Date(dateStruct.timeMin);
+      dateStruct.timeMax = new Date(dateStruct.timeMax);
+      dateStruct.updatedMin =
+        dateStruct.updatedMin !== undefined
+          ? new Date(dateStruct.updatedMin)
+          : undefined;
+
+      Log.log(`Parsed execution params:`);
+      Log.log(`\tDate run: ${dateStruct.dateRun.toLocaleString()}`);
+      Log.log(`\tTime min: ${dateStruct.timeMin.toLocaleString()}`);
+      Log.log(`\tTime max: ${dateStruct.timeMax.toLocaleString()}`);
+      Log.log(`\tUpdated min: ${dateStruct.updatedMin?.toLocaleString()}`);
+      return dateStruct;
+    }
+
+    Log.log("No cached execution params found");
+    return undefined;
+  }
+}

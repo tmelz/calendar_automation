@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES6",
+    "module": "commonjs",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noImplicitAny": true,
+    "noImplicitThis": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "dist", // Specify the output directory for compiled files
+    "typeRoots": ["./node_modules/@types"],
+    "types": ["google-apps-script", "jest", "node"]
+  },
+  "include": [
+    "src/**/*.ts",
+    "tests/**/*.ts" // Include this line to add TypeScript test files
+  ],
+  "exclude": [
+    "node_modules",
+    "dist" // Exclude only the distribution and node_modules directories
+  ]
+}

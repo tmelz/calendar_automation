@@ -1,0 +1,8 @@
+.aider*
+package-lock.json
+.clasp.json
+node_modules/
+.vscode/
+coverage/
+.DS_Store
+dist/
