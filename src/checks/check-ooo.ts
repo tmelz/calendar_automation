@@ -53,7 +53,6 @@ export namespace CheckOOO {
         Log.log("👮‍♂️ Marking event for modification");
         hasOOOoverlap = true;
         break;
-        return CheckTypes.ModificationType.YES_ADD_LABEL;
       }
     }
 
