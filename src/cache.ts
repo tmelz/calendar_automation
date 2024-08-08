@@ -3,13 +3,14 @@ import { LogLevel, Log } from "./checks/log";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace Cache {
-  export const ALL_CHECKS_RUNS_CACHE_KEY: string = "allChecksRuns_v1";
+  export const FAST_CHECKS_RUNS_CACHE_KEY: string = "fastChecksRuns_v1";
 
   interface ExecutionParams {
     dateRun: Date;
     timeMin: Date;
     timeMax: Date;
     updatedMin: Date | undefined;
+    dateFinished: Date;
   }
 
   export function calculateMostAggressiveUpdatedMin(
@@ -23,6 +24,9 @@ export namespace Cache {
     Log.log(`\tDate run: ${cachedExecutionParams?.dateRun.toLocaleString()}`);
     Log.log(`\tTime min: ${cachedExecutionParams?.timeMin.toLocaleString()}`);
     Log.log(`\tTime max: ${cachedExecutionParams?.timeMax.toLocaleString()}`);
+    Log.log(
+      `\tDate Finished: ${cachedExecutionParams?.dateFinished.toLocaleString()}`
+    );
     Log.log(
       `\tUpdated min: ${cachedExecutionParams?.updatedMin?.toLocaleString()}`
     );
@@ -52,14 +56,14 @@ export namespace Cache {
       Log.log(
         "Time range is a subset of cached time range, will try to leverage cached info to set aggressive updatedMin"
       );
-      if (cachedExecutionParams.dateRun > defaultUpdatedMin) {
+      if (cachedExecutionParams.dateFinished > defaultUpdatedMin) {
         Log.log(
-          "Cached execution date is more recent than default update min, using dateRun as new updatedMin"
+          "Cached execution date is more recent than default update min, using dateFinished as new updatedMin"
         );
-        return cachedExecutionParams.dateRun;
+        return cachedExecutionParams.dateFinished;
       } else {
         Log.log(
-          "Cached execution date is older than default update min, won't use cached info"
+          "Cached execution date run is older than default update min, won't use cached info"
         );
       }
     }
@@ -71,13 +75,15 @@ export namespace Cache {
   export function saveLastExecutionParams(
     dateRun: Date,
     timeRange: Time.Range,
-    updatedMin: Date | undefined
+    updatedMin: Date | undefined,
+    dateFinished: Date
   ): void {
     Log.log("Saving last execution params in cache");
     Log.log(`\tDate run: ${dateRun.toLocaleString()}`);
     Log.log(`\tTime min: ${timeRange.timeMin.toLocaleString()}`);
     Log.log(`\tTime max: ${timeRange.timeMax.toLocaleString()}`);
     Log.log(`\tUpdated min: ${updatedMin?.toLocaleString()}`);
+    Log.log(`\tDate Finished: ${dateFinished.toLocaleString()}`);
 
     const userProperties = PropertiesService.getUserProperties();
 
@@ -86,10 +92,11 @@ export namespace Cache {
       timeMin: timeRange.timeMin,
       timeMax: timeRange.timeMax,
       updatedMin: updatedMin,
+      dateFinished: dateFinished,
     };
 
     userProperties.setProperty(
-      Cache.ALL_CHECKS_RUNS_CACHE_KEY,
+      Cache.FAST_CHECKS_RUNS_CACHE_KEY,
       JSON.stringify(dateStruct)
     );
 
@@ -100,7 +107,7 @@ export namespace Cache {
     Log.log("Getting cached last execution params");
 
     const userProperties = PropertiesService.getUserProperties();
-    const data = userProperties.getProperty(Cache.ALL_CHECKS_RUNS_CACHE_KEY);
+    const data = userProperties.getProperty(Cache.FAST_CHECKS_RUNS_CACHE_KEY);
 
     if (data) {
       LogLevel.DEBUG && Log.log(`Found cached execution params: ${data}`);
@@ -113,12 +120,9 @@ export namespace Cache {
         dateStruct.updatedMin !== undefined
           ? new Date(dateStruct.updatedMin)
           : undefined;
+      dateStruct.dateFinished = new Date(dateStruct.dateFinished);
 
       Log.log(`Parsed execution params:`);
-      Log.log(`\tDate run: ${dateStruct.dateRun.toLocaleString()}`);
-      Log.log(`\tTime min: ${dateStruct.timeMin.toLocaleString()}`);
-      Log.log(`\tTime max: ${dateStruct.timeMax.toLocaleString()}`);
-      Log.log(`\tUpdated min: ${dateStruct.updatedMin?.toLocaleString()}`);
       return dateStruct;
     }
 

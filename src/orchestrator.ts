@@ -14,7 +14,7 @@ export namespace Orchestrator {
   export const MAX_EVENTS_ALLOWED_TO_MODIFY: number = 30;
   export const OPT_OUT: string = "[opt_out_automation]";
 
-  type SaveEventChanges = (
+  export type SaveEventChanges = (
     event: GoogleAppsScript.Calendar.Schema.Event
   ) => boolean;
 
@@ -37,31 +37,15 @@ export namespace Orchestrator {
   export const experimentalChecks: CheckTypes.CalendarCheck[] = [];
 
   export function runFastChecks(isDryRun: boolean = true): void {
-    Log.logPhase("Fetching events to analyze 🛜");
-    // TODO look at caching for this as well, but its a minor optimization
-    const timeRange = Time.todayThroughEndOfNextWeek();
-    const events = GetEvents.getEvents(timeRange, Time.oneHourAgo());
-
-    Orchestrator.checkEvents(
-      Orchestrator.fastChecks,
-      events,
-      isDryRun, // isDryRun
-      Orchestrator.saveEvent
-    );
-  }
-
-  export function runAllChecks(isDryRun: boolean = true): void {
+    const now = new Date();
     Log.logPhase("Fetching events to analyze 🛜");
     let shouldCacheRun = !isDryRun;
-
-    const now = new Date();
 
     const timeRange = Time.todayThroughEndOfNextWeek();
     const updatedMin = Cache.calculateMostAggressiveUpdatedMin(
       Cache.getLastExecutionParams(),
       timeRange,
-      Time.twoDaysAgo(),
-      false
+      Time.oneHourAgo()
     );
     const events = GetEvents.getEvents(timeRange, updatedMin);
     if (events.length === GetEvents.MAX_EVENTS_ALLOWED_TO_FETCH) {
@@ -69,7 +53,7 @@ export namespace Orchestrator {
     }
 
     const withinModificationLimit = Orchestrator.checkEvents(
-      Orchestrator.allChecks,
+      Orchestrator.fastChecks,
       events,
       isDryRun,
       Orchestrator.saveEvent
@@ -79,10 +63,26 @@ export namespace Orchestrator {
 
     if (shouldCacheRun) {
       Log.log("Caching execution params");
-      Cache.saveLastExecutionParams(now, timeRange, updatedMin);
+      Cache.saveLastExecutionParams(now, timeRange, updatedMin, new Date());
     } else {
       Log.log("Not caching execution params");
     }
+  }
+
+  export function runAllChecks(isDryRun: boolean = true): void {
+    Log.logPhase("Fetching events to analyze 🛜");
+
+    const events = GetEvents.getEvents(
+      Time.todayThroughEndOfNextWeek(),
+      undefined
+    );
+
+    Orchestrator.checkEvents(
+      Orchestrator.allChecks,
+      events,
+      isDryRun,
+      Orchestrator.saveEvent
+    );
   }
 
   // Return true if this result can be cached (eg we didn't hit the max
@@ -91,7 +91,7 @@ export namespace Orchestrator {
     calendarChecks: CheckTypes.CalendarCheck[],
     events: GoogleAppsScript.Calendar.Schema.Event[],
     isDryRun: boolean = true,
-    saveEventChanges: SaveEventChanges
+    saveEventChanges: Orchestrator.SaveEventChanges
   ): boolean {
     const locallyModifiedEventIds: Set<string> = new Set();
     const eventMap: Map<string, GoogleAppsScript.Calendar.Schema.Event> =
