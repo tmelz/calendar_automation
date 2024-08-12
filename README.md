@@ -2,13 +2,17 @@
 
 # Install
 
-1. Install [clasp](https://github.com/google/clasp) and follow the instructions on their README to enable the apps script API
-2. `git clone` this repo, `cd` into it
+1. Install [clasp](https://github.com/google/clasp)
+   1. `npm install -g @google/clasp`
+   2. Enable the Google Apps Script API via [your settings](https://script.google.com/home/usersettings)
+   3. Run `clasp login`
+2. `git clone https://github.com/tmelz/calendar_automation.git && cd calendar_automation`
 3. `npm install`
 4. `npm test` to verify the tests are passing
-5. create a new apps script project with `clasp create`
-6. `clasp push`
-7. Deploy via apps script UI (can also deploy with clasp)
+5. `clasp create --type webapp` to create your apps script project
+6. `clasp push` to push this code to your project
+7. `clasp deploy` to publish the webapp; you can also open the project in your [apps script home](https://script.google.com/home) and deploy using that UI. You may prefer to alter the access to be "only myself".
+8. Via the app script UI, open "Manage deployments" under "Deploy" and find the URL of the deployed webapp. Open it and you can one-click install in the webapp once you authorize with your Google Calendar
 
 # Features
 
