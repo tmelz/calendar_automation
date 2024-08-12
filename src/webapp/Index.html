@@ -58,15 +58,18 @@
         background-color: #bdc3c7;
         cursor: not-allowed;
       }
-      #trialSection {
+      #trialSection,
+      #triggerRunSection {
         background-color: #ecf0f1;
         padding: 20px;
         border-radius: 5px;
       }
-      #trialSection h2 {
+      #trialSection h2,
+      #triggerRunSection h2 {
         margin-top: 0;
       }
-      #trialOutput {
+      #trialOutput,
+      #realRunOutput {
         background-color: #2c3e50;
         color: #ecf0f1;
         font-family: monospace;
@@ -168,38 +171,58 @@
     </div>
 
     <div id="trialSection" class="section" style="display: none">
-      <h2>Try a trial run!</h2>
+      <h2>Try a trial run! 👨‍🔬</h2>
       <p>
-        Click the button below to do a dry run of the tool for your calendar for
-        the next 2 weeks. The output is the console log from the dry run. Scroll
-        to bottom to see the changes it would make. (Note: this may take about a
-        minute to process)
+        Click the button below to do a dry run 🌵 of the tool for your calendar
+        for the next 2 weeks. The output is the console log from the dry run.
+        Scroll to bottom to see the changes it would make. (Note: this may take
+        about a minute to process)
       </p>
       <button id="trialButton" onclick="runTrial()">Start Trial Run</button>
       <div id="trialOutput" style="display: none"></div>
     </div>
+    <div id="triggerRunSection" class="section" style="display: none">
+      <h2>Trigger a real run now! 🚀</h2>
+      <p>
+        Automatically triggered runs to update your calendar happen every day at
+        8am Pacific and also whenever your calendar is modified (to update any
+        changed events quickly). You can trigger a run now to see changes
+        earlier; console logs will be sent directly here for visibility --
+        scroll to the bottom to see what changes were made.
+      </p>
+      <button id="triggerRunButton" onclick="triggerRealRun()">
+        Start Real Run
+      </button>
+      <div id="realRunOutput" style="display: none"></div>
+    </div>
 
     <script>
-      // Set the installation status based on the passed variables
+      // // Set the installation status based on the passed variables
       let installed = <?= installed ?> === 'true';
       let userEmail = "<?= email ?>";
-
       function updateInstallationStatus() {
         const statusIcon = document.getElementById("statusIcon");
         const statusText = document.getElementById("statusText");
-        const installationButtons = document.getElementById("installationButtons");
+        const installationButtons = document.getElementById(
+          "installationButtons"
+        );
         const trialSection = document.getElementById("trialSection");
+        const triggerRunSection = document.getElementById("triggerRunSection");
 
         if (installed) {
           statusIcon.innerHTML = "✅";
           statusText.innerHTML = `Installed (${userEmail})`;
-          installationButtons.innerHTML = '<button onclick="uninstall()">Uninstall</button>';
+          installationButtons.innerHTML =
+            '<button onclick="uninstall()">Uninstall</button>';
           trialSection.style.display = "none";
+          triggerRunSection.style.display = "block";
         } else {
           statusIcon.innerHTML = "❌";
           statusText.innerHTML = `Not installed (${userEmail})`;
-          installationButtons.innerHTML = '<button onclick="install()">Install Now</button>';
+          installationButtons.innerHTML =
+            '<button onclick="install()">Install Now</button>';
           trialSection.style.display = "block";
+          triggerRunSection.style.display = "none";
         }
       }
 
@@ -259,7 +282,8 @@
         trialButton.style.backgroundColor = "#bdc3c7";
         trialButton.innerHTML = 'Running Trial... <span class="loader"></span>';
         trialOutput.style.display = "block";
-        trialOutput.innerHTML = "Running trial... This may take about a minute.";
+        trialOutput.innerHTML =
+          "Running trial... This may take about a minute.";
 
         google.script.run
           .withSuccessHandler(function (result) {
@@ -275,6 +299,32 @@
             trialButton.innerHTML = "Start Trial Run";
           })
           .runTrialAutomation();
+      }
+      function triggerRealRun() {
+        const triggerRunButton = document.getElementById("triggerRunButton");
+        const realRunOutput = document.getElementById("realRunOutput");
+        triggerRunButton.disabled = true;
+        triggerRunButton.style.backgroundColor = "#bdc3c7";
+        triggerRunButton.innerHTML =
+          'Running Real Run... <span class="loader"></span>';
+        realRunOutput.style.display = "block";
+        realRunOutput.innerHTML =
+          "Running real run... This may take about a minute.";
+
+        google.script.run
+          .withSuccessHandler(function (result) {
+            realRunOutput.innerHTML = result;
+            triggerRunButton.disabled = false;
+            triggerRunButton.style.backgroundColor = "";
+            triggerRunButton.innerHTML = "Start Real Run";
+          })
+          .withFailureHandler(function (error) {
+            realRunOutput.innerHTML = "Real run failed: " + error;
+            triggerRunButton.disabled = false;
+            triggerRunButton.style.backgroundColor = "";
+            triggerRunButton.innerHTML = "Start Real Run";
+          })
+          .runRealAutomation();
       }
     </script>
   </body>

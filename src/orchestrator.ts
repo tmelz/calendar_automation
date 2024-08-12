@@ -26,9 +26,6 @@ export namespace Orchestrator {
     Conflict: CheckConflict.ConflictCheck,
   };
 
-  export const fastChecks: CheckTypes.CalendarCheck[] = [
-    CalendarChecks.PlusFiveMinutes,
-  ];
   export const allChecks: CheckTypes.CalendarCheck[] = [
     CalendarChecks.OutOfOffice,
     CalendarChecks.PlusFiveMinutes,
@@ -37,6 +34,7 @@ export namespace Orchestrator {
   ];
   export const experimentalChecks: CheckTypes.CalendarCheck[] = [];
 
+  // Only look at events that have recently changed
   export function runFastChecks(isDryRun: boolean = true): void {
     if (isDryRun) {
       Analytics.disable();
@@ -58,7 +56,7 @@ export namespace Orchestrator {
     }
 
     const withinModificationLimit = Orchestrator.checkEvents(
-      Orchestrator.fastChecks,
+      Orchestrator.allChecks,
       events,
       isDryRun,
       Orchestrator.saveEvent

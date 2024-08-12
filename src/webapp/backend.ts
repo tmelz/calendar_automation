@@ -44,3 +44,14 @@ function runTrialAutomation() {
   Log.hook = undefined;
   return logMessages.join("\n");
 }
+
+function runRealAutomation() {
+  const logMessages: string[] = [];
+  Log.hook = (entry: string) => {
+    logMessages.push(entry);
+  };
+
+  Orchestrator.runAllChecks(false /* isDryRun */);
+  Log.hook = undefined;
+  return logMessages.join("\n");
+}
