@@ -1,6 +1,39 @@
 import { Orchestrator } from "./orchestrator";
 import { GetEvents } from "./checks/get-events";
 import { LogLevel, Log } from "./checks/log";
+import { EventUtil } from "./checks/event-util";
+
+// export function debugEstimateWorkingHoursForManyFolks() {
+//   console.log("tmellor@block.xyz");
+//   debugEstimateWorkingHours("tmellor@block.xyz");
+
+//   console.log("azra@block.xyz");
+//   debugEstimateWorkingHours("azra@block.xyz");
+
+//   console.log("pablobaxter@block.xyz");
+//   debugEstimateWorkingHours("pablobaxter@block.xyz");
+
+//   console.log("inez@block.xyz");
+//   debugEstimateWorkingHours("inez@block.xyz");
+
+//   console.log("jgraves@block.xyz");
+//   debugEstimateWorkingHours("jgraves@block.xyz");
+
+//   console.log("trmonks@block.xyz");
+//   debugEstimateWorkingHours("trmonks@block.xyz");
+// }
+
+export function debugEstimateWorkingHours(email: string) {
+  const events = GetEvents.getEventsForRestOfWeek();
+  events.forEach((event) => {
+    console.log(`${event.summary}`);
+    console.log(`${event}`);
+  }
+}
+
+// Calendar.Events?.remove("primary", event.id!, {
+//   sendUpdates: "all",
+// });
 
 export function debug() {
   const today: Date = new Date();
