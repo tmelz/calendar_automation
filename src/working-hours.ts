@@ -1,33 +1,6 @@
 import { GetEvents } from "./checks/get-events";
-import { LogLevel, Log } from "./checks/log";
+import { Log } from "./checks/log";
 import { EventUtil } from "./checks/event-util";
-
-/**
- * TODO high level plan for defrag
- *
- * need to know constraints
- * - what meetings need to move / can move
- *   - OOO meetings
- *   - conflicted meetings
- *   - o/w all 1:1s
- * - what optional meeting destinations there are (from my cal and theirs)
- *   - ✅ thus need to know working hours
- * - if a meeting is a recurring meeting, need to know cadence so i can understand how much it can move
- *   - eg weekly 1:1s should only move +/- 1 day; 👌 I can just use presence of "recurringEventId" as a rough first pass.
- *          for more thorough i could fetch the actual event and then parse the recurrenc rule:
- *            "recurrence": ["RRULE:FREQ=WEEKLY;BYDAY=FR"],
- *          not super important to get this precise. wondering if there's some way to improve this so it isn't so manual
- *          to get the details but that's OK for now. it limits some options but probably not by too much.
- *          practically speaking being able to shift by +/- 1 day is decent, for biweekly i'd allow like +/-2 i guess
- *
- * need to supply scoring function
- * - negative points
- *  - [day] if longer than 2hrs of meetings
- *  - [day] if gap between meetings
- *  - [week] if meetings are not balanced across days
- * - positive points
- *  - [day] more focus time
- */
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace WorkingHours {

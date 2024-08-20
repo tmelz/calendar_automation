@@ -23,13 +23,13 @@ import { EventUtil } from "./checks/event-util";
 //   debugEstimateWorkingHours("trmonks@block.xyz");
 // }
 
-export function debugEstimateWorkingHours(email: string) {
-  const events = GetEvents.getEventsForRestOfWeek();
-  events.forEach((event) => {
-    console.log(`${event.summary}`);
-    console.log(`${event}`);
-  }
-}
+// export function debugEstimateWorkingHours(email: string) {
+//   const events = GetEvents.getEventsForRestOfWeek();
+//   events.forEach((event) => {
+//     console.log(`${event.summary}`);
+//     console.log(`${event}`);
+//   }
+// }
 
 // Calendar.Events?.remove("primary", event.id!, {
 //   sendUpdates: "all",
