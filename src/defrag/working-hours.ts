@@ -1,6 +1,6 @@
-import { GetEvents } from "./checks/get-events";
-import { Log } from "./checks/log";
-import { EventUtil } from "./checks/event-util";
+import { GetEvents } from "../checks/get-events";
+import { Log } from "../checks/log";
+import { EventUtil } from "../checks/event-util";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace WorkingHours {
