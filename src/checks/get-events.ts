@@ -127,8 +127,8 @@ export namespace GetEvents {
         Calendar.Events?.list(calendarId, {
           timeMin: timeMin.toISOString(),
           timeMax: timeMax.toISOString(),
-          // singleEvents: true,
-          // orderBy: "startTime",
+          singleEvents: true,
+          orderBy: "startTime",
           maxResults: maxResults,
           // updatedMin: updatedMin?.toISOString(),
         })?.items ?? [];

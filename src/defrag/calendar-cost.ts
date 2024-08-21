@@ -28,27 +28,43 @@ export namespace CalendarCost {
       [date: string]: GoogleAppsScript.Calendar.Schema.Event[];
     } = {};
 
-    events.forEach((event) => {
-      const eventTiming = modifiedEventTimings.get(event.id!);
-      const eventDate = eventTiming
-        ? new Date(
-            new Date().setDate(
-              new Date().getDate() + eventTiming.dayOfWeek - new Date().getDay()
+    // TODO clean up this filtering
+    events
+      .filter(
+        (event) =>
+          (event.eventType === "default" &&
+            event.attendees &&
+            event.attendees.length >= 1) ||
+          !event.summary?.toLocaleLowerCase()?.includes("lunch")
+      )
+      .forEach((event) => {
+        // If no start, skip
+        // If all day event, skip for this calc
+        if (event.start === undefined || event.start.date !== undefined) {
+          return;
+        }
+        const eventTiming = modifiedEventTimings.get(event.id!);
+        const eventDate = eventTiming
+          ? new Date(
+              new Date().setDate(
+                new Date().getDate() +
+                  eventTiming.dayOfWeek -
+                  new Date().getDay()
+              )
             )
-          )
-        : new Date(event.start!.dateTime!);
+          : new Date(event.start!.dateTime!);
 
-      // Skip weekends if not already handled in the timing
-      if (eventDate.getDay() === 0 || eventDate.getDay() === 6) {
-        return;
-      }
+        // Skip weekends if not already handled in the timing
+        if (eventDate.getDay() === 0 || eventDate.getDay() === 6) {
+          return;
+        }
 
-      const eventDateString = eventDate.toDateString();
-      if (!eventsByDay[eventDateString]) {
-        eventsByDay[eventDateString] = [];
-      }
-      eventsByDay[eventDateString].push(event);
-    });
+        const eventDateString = eventDate.toDateString();
+        if (!eventsByDay[eventDateString]) {
+          eventsByDay[eventDateString] = [];
+        }
+        eventsByDay[eventDateString].push(event);
+      });
 
     const costFactorsArray: CalendarCost.CostFactorsPerDay[] = Object.keys(
       eventsByDay

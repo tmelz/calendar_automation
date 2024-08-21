@@ -39,7 +39,7 @@ export namespace SimulatedAnnealing {
 
   export function runSim(
     inputs: Inputs,
-    maxSteps: number = 100,
+    maxSteps: number = 10000,
     initialTemp: number = 2.24,
     coolingRate: number = 0.99,
     randomSeed: number = 1234
@@ -56,29 +56,40 @@ export namespace SimulatedAnnealing {
       currentSolution,
       inputs.myWorkingHours
     );
+    const initialCost = currentCost;
+    Log.log("Initial cost: " + currentCost);
     let bestCost = currentCost;
 
     let temp = initialTemp;
 
     for (let step = 0; step < maxSteps; step++) {
-      Log.log("Running sim step " + step);
-      temp *= 1 - coolingRate;
+      temp *= coolingRate;
+      Log.log("Running sim step " + step + ", temperature: " + temp);
 
       inputs.moveableEvents;
 
       const newSolution = deepCloneEventTimingsMap(currentSolution);
       const randomEventIndex = Math.floor(
-        (Math.sin(randomSeed++) * 10000) % moveableEvents.length
+        Math.abs(Math.sin(randomSeed++) * 10000) % moveableEvents.length
       );
       const randomEvent = inputs.myEvents.get(moveableEvents[randomEventIndex]);
+      Log.log("Considering a move for event: " + randomEvent?.summary);
       const altnerativeStartForEvent = chooseAlternateStartTime(
         inputs,
         randomEvent!,
         randomSeed
       );
       if (altnerativeStartForEvent === undefined) {
+        Log.log("No alternative start time found, skipping");
         continue;
       }
+      Log.log(
+        "Alternative start time found: " +
+          SimulatedAnnealing.formatToPacificTime(
+            randomEvent!,
+            altnerativeStartForEvent
+          )
+      );
 
       newSolution.set(
         moveableEvents[randomEventIndex],
@@ -91,6 +102,12 @@ export namespace SimulatedAnnealing {
       );
 
       if (accept(newCost, currentCost, temp)) {
+        Log.log(
+          "accepting new solution, newCost: " +
+            newCost +
+            " currentCost: " +
+            currentCost
+        );
         currentSolution = newSolution;
         currentCost = newCost;
 
@@ -98,9 +115,18 @@ export namespace SimulatedAnnealing {
           bestSolution = currentSolution;
           bestCost = currentCost;
         }
+      } else {
+        Log.log(
+          "rejecting new solution, newCost: " +
+            newCost +
+            " currentCost: " +
+            currentCost
+        );
       }
     }
 
+    Log.log("Initial cost: " + initialCost);
+    Log.log("Best cost: " + bestCost);
     SimulatedAnnealing.describeSolution(inputs, bestSolution);
     return bestSolution;
   }
@@ -117,6 +143,10 @@ export namespace SimulatedAnnealing {
     const delta = newCost - currentCost;
     const acceptanceProbability = Math.exp(-delta / temp);
     const randomValue = Math.random();
+    // log delta, acceptanceProbability, randomValue
+    Log.log(
+      `delta: ${delta}, acceptanceProbability: ${acceptanceProbability}, randomValue: ${randomValue}`
+    );
 
     return randomValue < acceptanceProbability;
   }
@@ -221,6 +251,16 @@ export namespace SimulatedAnnealing {
                   );
                 }
               } else {
+                // TODO cleanup, ignore all day events that arent OOO events
+                if (
+                  otherEvent.start === undefined ||
+                  otherEvent.start?.dateTime === undefined ||
+                  otherEvent.end === undefined ||
+                  otherEvent.end?.dateTime === undefined
+                ) {
+                  return false;
+                }
+
                 const otherStart = new Date(
                   otherEvent.start!.dateTime!
                 ).getTime();
@@ -247,7 +287,7 @@ export namespace SimulatedAnnealing {
 
     if (newStartTimeOptions.length > 0) {
       const randomIndex = Math.floor(
-        (Math.sin(randomSeed++) * 10000) % newStartTimeOptions.length
+        Math.abs(Math.sin(randomSeed++) * 10000) % newStartTimeOptions.length
       );
       const newStartTime = newStartTimeOptions[randomIndex];
 
@@ -301,7 +341,10 @@ export namespace SimulatedAnnealing {
           GetEvents.getEventsForDateRangeCustomCalendar(
             sunday,
             followingSunday,
-            email!
+            email!,
+            undefined,
+            undefined,
+            true
           )
         );
         otherPeople.add(email);
@@ -322,13 +365,15 @@ export namespace SimulatedAnnealing {
 
     // Populate eventTimings
     myEvents.forEach((event) => {
-      const startTime = new Date(event.start!.dateTime!);
-      const endTime = new Date(event.end!.dateTime!);
-      const dayOfWeek = startTime.getDay();
-      const startTimeOfDay = startTime.getHours() * 60 + startTime.getMinutes(); // time in minutes from start of day
-      const endTimeOfDay = endTime.getHours() * 60 + endTime.getMinutes(); // time in minutes from start of day
-
       if (moveableEvents.has(event.id!)) {
+        const startTime = new Date(event.start!.dateTime!);
+        const endTime = new Date(event.end!.dateTime!);
+        const dayOfWeek = startTime.getDay();
+        const startTimeOfDay =
+          startTime.getHours() * 60 * 60 + startTime.getMinutes() * 60; // time in minutes from start of day
+        const endTimeOfDay =
+          endTime.getHours() * 60 * 60 + endTime.getMinutes() * 60; // time in minutes from start of day
+
         moveableEventTimings.set(event.id!, {
           dayOfWeek,
           startTimeOfDaySeconds: startTimeOfDay,
@@ -368,6 +413,52 @@ export namespace SimulatedAnnealing {
     return clonedMap;
   }
 
+  export function formatToPacificTime(
+    event: GoogleAppsScript.Calendar.Schema.Event,
+    newTiming: CalendarCost.EventTiming | undefined
+  ): string {
+    const pacificTimeFormatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Los_Angeles",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+
+    const originalStart = new Date(event.start!.dateTime!);
+    const originalEnd = new Date(event.end!.dateTime!);
+
+    if (newTiming === undefined) {
+      return (
+        pacificTimeFormatter.format(originalStart) +
+        " - " +
+        pacificTimeFormatter.format(originalEnd)
+      );
+    }
+
+    const solutionStartDate = new Date(originalStart);
+    solutionStartDate.setHours(0, 0, 0, 0); // Reset to midnight
+    solutionStartDate.setDate(
+      solutionStartDate.getDate() + newTiming.dayOfWeek - originalStart.getDay()
+    );
+    solutionStartDate.setSeconds(newTiming.startTimeOfDaySeconds);
+
+    const solutionEndDate = new Date(solutionStartDate);
+    solutionEndDate.setSeconds(
+      solutionStartDate.getSeconds() +
+        (newTiming.endTimeOfDaySeconds - newTiming.startTimeOfDaySeconds)
+    );
+
+    return (
+      pacificTimeFormatter.format(solutionStartDate) +
+      " - " +
+      pacificTimeFormatter.format(solutionEndDate)
+    );
+  }
+
   export function describeSolution(
     inputs: SimulatedAnnealing.Inputs,
     solution: Map<string, CalendarCost.EventTiming>
@@ -375,35 +466,20 @@ export namespace SimulatedAnnealing {
     inputs.moveableEvents.forEach((eventId) => {
       const event = inputs.myEvents.get(eventId);
       if (event) {
-        const originalStart = new Date(event.start!.dateTime!);
-        const originalEnd = new Date(event.end!.dateTime!);
-        const solutionTiming = solution.get(eventId);
-
         console.log(`Event: ${event.summary}`);
-        console.log(`  Original Start: ${originalStart.toISOString()}`);
-        console.log(`  Original End: ${originalEnd.toISOString()}`);
-
-        if (solutionTiming) {
-          const solutionStartDate = new Date(originalStart);
-          solutionStartDate.setHours(0, 0, 0, 0); // Reset to midnight
-          solutionStartDate.setDate(
-            solutionStartDate.getDate() +
-              solutionTiming.dayOfWeek -
-              originalStart.getDay()
-          );
-          solutionStartDate.setSeconds(solutionTiming.startTimeOfDaySeconds);
-
-          const solutionEndDate = new Date(solutionStartDate);
-          solutionEndDate.setSeconds(
-            solutionStartDate.getSeconds() +
-              (solutionTiming.endTimeOfDaySeconds -
-                solutionTiming.startTimeOfDaySeconds)
-          );
-
-          console.log(`  New Start: ${solutionStartDate.toISOString()}`);
-          console.log(`  New End: ${solutionEndDate.toISOString()}`);
+        const originalTiming = SimulatedAnnealing.formatToPacificTime(
+          event,
+          undefined
+        );
+        const newTiming = SimulatedAnnealing.formatToPacificTime(
+          event,
+          solution.get(eventId)
+        );
+        if (originalTiming === newTiming) {
+          console.log(`  Timing is unchanged.`);
         } else {
-          console.log(`  No change in timing for this event.`);
+          console.log(`  Original timing: ${originalTiming}`);
+          console.log(`  New timing: ${newTiming}`);
         }
       } else {
         console.log(`Event with ID ${eventId} not found in myEvents.`);

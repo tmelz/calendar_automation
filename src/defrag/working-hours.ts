@@ -11,7 +11,7 @@ export namespace WorkingHours {
 
   export function estimateWorkingHours(email: string): WorkingHours.TimeRange {
     const cache = CacheService.getUserCache();
-    const cacheKey = `workingHours_${email}`;
+    const cacheKey = `workingHours_${email}_v2`;
     const cachedValue = cache.get(cacheKey);
 
     if (cachedValue) {
@@ -31,6 +31,7 @@ export namespace WorkingHours {
       today,
       email,
       undefined,
+      // TODO
       2500,
       true
     );
@@ -45,6 +46,15 @@ export namespace WorkingHours {
           EventUtil.doAllAttendeesHaveSameBusinessEmailDomain(event.attendees))
       );
     });
+
+    if (relevantEvents.length === 0) {
+      Log.log(
+        `Error calculating working hours for  ${email}, probably they use a lot of private events or somethign?? TODO`
+      );
+      // date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds();
+      // TODO fix hack but assume 9-5 local
+      return { startTimeSeconds: 9 * 3600, endTimeSeconds: 17 * 3600 };
+    }
 
     const eventTuples = relevantEvents.map((event) => {
       const startTimeOfDay = getTimeOfDaySeconds(
