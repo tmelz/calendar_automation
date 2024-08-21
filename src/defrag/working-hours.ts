@@ -23,14 +23,15 @@ export namespace WorkingHours {
 
     const today = new Date();
     const lookBack = new Date(today);
-    lookBack.setMonth(lookBack.getMonth() - 3);
+    // TODO play around with this threshold
+    lookBack.setMonth(lookBack.getMonth() - 1);
 
     const events = GetEvents.getEventsForDateRangeCustomCalendar(
       lookBack,
       today,
       email,
       undefined,
-      undefined,
+      2500,
       true
     );
 

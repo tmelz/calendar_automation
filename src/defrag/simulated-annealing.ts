@@ -30,6 +30,7 @@ export namespace SimulatedAnnealing {
   };
 
   export function main(): void {
+    Log.log("Main");
     Log.log("Getting inputs, this will take a while");
     const inputs = getInputs();
     Log.log("Running sim, this will take a while");
@@ -268,6 +269,7 @@ export namespace SimulatedAnnealing {
     followingSunday.setDate(followingSunday.getDate() + 7);
     followingSunday.setHours(24, 0, 0, 0);
 
+    console.log("getting next weeks events");
     // Retrieve events and convert to a Map with event IDs as keys
     const myEventsList = GetEvents.getEventsForDateRange(
       sunday,
@@ -279,6 +281,7 @@ export namespace SimulatedAnnealing {
       myEvents.set(event.id!, event);
     });
 
+    console.log("getting my working hours");
     const myWorkingHours = WorkingHours.estimateWorkingHours("primary");
     const theirEvents = new Map<
       string,
@@ -292,6 +295,7 @@ export namespace SimulatedAnnealing {
       .map((event) => EventUtil.getEmailForOtherAttendee(event))
       .filter((email) => email !== undefined)
       .forEach((email) => {
+        console.log("getting their events next week");
         theirEvents.set(
           email!,
           GetEvents.getEventsForDateRangeCustomCalendar(
@@ -302,6 +306,7 @@ export namespace SimulatedAnnealing {
         );
         otherPeople.add(email);
 
+        console.log("getting their working hours");
         theirWorkingHours.set(
           email!,
           WorkingHours.estimateWorkingHours(email!)

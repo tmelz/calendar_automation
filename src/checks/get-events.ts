@@ -139,12 +139,9 @@ export namespace GetEvents {
       }
 
       Log.log(
-        `Got ${events.length} events (note this result will be capped at ${GetEvents.MAX_EVENTS_ALLOWED_TO_FETCH} for safety)`
+        `Got ${events.length} events (note this result will be capped at ${maxResults} for safety)`
       );
-      const cappedResults = events.slice(
-        0,
-        GetEvents.MAX_EVENTS_ALLOWED_TO_FETCH
-      );
+      const cappedResults = events.slice(0, maxResults);
       if (!suppressEventListLog) {
         for (const event of cappedResults) {
           Log.log(
