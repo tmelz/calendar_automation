@@ -5,12 +5,22 @@ import { EventUtil } from "../checks/event-util";
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace WorkingHours {
   export type TimeRange = {
-    startTime: number;
-    endTime: number;
+    startTimeSeconds: number;
+    endTimeSeconds: number;
   };
 
-  // TODO cache this per email
   export function estimateWorkingHours(email: string): WorkingHours.TimeRange {
+    const cache = CacheService.getUserCache();
+    const cacheKey = `workingHours_${email}`;
+    const cachedValue = cache.get(cacheKey);
+
+    if (cachedValue) {
+      Log.log(`Cache hit for ${email}`);
+      return JSON.parse(cachedValue) as WorkingHours.TimeRange;
+    }
+
+    Log.log(`Cache miss for ${email}, calculating working hours`);
+
     const today = new Date();
     const lookBack = new Date(today);
     lookBack.setMonth(lookBack.getMonth() - 3);
@@ -34,18 +44,15 @@ export namespace WorkingHours {
           EventUtil.doAllAttendeesHaveSameBusinessEmailDomain(event.attendees))
       );
     });
-    // relevantEvents.forEach((event) => {
-    //   console.log(`${event.summary}`);
-    // });
 
-    // Convert events to tuples of (event, startTimeOfDay, endTimeOfDay)
     const eventTuples = relevantEvents.map((event) => {
-      const startTimeOfDay = getTimeOfDay(new Date(event.start!.dateTime!));
-      const endTimeOfDay = getTimeOfDay(new Date(event.end!.dateTime!));
+      const startTimeOfDay = getTimeOfDaySeconds(
+        new Date(event.start!.dateTime!)
+      );
+      const endTimeOfDay = getTimeOfDaySeconds(new Date(event.end!.dateTime!));
       return { event, startTimeOfDay, endTimeOfDay };
     });
 
-    // Sort tuples by start time and end time
     const sortedByStartTime = eventTuples
       .slice()
       .sort((a, b) => a.startTimeOfDay - b.startTimeOfDay);
@@ -53,24 +60,27 @@ export namespace WorkingHours {
       .slice()
       .sort((a, b) => a.endTimeOfDay - b.endTimeOfDay);
 
-    // Calculate the 10th percentile for start time and 90th percentile for end time
     const p10Index = Math.floor(sortedByStartTime.length * 0.1);
     const p90Index = Math.floor(sortedByEndTime.length * 0.9);
 
-    // Get the 10th percentile start time and 90th percentile end time
     const p10StartTime = sortedByStartTime[p10Index].startTimeOfDay;
     const p90EndTime = sortedByEndTime[p90Index].endTimeOfDay;
 
     Log.log(`10th percentile start time: ${formatTime(p10StartTime)}`);
     Log.log(`90th percentile end time: ${formatTime(p90EndTime)}`);
 
-    return {
-      startTime: p10StartTime,
-      endTime: p90EndTime,
+    const timeRange: WorkingHours.TimeRange = {
+      startTimeSeconds: p10StartTime,
+      endTimeSeconds: p90EndTime,
     };
+
+    // Cache the result, with an expiration of 1 month (30 days)
+    cache.put(cacheKey, JSON.stringify(timeRange), 2592000); // 30 days in seconds
+
+    return timeRange;
   }
 
-  export function getTimeOfDay(date: Date): number {
+  export function getTimeOfDaySeconds(date: Date): number {
     return date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds();
   }
 

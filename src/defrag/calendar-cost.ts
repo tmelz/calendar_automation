@@ -2,6 +2,8 @@ import { WorkingHours } from "./working-hours";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace CalendarCost {
+  export const ROUGH_MAX_COST = 20;
+
   export type CostFactorsPerDay = {
     // total time spent in meetings, for eventType="default" and have other attendees
     meetingHours: number;
@@ -11,8 +13,15 @@ export namespace CalendarCost {
     focusTimeOneHourPlus: number;
   };
 
+  export type EventTiming = {
+    dayOfWeek: number;
+    startTimeOfDaySeconds: number;
+    endTimeOfDaySeconds: number;
+  };
+
   export function calculateCost(
     events: GoogleAppsScript.Calendar.Schema.Event[],
+    modifiedEventTimings: Map<string, EventTiming>,
     workingHours: WorkingHours.TimeRange
   ): number {
     const eventsByDay: {
@@ -20,24 +29,36 @@ export namespace CalendarCost {
     } = {};
 
     events.forEach((event) => {
-      const date = new Date(event.start!.dateTime!);
-      // Skip weekends
-      if (date.getDay() === 0 || date.getDay() === 6) {
+      const eventTiming = modifiedEventTimings.get(event.id!);
+      const eventDate = eventTiming
+        ? new Date(
+            new Date().setDate(
+              new Date().getDate() + eventTiming.dayOfWeek - new Date().getDay()
+            )
+          )
+        : new Date(event.start!.dateTime!);
+
+      // Skip weekends if not already handled in the timing
+      if (eventDate.getDay() === 0 || eventDate.getDay() === 6) {
         return;
       }
 
-      const eventDate = date.toDateString();
-      if (!eventsByDay[eventDate]) {
-        eventsByDay[eventDate] = [];
+      const eventDateString = eventDate.toDateString();
+      if (!eventsByDay[eventDateString]) {
+        eventsByDay[eventDateString] = [];
       }
-      eventsByDay[eventDate].push(event);
+      eventsByDay[eventDateString].push(event);
     });
 
     const costFactorsArray: CalendarCost.CostFactorsPerDay[] = Object.keys(
       eventsByDay
     ).map((date) => {
       const dayEvents = eventsByDay[date];
-      return CalendarCost.calculateCostFactorsPerDay(dayEvents, workingHours);
+      return CalendarCost.calculateCostFactorsPerDay(
+        dayEvents,
+        modifiedEventTimings,
+        workingHours
+      );
     });
 
     let cost = 0;
@@ -69,15 +90,14 @@ export namespace CalendarCost {
       cost += (meetingHours[4] - meetingHours[1]) * 4;
     }
 
-    return cost;
+    return cost / CalendarCost.ROUGH_MAX_COST;
   }
 
-  // todo also take in modifiable events
   export function calculateCostFactorsPerDay(
     events: GoogleAppsScript.Calendar.Schema.Event[],
+    modifiedEventTimings: Map<string, EventTiming>,
     workingHours: WorkingHours.TimeRange
   ): CostFactorsPerDay {
-    // TODO incorporate weekends somehow
     const meetingEvents = events.filter(
       (event) =>
         event.eventType === "default" &&
@@ -95,22 +115,46 @@ export namespace CalendarCost {
     let focusTimeOneHourPlus = 0;
 
     // Convert working hours to seconds for easier calculations
-    const workDayStart = workingHours.startTime;
-    const workDayEnd = workingHours.endTime;
+    const workDayStart = workingHours.startTimeSeconds;
+    const workDayEnd = workingHours.endTimeSeconds;
 
-    // Sort meetings by start time
+    // Sort meetings by start time, using modified timings if available
     const sortedMeetings = meetingEvents
-      .map((event) => ({
-        startTime: WorkingHours.getTimeOfDay(new Date(event.start!.dateTime!)),
-        endTime: WorkingHours.getTimeOfDay(new Date(event.end!.dateTime!)),
-      }))
+      .map((event) => {
+        const timing = modifiedEventTimings.get(event.id!);
+        return timing
+          ? {
+              startTime: timing.startTimeOfDaySeconds,
+              endTime: timing.endTimeOfDaySeconds,
+            }
+          : {
+              startTime: WorkingHours.getTimeOfDaySeconds(
+                new Date(event.start!.dateTime!)
+              ),
+              endTime: WorkingHours.getTimeOfDaySeconds(
+                new Date(event.end!.dateTime!)
+              ),
+            };
+      })
       .sort((a, b) => a.startTime - b.startTime);
 
-    // Map lunch events to time ranges
-    const lunchTimeRanges = lunchEvents.map((event) => ({
-      startTime: WorkingHours.getTimeOfDay(new Date(event.start!.dateTime!)),
-      endTime: WorkingHours.getTimeOfDay(new Date(event.end!.dateTime!)),
-    }));
+    // Map lunch events to time ranges using modified timings if available
+    const lunchTimeRanges = lunchEvents.map((event) => {
+      const timing = modifiedEventTimings.get(event.id!);
+      return timing
+        ? {
+            startTime: timing.startTimeOfDaySeconds,
+            endTime: timing.endTimeOfDaySeconds,
+          }
+        : {
+            startTime: WorkingHours.getTimeOfDaySeconds(
+              new Date(event.start!.dateTime!)
+            ),
+            endTime: WorkingHours.getTimeOfDaySeconds(
+              new Date(event.end!.dateTime!)
+            ),
+          };
+    });
 
     let previousEndTime = workDayStart;
     let currentMeetingStretch = 0;

@@ -3,6 +3,7 @@ import { GetEvents } from "../checks/get-events";
 import { Time } from "../checks/time";
 import { WorkingHours } from "./working-hours";
 import { CalendarCost } from "./calendar-cost";
+import { Log } from "../checks/log";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace SimulatedAnnealing {
@@ -16,29 +17,41 @@ export namespace SimulatedAnnealing {
   //    accept neighbor as current
 
   export type Inputs = {
-    myEvents: GoogleAppsScript.Calendar.Schema.Event[];
+    // id ==> event
+    myEvents: Map<string, GoogleAppsScript.Calendar.Schema.Event>;
+    myEventsList: GoogleAppsScript.Calendar.Schema.Event[];
     myWorkingHours: WorkingHours.TimeRange;
     theirEvents: Map<string, GoogleAppsScript.Calendar.Schema.Event[]>;
     theirWorkingHours: Map<string, WorkingHours.TimeRange>;
     moveableEvents: Set<string>;
+    // id ==> timing
+    moveableEventTimings: Map<string, CalendarCost.EventTiming>;
     // TODO understand the recurrence schedule of an event
   };
 
+  export function main(): void {
+    Log.log("Getting inputs, this will take a while");
+    const inputs = getInputs();
+    Log.log("Running sim, this will take a while");
+    runSim(inputs);
+  }
+
   export function runSim(
     inputs: Inputs,
-    maxSteps: number,
-    initialTemp: number,
-    coolingRate: number,
-    randomSeed: number
-  ): GoogleAppsScript.Calendar.Schema.Event[] {
+    maxSteps: number = 100,
+    initialTemp: number = 2.24,
+    coolingRate: number = 0.99,
+    randomSeed: number = 1234
+  ): Map<string, CalendarCost.EventTiming> {
     // TODO fix this with respect to cloning / etc
     // Make solution instead {cal event id : {start, end}}
     // then easier to do this whole thing
     const moveableEvents = Array.from(inputs.moveableEvents);
-    const currentSolution = inputs.myEvents.slice();
-    let bestSolution = inputs.myEvents.slice();
+    let currentSolution = inputs.moveableEventTimings;
+    let bestSolution = currentSolution;
 
     let currentCost = CalendarCost.calculateCost(
+      inputs.myEventsList,
       currentSolution,
       inputs.myWorkingHours
     );
@@ -47,36 +60,47 @@ export namespace SimulatedAnnealing {
     let temp = initialTemp;
 
     for (let step = 0; step < maxSteps; step++) {
+      Log.log("Running sim step " + step);
       temp *= 1 - coolingRate;
 
       inputs.moveableEvents;
 
-      const newSolution = currentSolution.slice();
+      const newSolution = deepCloneEventTimingsMap(currentSolution);
       const randomEventIndex = Math.floor(
         (Math.sin(randomSeed++) * 10000) % moveableEvents.length
       );
-      const randomEvent = inputs.myEvents.find(
-        (event) => event.id === moveableEvents[randomEventIndex]
+      const randomEvent = inputs.myEvents.get(moveableEvents[randomEventIndex]);
+      const altnerativeStartForEvent = chooseAlternateStartTime(
+        inputs,
+        randomEvent!,
+        randomSeed
+      );
+      if (altnerativeStartForEvent === undefined) {
+        continue;
+      }
+
+      newSolution.set(
+        moveableEvents[randomEventIndex],
+        altnerativeStartForEvent
+      );
+      const newCost = CalendarCost.calculateCost(
+        inputs.myEventsList,
+        newSolution,
+        inputs.myWorkingHours
       );
 
-      if (chooseAlternateStartTime(inputs, randomEvent!, randomSeed)) {
-        const newCost = CalendarCost.calculateCost(
-          newSolution,
-          inputs.myWorkingHours
-        );
+      if (accept(newCost, currentCost, temp)) {
+        currentSolution = newSolution;
+        currentCost = newCost;
 
-        if (accept(newCost, currentCost, temp)) {
-          currentSolution[randomEventIndex] = randomEvent;
-          currentCost = newCost;
-
-          if (currentCost < bestCost) {
-            bestSolution = currentSolution.slice();
-            bestCost = currentCost;
-          }
+        if (currentCost < bestCost) {
+          bestSolution = currentSolution;
+          bestCost = currentCost;
         }
       }
     }
 
+    SimulatedAnnealing.describeSolution(inputs, bestSolution);
     return bestSolution;
   }
 
@@ -100,16 +124,16 @@ export namespace SimulatedAnnealing {
     inputs: Inputs,
     event: GoogleAppsScript.Calendar.Schema.Event,
     randomSeed: number
-  ): boolean {
+  ): CalendarCost.EventTiming | undefined {
     const theirEmail = EventUtil.getEmailForOtherAttendee(event);
     if (theirEmail === undefined) {
-      return false;
+      return undefined;
     }
 
     const myWorkingHours = inputs.myWorkingHours;
     const theirWorkingHours = inputs.theirWorkingHours.get(theirEmail);
     if (!theirWorkingHours) {
-      return false;
+      return undefined;
     }
 
     const eventDuration =
@@ -130,10 +154,20 @@ export namespace SimulatedAnnealing {
       }
 
       const dayStart = new Date(newDate);
-      dayStart.setHours(Math.floor(myWorkingHours.startTime / 3600), 0, 0, 0);
+      dayStart.setHours(
+        Math.floor(myWorkingHours.startTimeSeconds / 3600),
+        0,
+        0,
+        0
+      );
 
       const dayEnd = new Date(newDate);
-      dayEnd.setHours(Math.floor(myWorkingHours.endTime / 3600), 0, 0, 0);
+      dayEnd.setHours(
+        Math.floor(myWorkingHours.endTimeSeconds / 3600),
+        0,
+        0,
+        0
+      );
 
       for (
         let currentStartTime = dayStart.getTime();
@@ -147,14 +181,16 @@ export namespace SimulatedAnnealing {
         );
         const proposedEnd = new Date(proposedStart.getTime() + eventDuration);
 
-        const proposedStartSeconds = WorkingHours.getTimeOfDay(proposedStart);
-        const proposedEndSeconds = WorkingHours.getTimeOfDay(proposedEnd);
+        const proposedStartSeconds =
+          WorkingHours.getTimeOfDaySeconds(proposedStart);
+        const proposedEndSeconds =
+          WorkingHours.getTimeOfDaySeconds(proposedEnd);
 
         if (
-          proposedStartSeconds >= myWorkingHours.startTime &&
-          proposedEndSeconds <= myWorkingHours.endTime &&
-          proposedStartSeconds >= theirWorkingHours.startTime &&
-          proposedEndSeconds <= theirWorkingHours.endTime
+          proposedStartSeconds >= myWorkingHours.startTimeSeconds &&
+          proposedEndSeconds <= myWorkingHours.endTimeSeconds &&
+          proposedStartSeconds >= theirWorkingHours.startTimeSeconds &&
+          proposedEndSeconds <= theirWorkingHours.endTimeSeconds
         ) {
           const hasConflict = (
             events: GoogleAppsScript.Calendar.Schema.Event[]
@@ -199,7 +235,7 @@ export namespace SimulatedAnnealing {
             });
 
           if (
-            !hasConflict(inputs.myEvents) &&
+            !hasConflict(inputs.myEventsList) &&
             !hasConflict(inputs.theirEvents.get(theirEmail)!)
           ) {
             newStartTimeOptions.push(proposedStart);
@@ -214,15 +250,15 @@ export namespace SimulatedAnnealing {
       );
       const newStartTime = newStartTimeOptions[randomIndex];
 
-      event.start!.dateTime = newStartTime.toISOString();
-      event.end!.dateTime = new Date(
-        newStartTime.getTime() + eventDuration
-      ).toISOString();
-
-      return true;
+      return {
+        dayOfWeek: newStartTime.getDay(),
+        startTimeOfDaySeconds: WorkingHours.getTimeOfDaySeconds(newStartTime),
+        endTimeOfDaySeconds:
+          WorkingHours.getTimeOfDaySeconds(newStartTime) + eventDuration / 1000, // convert milliseconds to seconds
+      };
     }
 
-    return false;
+    return undefined;
   }
 
   export function getInputs(): SimulatedAnnealing.Inputs {
@@ -232,7 +268,17 @@ export namespace SimulatedAnnealing {
     followingSunday.setDate(followingSunday.getDate() + 7);
     followingSunday.setHours(24, 0, 0, 0);
 
-    const myEvents = GetEvents.getEventsForDateRange(sunday, followingSunday);
+    // Retrieve events and convert to a Map with event IDs as keys
+    const myEventsList = GetEvents.getEventsForDateRange(
+      sunday,
+      followingSunday
+    );
+    const myEvents = new Map<string, GoogleAppsScript.Calendar.Schema.Event>();
+
+    myEventsList.forEach((event) => {
+      myEvents.set(event.id!, event);
+    });
+
     const myWorkingHours = WorkingHours.estimateWorkingHours("primary");
     const theirEvents = new Map<
       string,
@@ -241,7 +287,7 @@ export namespace SimulatedAnnealing {
     const theirWorkingHours = new Map<string, WorkingHours.TimeRange>();
 
     const otherPeople = new Set<string>();
-    myEvents
+    myEventsList
       .filter((event) => EventUtil.isOneOnOneWithMe(event))
       .map((event) => EventUtil.getEmailForOtherAttendee(event))
       .filter((email) => email !== undefined)
@@ -262,16 +308,101 @@ export namespace SimulatedAnnealing {
         );
       });
 
+    const moveableEvents = new Set(
+      Array.from(myEvents.values())
+        .filter((event) => EventUtil.isOneOnOneWithMe(event))
+        .map((event) => event.id!)
+    );
+    const moveableEventTimings = new Map<string, CalendarCost.EventTiming>();
+
+    // Populate eventTimings
+    myEvents.forEach((event) => {
+      const startTime = new Date(event.start!.dateTime!);
+      const endTime = new Date(event.end!.dateTime!);
+      const dayOfWeek = startTime.getDay();
+      const startTimeOfDay = startTime.getHours() * 60 + startTime.getMinutes(); // time in minutes from start of day
+      const endTimeOfDay = endTime.getHours() * 60 + endTime.getMinutes(); // time in minutes from start of day
+
+      if (moveableEvents.has(event.id!)) {
+        moveableEventTimings.set(event.id!, {
+          dayOfWeek,
+          startTimeOfDaySeconds: startTimeOfDay,
+          endTimeOfDaySeconds: endTimeOfDay,
+        });
+      }
+    });
+
     return {
       myEvents,
+      myEventsList,
       myWorkingHours,
       theirEvents,
       theirWorkingHours,
-      moveableEvents: new Set(
-        myEvents
-          .filter((event) => EventUtil.isOneOnOneWithMe(event))
-          .map((event) => event.id!)
-      ),
+      moveableEvents,
+      moveableEventTimings,
     };
+  }
+
+  export function deepCloneEventTimingsMap(
+    originalMap: Map<string, CalendarCost.EventTiming>
+  ): Map<string, CalendarCost.EventTiming> {
+    const clonedMap = new Map<string, CalendarCost.EventTiming>();
+
+    originalMap.forEach((value, key) => {
+      // Create a deep clone of the EventTiming object
+      const clonedValue: CalendarCost.EventTiming = {
+        dayOfWeek: value.dayOfWeek,
+        startTimeOfDaySeconds: value.startTimeOfDaySeconds,
+        endTimeOfDaySeconds: value.endTimeOfDaySeconds,
+      };
+
+      // Add the cloned key-value pair to the new Map
+      clonedMap.set(key, clonedValue);
+    });
+
+    return clonedMap;
+  }
+
+  export function describeSolution(
+    inputs: SimulatedAnnealing.Inputs,
+    solution: Map<string, CalendarCost.EventTiming>
+  ): void {
+    inputs.moveableEvents.forEach((eventId) => {
+      const event = inputs.myEvents.get(eventId);
+      if (event) {
+        const originalStart = new Date(event.start!.dateTime!);
+        const originalEnd = new Date(event.end!.dateTime!);
+        const solutionTiming = solution.get(eventId);
+
+        console.log(`Event: ${event.summary}`);
+        console.log(`  Original Start: ${originalStart.toISOString()}`);
+        console.log(`  Original End: ${originalEnd.toISOString()}`);
+
+        if (solutionTiming) {
+          const solutionStartDate = new Date(originalStart);
+          solutionStartDate.setHours(0, 0, 0, 0); // Reset to midnight
+          solutionStartDate.setDate(
+            solutionStartDate.getDate() +
+              solutionTiming.dayOfWeek -
+              originalStart.getDay()
+          );
+          solutionStartDate.setSeconds(solutionTiming.startTimeOfDaySeconds);
+
+          const solutionEndDate = new Date(solutionStartDate);
+          solutionEndDate.setSeconds(
+            solutionStartDate.getSeconds() +
+              (solutionTiming.endTimeOfDaySeconds -
+                solutionTiming.startTimeOfDaySeconds)
+          );
+
+          console.log(`  New Start: ${solutionStartDate.toISOString()}`);
+          console.log(`  New End: ${solutionEndDate.toISOString()}`);
+        } else {
+          console.log(`  No change in timing for this event.`);
+        }
+      } else {
+        console.log(`Event with ID ${eventId} not found in myEvents.`);
+      }
+    });
   }
 }
