@@ -39,7 +39,7 @@ export namespace SimulatedAnnealing {
 
   export function runSim(
     inputs: Inputs,
-    maxSteps: number = 10000,
+    maxSteps: number = 1000,
     initialTemp: number = 2.24,
     coolingRate: number = 0.99,
     randomSeed: number = 1234
