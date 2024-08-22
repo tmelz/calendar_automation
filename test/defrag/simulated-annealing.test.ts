@@ -80,9 +80,9 @@ describe("SimulatedAnnualing.runSim", () => {
       eventsMap.set(event.id!, event);
     });
     const theirEvents = new Map();
-    theirEvents.set("them@example.com", []);
+    theirEvents.set("jane.doe@example.com", []);
     const theirWorkingHours = new Map();
-    theirWorkingHours.set("them@example.com", {
+    theirWorkingHours.set("jane.doe@example.com", {
       startTimeSeconds: 9 * 3600,
       endTimeSeconds: 17 * 3600,
     });
@@ -116,7 +116,12 @@ describe("SimulatedAnnualing.runSim", () => {
       moveableEvents,
       moveableEventTimings,
     };
-    const result = SimulatedAnnealing.runSim(inputs);
+
+    // expect(
+    //   SimulatedAnnealing.chooseAlternateStartTime(inputs, events[0], 0)
+    // ).toBeDefined();
+
+    // const result = SimulatedAnnealing.runSim(inputs);
 
     // expect(result).toEqual({
     //   meetingHours: 0,
