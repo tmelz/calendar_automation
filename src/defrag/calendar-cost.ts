@@ -130,11 +130,9 @@ export namespace CalendarCost {
     let longestMeetingStretch = 0;
     let focusTimeOneHourPlus = 0;
 
-    // Convert working hours to seconds for easier calculations
     const workDayStart = workingHours.startTimeSeconds;
     const workDayEnd = workingHours.endTimeSeconds;
 
-    // Sort meetings by start time, using modified timings if available
     const sortedMeetings = meetingEvents
       .map((event) => {
         const timing = modifiedEventTimings.get(event.id!);
@@ -154,7 +152,6 @@ export namespace CalendarCost {
       })
       .sort((a, b) => a.startTime - b.startTime);
 
-    // Map lunch events to time ranges using modified timings if available
     const lunchTimeRanges = lunchEvents.map((event) => {
       const timing = modifiedEventTimings.get(event.id!);
       return timing
@@ -175,64 +172,60 @@ export namespace CalendarCost {
     let previousEndTime = workDayStart;
     let currentMeetingStretch = 0;
 
-    sortedMeetings.forEach((meeting, index) => {
+    sortedMeetings.forEach((meeting) => {
       const meetingDuration = meeting.endTime - meeting.startTime;
-
-      // Total meeting time
       totalMeetingTime += meetingDuration;
 
-      // Check if this meeting is part of a continuous stretch
-      if (meeting.startTime <= previousEndTime + 900) {
-        // 900 seconds = 15 minutes, consider meetings within 15 minutes as continuous
-        currentMeetingStretch += meetingDuration;
-      } else {
-        // If not continuous, finalize the previous stretch
+      const gapTime = meeting.startTime - previousEndTime;
+
+      // Adjust gap time for any lunch break within the gap
+      let adjustedGapTime = gapTime;
+      lunchTimeRanges.forEach((lunch) => {
+        if (
+          lunch.startTime >= previousEndTime &&
+          lunch.endTime <= meeting.startTime
+        ) {
+          adjustedGapTime -= lunch.endTime - lunch.startTime;
+        }
+      });
+
+      // If the adjusted gap is greater than or equal to 1 hour, add it to focus time
+      if (adjustedGapTime >= 3600) {
+        focusTimeOneHourPlus += adjustedGapTime;
+      }
+
+      // Update the longest meeting stretch
+      if (gapTime > 900) {
+        // 15 minutes
         longestMeetingStretch = Math.max(
           longestMeetingStretch,
           currentMeetingStretch
         );
         currentMeetingStretch = meetingDuration;
+      } else {
+        currentMeetingStretch += meetingDuration;
       }
 
-      // Update previous end time
       previousEndTime = meeting.endTime;
+    });
 
-      // Calculate focus time between meetings if at least 1 hour gap and not lunch
-      if (index > 0) {
-        const previousMeetingEndTime = sortedMeetings[index - 1].endTime;
-        const gapTime = meeting.startTime - previousMeetingEndTime;
-
-        const isLunchGap = lunchTimeRanges.some(
-          (lunch) =>
-            lunch.startTime >= previousMeetingEndTime &&
-            lunch.endTime <= meeting.startTime
-        );
-
-        if (gapTime >= 3600 && !isLunchGap) {
-          focusTimeOneHourPlus += gapTime;
-        }
+    // Handle the final gap after the last meeting until the end of the workday
+    let finalGapTime = workDayEnd - previousEndTime;
+    lunchTimeRanges.forEach((lunch) => {
+      if (lunch.startTime >= previousEndTime && lunch.endTime <= workDayEnd) {
+        finalGapTime -= lunch.endTime - lunch.startTime;
       }
     });
 
-    // Final check for the last meeting stretch
+    if (finalGapTime >= 3600) {
+      focusTimeOneHourPlus += finalGapTime;
+    }
+
+    // Finalize the longest meeting stretch
     longestMeetingStretch = Math.max(
       longestMeetingStretch,
       currentMeetingStretch
     );
-
-    // Check for focus time after the last meeting until the end of the workday, excluding lunch
-    const isLunchGapAfterLastMeeting = lunchTimeRanges.some(
-      (lunch) =>
-        lunch.startTime >= previousEndTime && lunch.endTime <= workDayEnd
-    );
-
-    if (
-      previousEndTime < workDayEnd &&
-      workDayEnd - previousEndTime >= 3600 &&
-      !isLunchGapAfterLastMeeting
-    ) {
-      focusTimeOneHourPlus += workDayEnd - previousEndTime;
-    }
 
     return {
       meetingHours: totalMeetingTime / 3600, // convert to hours

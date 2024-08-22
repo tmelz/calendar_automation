@@ -876,3 +876,43 @@ export const interviewEvent: GoogleAppsScript.Calendar.Schema.Event = {
   iCalUID: "23tpogmf1r7657hah3vai49s68@google.com",
   created: "2024-08-01T19:21:06.000Z",
 };
+
+export const lunchEvent: GoogleAppsScript.Calendar.Schema.Event = {
+  etag: '"3441280036154000"',
+  updated: "2024-07-10T19:33:38.077Z",
+  created: "2022-10-31T21:26:24.000Z",
+  creator: {
+    displayName: "me",
+    self: true,
+    email: "me@example.com",
+  },
+  kind: "calendar#event",
+  htmlLink:
+    "https://www.google.com/calendar/event?eid=YjNjOWp2aWlkOTIzdm9iczhkazl2ZW1lYWtfMjAyNDA4MjJUMTkwMDAwWiB0bWVsbG9yQGJsb2NrLnh5eg",
+  start: {
+    timeZone: "America/Los_Angeles",
+    dateTime: "2024-08-22T12:00:00-07:00",
+  },
+  organizer: {
+    email: "me@example.com",
+    displayName: "me",
+    self: true,
+  },
+  summary: "🌮 Lunch",
+  recurringEventId: "b3c9jviid923vobs8dk9vemeak",
+  iCalUID: "b3c9jviid923vobs8dk9vemeak@google.com",
+  reminders: { useDefault: true },
+  sequence: 1,
+  eventType: "default",
+  originalStartTime: {
+    dateTime: "2024-08-22T12:00:00-07:00",
+    timeZone: "America/Los_Angeles",
+  },
+  status: "confirmed",
+  end: {
+    dateTime: "2024-08-22T13:00:00-07:00",
+    timeZone: "America/Los_Angeles",
+  },
+  id: "b3c9jviid923vobs8dk9vemeak_20240822T190000Z",
+  colorId: "8",
+};

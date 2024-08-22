@@ -44,9 +44,6 @@ export namespace SimulatedAnnealing {
     coolingRate: number = 0.99,
     randomSeed: number = 1234
   ): Map<string, CalendarCost.EventTiming> {
-    // TODO fix this with respect to cloning / etc
-    // Make solution instead {cal event id : {start, end}}
-    // then easier to do this whole thing
     const moveableEvents = Array.from(inputs.moveableEvents);
     let currentSolution = inputs.moveableEventTimings;
     let bestSolution = currentSolution;
