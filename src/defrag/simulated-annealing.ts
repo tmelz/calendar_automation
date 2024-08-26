@@ -39,7 +39,7 @@ export namespace SimulatedAnnealing {
 
   export function runSim(
     inputs: Inputs,
-    maxSteps: number = 20000,
+    maxSteps: number = 5000,
     initialTemp: number = 2.24,
     coolingRate: number = 0.99,
     randomSeed: number = 1234
@@ -73,6 +73,7 @@ export namespace SimulatedAnnealing {
       Log.log("Considering a move for event: " + randomEvent?.summary);
       const altnerativeStartForEvent = chooseAlternateStartTime(
         inputs,
+        newSolution,
         randomEvent!,
         randomSeed
       );
@@ -148,20 +149,20 @@ export namespace SimulatedAnnealing {
     return randomValue < acceptanceProbability;
   }
 
-  export function chooseAlternateStartTime(
+  export function getAlternateStartTimeOptions(
     inputs: Inputs,
-    event: GoogleAppsScript.Calendar.Schema.Event,
-    randomSeed: number
-  ): CalendarCost.EventTiming | undefined {
+    currentSolution: Map<string, CalendarCost.EventTiming>,
+    event: GoogleAppsScript.Calendar.Schema.Event
+  ): Date[] {
     const theirEmail = EventUtil.getEmailForOtherAttendee(event);
     if (theirEmail === undefined) {
-      return undefined;
+      return [];
     }
 
     const myWorkingHours = inputs.myWorkingHours;
     const theirWorkingHours = inputs.theirWorkingHours.get(theirEmail);
     if (!theirWorkingHours) {
-      return undefined;
+      return [];
     }
 
     const eventDuration =
@@ -209,6 +210,10 @@ export namespace SimulatedAnnealing {
         );
         const proposedEnd = new Date(proposedStart.getTime() + eventDuration);
 
+        if (proposedStart.getTime() === originalStartDate.getTime()) {
+          continue;
+        }
+
         const proposedStartSeconds =
           WorkingHours.getTimeOfDaySeconds(proposedStart);
         const proposedEndSeconds =
@@ -221,12 +226,42 @@ export namespace SimulatedAnnealing {
           proposedEndSeconds <= theirWorkingHours.endTimeSeconds
         ) {
           const hasConflict = (
-            events: GoogleAppsScript.Calendar.Schema.Event[]
+            events: GoogleAppsScript.Calendar.Schema.Event[],
+            solution: Map<string, CalendarCost.EventTiming>
           ) =>
             events.some((otherEvent) => {
               if (otherEvent.id === event.id) {
                 return false;
               }
+
+              const eventTiming = solution.get(otherEvent.id!);
+              const otherStart = eventTiming
+                ? (() => {
+                    // Create a new date based on the event's day of the week
+                    const startDate = new Date(newDate);
+                    const dayDifference =
+                      eventTiming.dayOfWeek - startDate.getDay();
+                    startDate.setDate(startDate.getDate() + dayDifference);
+                    // necessary, weird Date behavior o/w
+                    startDate.setHours(0, 0, 0, 0);
+                    startDate.setSeconds(eventTiming.startTimeOfDaySeconds);
+                    return startDate.getTime();
+                  })()
+                : new Date(otherEvent.start!.dateTime!).getTime();
+
+              const otherEnd = eventTiming
+                ? (() => {
+                    // Create a new date based on the event's day of the week
+                    const endDate = new Date(newDate);
+                    const dayDifference =
+                      eventTiming.dayOfWeek - endDate.getDay();
+                    endDate.setDate(endDate.getDate() + dayDifference);
+                    // necessary, weird Date behavior o/w
+                    endDate.setHours(0, 0, 0, 0);
+                    endDate.setSeconds(eventTiming.endTimeOfDaySeconds);
+                    return endDate.getTime();
+                  })()
+                : new Date(otherEvent.end!.dateTime!).getTime();
 
               // Check for all-day OOO events only
               if (otherEvent.start?.date && otherEvent.end?.date) {
@@ -235,46 +270,27 @@ export namespace SimulatedAnnealing {
                   otherEvent.summary === "OOO- Automated by Workday";
 
                 if (isOOOEvent) {
-                  const otherStart = new Date(
-                    otherEvent.start!.date!
-                  ).getTime();
-                  const otherEnd =
+                  const oooStart = new Date(otherEvent.start!.date!).getTime();
+                  const oooEnd =
                     new Date(otherEvent.end!.date!).getTime() +
                     24 * 60 * 60 * 1000; // All-day event lasts the entire day
 
                   return (
-                    proposedStart.getTime() < otherEnd &&
-                    proposedEnd.getTime() > otherStart
+                    proposedStart.getTime() < oooEnd &&
+                    proposedEnd.getTime() > oooStart
                   );
                 }
-              } else {
-                // TODO cleanup, ignore all day events that arent OOO events
-                if (
-                  otherEvent.start === undefined ||
-                  otherEvent.start?.dateTime === undefined ||
-                  otherEvent.end === undefined ||
-                  otherEvent.end?.dateTime === undefined
-                ) {
-                  return false;
-                }
-
-                const otherStart = new Date(
-                  otherEvent.start!.dateTime!
-                ).getTime();
-                const otherEnd = new Date(otherEvent.end!.dateTime!).getTime();
-
-                return (
-                  proposedStart.getTime() < otherEnd &&
-                  proposedEnd.getTime() > otherStart
-                );
               }
 
-              return false;
+              return (
+                proposedStart.getTime() < otherEnd &&
+                proposedEnd.getTime() > otherStart
+              );
             });
 
           if (
-            !hasConflict(inputs.myEventsList) &&
-            !hasConflict(inputs.theirEvents.get(theirEmail)!)
+            !hasConflict(inputs.myEventsList, currentSolution) &&
+            !hasConflict(inputs.theirEvents.get(theirEmail)!, currentSolution)
           ) {
             newStartTimeOptions.push(proposedStart);
           }
@@ -282,11 +298,29 @@ export namespace SimulatedAnnealing {
       }
     }
 
+    return newStartTimeOptions;
+  }
+
+  export function chooseAlternateStartTime(
+    inputs: Inputs,
+    currentSolution: Map<string, CalendarCost.EventTiming>,
+    event: GoogleAppsScript.Calendar.Schema.Event,
+    randomSeed: number
+  ): CalendarCost.EventTiming | undefined {
+    const newStartTimeOptions = getAlternateStartTimeOptions(
+      inputs,
+      currentSolution,
+      event
+    );
+
     if (newStartTimeOptions.length > 0) {
       const randomIndex = Math.floor(
         Math.abs(Math.sin(randomSeed++) * 10000) % newStartTimeOptions.length
       );
       const newStartTime = newStartTimeOptions[randomIndex];
+      const eventDuration =
+        new Date(event.end!.dateTime!).getTime() -
+        new Date(event.start!.dateTime!).getTime();
 
       return {
         dayOfWeek: newStartTime.getDay(),
@@ -306,7 +340,7 @@ export namespace SimulatedAnnealing {
     followingSunday.setDate(followingSunday.getDate() + 7);
     followingSunday.setHours(24, 0, 0, 0);
 
-    console.log("getting next weeks events");
+    Log.log("getting next weeks events");
     // Retrieve events and convert to a Map with event IDs as keys
     const myEventsList = GetEvents.getEventsForDateRange(
       sunday,
@@ -318,7 +352,7 @@ export namespace SimulatedAnnealing {
       myEvents.set(event.id!, event);
     });
 
-    console.log("getting my working hours");
+    Log.log("getting my working hours");
     const myWorkingHours = WorkingHours.estimateWorkingHours("primary");
     const theirEvents = new Map<
       string,
@@ -332,7 +366,7 @@ export namespace SimulatedAnnealing {
       .map((event) => EventUtil.getEmailForOtherAttendee(event))
       .filter((email) => email !== undefined)
       .forEach((email) => {
-        console.log("getting their events next week");
+        Log.log("getting their events next week");
         theirEvents.set(
           email!,
           GetEvents.getEventsForDateRangeCustomCalendar(
@@ -346,7 +380,7 @@ export namespace SimulatedAnnealing {
         );
         otherPeople.add(email);
 
-        console.log("getting their working hours");
+        Log.log("getting their working hours");
         theirWorkingHours.set(
           email!,
           WorkingHours.estimateWorkingHours(email!)
@@ -463,7 +497,7 @@ export namespace SimulatedAnnealing {
     inputs.moveableEvents.forEach((eventId) => {
       const event = inputs.myEvents.get(eventId);
       if (event) {
-        console.log(`Event: ${event.summary}`);
+        Log.log(`Event: ${event.summary}`);
         const originalTiming = SimulatedAnnealing.formatToPacificTime(
           event,
           undefined
@@ -473,13 +507,13 @@ export namespace SimulatedAnnealing {
           solution.get(eventId)
         );
         if (originalTiming === newTiming) {
-          console.log(`  Timing is unchanged.`);
+          Log.log(`  Timing is unchanged.`);
         } else {
-          console.log(`  Original timing: ${originalTiming}`);
-          console.log(`  New timing: ${newTiming}`);
+          Log.log(`  Original timing: ${originalTiming}`);
+          Log.log(`  New timing: ${newTiming}`);
         }
       } else {
-        console.log(`Event with ID ${eventId} not found in myEvents.`);
+        Log.log(`Event with ID ${eventId} not found in myEvents.`);
       }
     });
   }
