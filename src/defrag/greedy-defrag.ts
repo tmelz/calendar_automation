@@ -20,19 +20,24 @@ export namespace GreedyDefrag {
       inputs.moveableEvents
     ).map((eventId) => {
       const event = inputs.myEvents.get(eventId);
-      const timeOptionsCount = CalendarAlg.getAlternateStartTimeOptions(
+      const timeOptions = CalendarAlg.getAlternateStartTimeOptions(
         nonMoveableEvents,
         inputs.myWorkingHours,
         inputs.theirEvents,
         inputs.theirWorkingHours,
         emptyMap,
         event!
-      ).length;
+      );
 
-      Log.log(`Event ID: ${eventId}, Time options count: ${timeOptionsCount}`);
+      Log.log(
+        `Event ID: ${eventId}, ${event?.summary}, Time options count: ${timeOptions.length}`
+      );
+      for (const timeOption of timeOptions) {
+        Log.log(`\tTime option: ${timeOption}`);
+      }
       return {
         event,
-        timeOptionsCount,
+        timeOptionsCount: timeOptions.length,
       };
     });
 
@@ -44,9 +49,10 @@ export namespace GreedyDefrag {
     const finalizedTimings: Map<string, CalendarCost.EventTiming> = new Map();
     const finalizedEvents: GoogleAppsScript.Calendar.Schema.Event[] =
       nonMoveableEvents.slice();
+    const unplaceableMeetings: GoogleAppsScript.Calendar.Schema.Event[] = [];
 
     for (const { event } of moveableEventsWithTimeOptionsCount) {
-      Log.log(`Processing event ID: ${event!.id}`);
+      Log.log(`Processing event ID: ${event!.id}; ${event?.summary}`);
       finalizedEvents.push(event!);
 
       Log.log("Getting alternate start time options...");
@@ -87,8 +93,11 @@ export namespace GreedyDefrag {
       }
 
       if (minCost === undefined) {
-        Log.log(`Error: No time options found for event: ${event!.id}`);
-        throw new Error("No time options found");
+        Log.log(
+          `Error: No time options found for event: ${event!.id}, ${event?.summary}`
+        );
+        unplaceableMeetings.push(event!);
+        continue;
       }
 
       Log.log(
@@ -118,9 +127,14 @@ export namespace GreedyDefrag {
         )
     );
 
+    unplaceableMeetings.forEach((event) => {
+      Log.log(`Unplaceable meeting: ${event.id}, ${event.summary}`);
+    });
+
     Log.log(
       `GreedyDefrag.main completed successfully. Finalized timings: ${JSON.stringify(finalizedTimings)}`
     );
+    CalendarAlg.describeSolution(inputs, finalizedTimings);
     return finalizedTimings;
   }
 }

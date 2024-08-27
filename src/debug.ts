@@ -2,7 +2,8 @@ import { Orchestrator } from "./orchestrator";
 import { GetEvents } from "./checks/get-events";
 import { LogLevel, Log } from "./checks/log";
 import { EventUtil } from "./checks/event-util";
-import { SimulatedAnnealing } from "./defrag/calendar-alg";
+import { CalendarAlg, SimulatedAnnealing } from "./defrag/calendar-alg";
+import { GreedyDefrag } from "./defrag/greedy-defrag";
 
 // export function debugEstimateWorkingHoursForManyFolks() {
 //   console.log("tmellor@block.xyz");
@@ -38,7 +39,9 @@ import { SimulatedAnnealing } from "./defrag/calendar-alg";
 
 export function debug(): void {
   // test
-  SimulatedAnnealing.main();
+  // SimulatedAnnealing.main();
+  const inputs = CalendarAlg.getInputs(new Date("2024-10-06"));
+  GreedyDefrag.main(inputs);
 }
 
 // export function debug() {

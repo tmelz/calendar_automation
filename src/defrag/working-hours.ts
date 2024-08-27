@@ -11,11 +11,11 @@ export namespace WorkingHours {
 
   export function estimateWorkingHours(email: string): WorkingHours.TimeRange {
     const cache = CacheService.getUserCache();
-    const cacheKey = `workingHours_${email}_v2`;
+    const cacheKey = `workingHours_${email}_v3`;
     const cachedValue = cache.get(cacheKey);
 
     if (cachedValue) {
-      Log.log(`Cache hit for ${email}`);
+      Log.log(`Cache hit for ${email}: ${cachedValue}`);
       return JSON.parse(cachedValue) as WorkingHours.TimeRange;
     }
 
@@ -38,12 +38,12 @@ export namespace WorkingHours {
 
     const relevantEvents = events.filter((event) => {
       return (
-        event.eventType === "focusTime" ||
-        (event.eventType === "default" &&
-          event.summary?.includes("Focus Time (via Clockwise)")) ||
-        (event.eventType === "default" &&
-          EventUtil.didRSVPYes(event, email) &&
-          EventUtil.doAllAttendeesHaveSameBusinessEmailDomain(event.attendees))
+        // event.eventType === "focusTime" ||
+        // (event.eventType === "default" &&
+        //   event.summary?.includes("Focus Time (via Clockwise)")) ||
+        event.eventType === "default" &&
+        EventUtil.didRSVPYes(event, email) &&
+        EventUtil.doAllAttendeesHaveSameBusinessEmailDomain(event.attendees)
       );
     });
 

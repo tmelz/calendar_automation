@@ -21,6 +21,24 @@ export namespace CalendarCost {
     endTimeOfDaySeconds: number;
   };
 
+  function getLatestEventStartDate(
+    events: GoogleAppsScript.Calendar.Schema.Event[]
+  ): Date | null {
+    let latestDate: Date | null = null;
+
+    events.forEach((event) => {
+      const startDateTime = event.start?.dateTime;
+      if (startDateTime) {
+        const eventDate = new Date(startDateTime);
+        if (!latestDate || eventDate > latestDate) {
+          latestDate = eventDate;
+        }
+      }
+    });
+
+    return latestDate;
+  }
+
   export function calculateCost(
     events: GoogleAppsScript.Calendar.Schema.Event[],
     modifiedEventTimings: Map<string, EventTiming>,
@@ -30,43 +48,56 @@ export namespace CalendarCost {
       [date: string]: GoogleAppsScript.Calendar.Schema.Event[];
     } = {};
 
-    // TODO clean up this filtering
-    events
-      .filter(
-        (event) =>
-          (event.eventType === "default" &&
-            event.attendees &&
-            event.attendees.length >= 1) ||
-          !event.summary?.toLocaleLowerCase()?.includes("lunch")
-      )
-      .forEach((event) => {
-        // If no start, skip
-        // If all day event, skip for this calc
-        if (event.start === undefined || event.start.date !== undefined) {
-          return;
-        }
-        const eventTiming = modifiedEventTimings.get(event.id!);
-        const eventDate = eventTiming
-          ? new Date(
-              new Date().setDate(
-                new Date().getDate() +
-                  eventTiming.dayOfWeek -
-                  new Date().getDay()
-              )
+    const filteredEvents = events.filter(
+      (event) =>
+        (event.eventType === "default" &&
+          event.attendees &&
+          event.attendees.length >= 1) ||
+        !event.summary?.toLocaleLowerCase()?.includes("lunch")
+    );
+
+    const latestEventStartDate = getLatestEventStartDate(filteredEvents);
+
+    filteredEvents.forEach((event) => {
+      // Skip events with no start date or all-day events
+      if (event.start === undefined || event.start.date !== undefined) {
+        return;
+      }
+
+      const eventTiming = modifiedEventTimings.get(event.id!);
+      const eventDate = eventTiming
+        ? new Date(
+            new Date(latestEventStartDate!).setDate(
+              latestEventStartDate!.getDate() +
+                eventTiming.dayOfWeek -
+                latestEventStartDate!.getDay()
             )
-          : new Date(event.start!.dateTime!);
+          )
+        : new Date(event.start!.dateTime!);
 
-        // Skip weekends if not already handled in the timing
-        if (eventDate.getDay() === 0 || eventDate.getDay() === 6) {
-          return;
-        }
+      // Skip weekends if not already handled in the timing
+      if (eventDate.getDay() === 0 || eventDate.getDay() === 6) {
+        return;
+      }
 
-        const eventDateString = eventDate.toDateString();
-        if (!eventsByDay[eventDateString]) {
-          eventsByDay[eventDateString] = [];
-        }
-        eventsByDay[eventDateString].push(event);
-      });
+      const eventDateString = eventDate.toDateString();
+      if (!eventsByDay[eventDateString]) {
+        eventsByDay[eventDateString] = [];
+      }
+      eventsByDay[eventDateString].push(event);
+    });
+
+    // Ensure there are entries for every weekday (Mon-Fri) in the week of latestEventStartDate
+    for (let i = 1; i <= 5; i++) {
+      const date = new Date(latestEventStartDate!);
+      date.setDate(
+        latestEventStartDate!.getDate() - latestEventStartDate!.getDay() + i
+      );
+      const dateString = date.toDateString();
+      if (!eventsByDay[dateString]) {
+        eventsByDay[dateString] = [];
+      }
+    }
 
     const costFactorsArray: CalendarCost.CostFactorsPerDay[] = Object.keys(
       eventsByDay
@@ -112,11 +143,15 @@ export namespace CalendarCost {
       .map((costFactors) => costFactors.meetingHours)
       // Sort in ascending order
       .sort((a, b) => a - b);
+
     // Look at the difference between the heaviest meeting day
     // and the second lightest; assume lightest is a no meeting day
     // Weigh this delta heavily to encourage spreading meetings out
     if (meetingHours.length == 5) {
-      cost += (meetingHours[4] - meetingHours[1]) * 4;
+      // dont care if the gap is <= 1 hr
+      if (meetingHours[4] - meetingHours[1] > 1) {
+        cost += (meetingHours[4] - meetingHours[1]) * 4;
+      }
     }
 
     return cost;

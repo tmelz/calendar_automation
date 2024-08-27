@@ -190,18 +190,27 @@ export namespace CalendarAlg {
     return newStartTimeOptions;
   }
 
-  export function getInputs(): CalendarAlg.Inputs {
-    const sunday: Date = Time.getSundayOfCurrentWeek();
-    sunday.setHours(24, 0, 0, 0);
-    const followingSunday: Date = Time.getSundayOfCurrentWeek();
-    followingSunday.setDate(followingSunday.getDate() + 7);
-    followingSunday.setHours(24, 0, 0, 0);
+  export function getInputs(refDate: Date): CalendarAlg.Inputs {
+    // const sunday: Date = Time.getSundayOfCurrentWeek();
+    // sunday.setHours(24, 0, 0, 0);
+    // const followingSunday: Date = Time.getSundayOfCurrentWeek();
+    // followingSunday.setDate(followingSunday.getDate() + 7);
+    // followingSunday.setHours(24, 0, 0, 0);
+
+    const startDate = refDate;
+    startDate.setHours(24, 0, 0, 0);
+    const endDate = new Date(refDate);
+    endDate.setDate(endDate.getDate() + 7);
+    endDate.setHours(24, 0, 0, 0);
 
     Log.log("getting next weeks events");
     // Retrieve events and convert to a Map with event IDs as keys
     const myEventsList = GetEvents.getEventsForDateRange(
-      sunday,
-      followingSunday
+      startDate,
+      endDate
+      // TODO inline these filter checks into somewhere smarter
+    ).filter(
+      (event) => !EventUtil.didIRSVPNo(event) && event.eventType !== "focusTime"
     );
     const myEvents = new Map<string, GoogleAppsScript.Calendar.Schema.Event>();
 
@@ -210,7 +219,8 @@ export namespace CalendarAlg {
     });
 
     Log.log("getting my working hours");
-    const myWorkingHours = WorkingHours.estimateWorkingHours("primary");
+    const myWorkingHours =
+      WorkingHours.estimateWorkingHours("tmellor@block.xyz");
     const theirEvents = new Map<
       string,
       GoogleAppsScript.Calendar.Schema.Event[]
@@ -227,12 +237,16 @@ export namespace CalendarAlg {
         theirEvents.set(
           email!,
           GetEvents.getEventsForDateRangeCustomCalendar(
-            sunday,
-            followingSunday,
+            startDate,
+            endDate,
             email!,
             undefined,
             undefined,
             true
+          ).filter(
+            (event) =>
+              !EventUtil.didRSVPNo(event, email) &&
+              event.eventType !== "focusTime"
           )
         );
         otherPeople.add(email);

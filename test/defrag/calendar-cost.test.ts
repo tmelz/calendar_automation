@@ -81,6 +81,7 @@ describe("calculateCostFactorsPerDay", () => {
       meetingHours: 0,
       longestMeetingStretchHours: 0,
       focusTimeOneHourPlus: 8,
+      focusTimeTwoHoursPlus: 8,
     });
   });
 
@@ -100,6 +101,7 @@ describe("calculateCostFactorsPerDay", () => {
       meetingHours: 0,
       longestMeetingStretchHours: 0,
       focusTimeOneHourPlus: 7,
+      focusTimeTwoHoursPlus: 7,
     });
   });
 
@@ -136,6 +138,7 @@ describe("calculateCostFactorsPerDay", () => {
       meetingHours: 3,
       longestMeetingStretchHours: 3,
       focusTimeOneHourPlus: 4,
+      focusTimeTwoHoursPlus: 4,
     });
   });
 
@@ -192,6 +195,7 @@ describe("calculateCostFactorsPerDay", () => {
       meetingHours: 7,
       longestMeetingStretchHours: 4,
       focusTimeOneHourPlus: 0,
+      focusTimeTwoHoursPlus: 0,
     });
   });
 
@@ -248,6 +252,7 @@ describe("calculateCostFactorsPerDay", () => {
       meetingHours: 6.5,
       longestMeetingStretchHours: 4,
       focusTimeOneHourPlus: 0,
+      focusTimeTwoHoursPlus: 0,
     });
   });
 
@@ -299,6 +304,7 @@ describe("calculateCostFactorsPerDay", () => {
       meetingHours: 6,
       longestMeetingStretchHours: 4,
       focusTimeOneHourPlus: 1,
+      focusTimeTwoHoursPlus: 0,
     });
   });
 
@@ -350,6 +356,7 @@ describe("calculateCostFactorsPerDay", () => {
       meetingHours: 5.5,
       longestMeetingStretchHours: 4,
       focusTimeOneHourPlus: 1.5,
+      focusTimeTwoHoursPlus: 0,
     });
   });
 
@@ -397,7 +404,7 @@ describe("calculateCostFactorsPerDay", () => {
       meetingHours: 4.5,
       longestMeetingStretchHours: 3,
       focusTimeOneHourPlus: 2.5,
-      focusTimeTwoHourPlus: 0,
+      focusTimeTwoHoursPlus: 0,
     });
   });
 
@@ -432,7 +439,7 @@ describe("calculateCostFactorsPerDay", () => {
     expect(result).toEqual({
       meetingHours: 2,
       longestMeetingStretchHours: 1,
-      focusTimeOneHourPlus: 6,
+      focusTimeOneHoursPlus: 6,
       focusTimeTwoHourPlus: 5,
     });
   });
