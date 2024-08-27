@@ -144,7 +144,10 @@ export namespace SimulatedAnnealing {
     randomSeed: number
   ): CalendarCost.EventTiming | undefined {
     const newStartTimeOptions = CalendarAlg.getAlternateStartTimeOptions(
-      inputs,
+      inputs.myEventsList,
+      inputs.myWorkingHours,
+      inputs.theirEvents,
+      inputs.theirWorkingHours,
       currentSolution,
       event
     );
@@ -154,16 +157,8 @@ export namespace SimulatedAnnealing {
         Math.abs(Math.sin(randomSeed++) * 10000) % newStartTimeOptions.length
       );
       const newStartTime = newStartTimeOptions[randomIndex];
-      const eventDuration =
-        new Date(event.end!.dateTime!).getTime() -
-        new Date(event.start!.dateTime!).getTime();
 
-      return {
-        dayOfWeek: newStartTime.getDay(),
-        startTimeOfDaySeconds: WorkingHours.getTimeOfDaySeconds(newStartTime),
-        endTimeOfDaySeconds:
-          WorkingHours.getTimeOfDaySeconds(newStartTime) + eventDuration / 1000, // convert milliseconds to seconds
-      };
+      return CalendarAlg.convertDateToEventTiming(event, newStartTime);
     }
 
     return undefined;

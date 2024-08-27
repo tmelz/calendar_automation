@@ -20,8 +20,27 @@ export namespace CalendarAlg {
     // TODO understand the recurrence schedule of an event
   };
 
+  export function convertDateToEventTiming(
+    event: GoogleAppsScript.Calendar.Schema.Event,
+    newStartTime: Date
+  ): CalendarCost.EventTiming {
+    const eventDuration =
+      new Date(event.end!.dateTime!).getTime() -
+      new Date(event.start!.dateTime!).getTime();
+
+    return {
+      dayOfWeek: newStartTime.getDay(),
+      startTimeOfDaySeconds: WorkingHours.getTimeOfDaySeconds(newStartTime),
+      endTimeOfDaySeconds:
+        WorkingHours.getTimeOfDaySeconds(newStartTime) + eventDuration / 1000, // convert milliseconds to seconds
+    };
+  }
+
   export function getAlternateStartTimeOptions(
-    inputs: CalendarAlg.Inputs,
+    myEventsList: GoogleAppsScript.Calendar.Schema.Event[],
+    myWorkingHours: WorkingHours.TimeRange,
+    theirEvents: Map<string, GoogleAppsScript.Calendar.Schema.Event[]>,
+    theirWorkingHoursMap: Map<string, WorkingHours.TimeRange>,
     currentSolution: Map<string, CalendarCost.EventTiming>,
     event: GoogleAppsScript.Calendar.Schema.Event
   ): Date[] {
@@ -30,8 +49,7 @@ export namespace CalendarAlg {
       return [];
     }
 
-    const myWorkingHours = inputs.myWorkingHours;
-    const theirWorkingHours = inputs.theirWorkingHours.get(theirEmail);
+    const theirWorkingHours = theirWorkingHoursMap.get(theirEmail);
     if (!theirWorkingHours) {
       return [];
     }
@@ -81,9 +99,9 @@ export namespace CalendarAlg {
         );
         const proposedEnd = new Date(proposedStart.getTime() + eventDuration);
 
-        if (proposedStart.getTime() === originalStartDate.getTime()) {
-          continue;
-        }
+        // if (proposedStart.getTime() === originalStartDate.getTime()) {
+        //   continue;
+        // }
 
         const proposedStartSeconds =
           WorkingHours.getTimeOfDaySeconds(proposedStart);
@@ -160,8 +178,8 @@ export namespace CalendarAlg {
             });
 
           if (
-            !hasConflict(inputs.myEventsList, currentSolution) &&
-            !hasConflict(inputs.theirEvents.get(theirEmail)!, currentSolution)
+            !hasConflict(myEventsList, currentSolution) &&
+            !hasConflict(theirEvents.get(theirEmail)!, currentSolution)
           ) {
             newStartTimeOptions.push(proposedStart);
           }

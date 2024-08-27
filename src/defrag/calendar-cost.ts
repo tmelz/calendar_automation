@@ -11,6 +11,8 @@ export namespace CalendarCost {
     longestMeetingStretchHours: number;
     // time not in meetings that is not interrupted for at least 1 hour
     focusTimeOneHourPlus: number;
+    // time not in meetings that is not interrupted for at least 2 hours
+    focusTimeTwoHoursPlus: number;
   };
 
   export type EventTiming = {
@@ -102,6 +104,10 @@ export namespace CalendarCost {
       cost -= costFactors.focusTimeOneHourPlus / 2;
     });
 
+    costFactorsArray.forEach((costFactors) => {
+      cost -= costFactors.focusTimeTwoHoursPlus * 0.25;
+    });
+
     const meetingHours = costFactorsArray
       .map((costFactors) => costFactors.meetingHours)
       // Sort in ascending order
@@ -113,7 +119,8 @@ export namespace CalendarCost {
       cost += (meetingHours[4] - meetingHours[1]) * 4;
     }
 
-    return cost / CalendarCost.ROUGH_MAX_COST;
+    return cost;
+    // return cost / CalendarCost.ROUGH_MAX_COST;
   }
 
   export function calculateMovingMeetingPenalty(
@@ -173,6 +180,7 @@ export namespace CalendarCost {
     let totalMeetingTime = 0;
     let longestMeetingStretch = 0;
     let focusTimeOneHourPlus = 0;
+    let focusTimeTwoHoursPlus = 0;
 
     const workDayStart = workingHours.startTimeSeconds;
     const workDayEnd = workingHours.endTimeSeconds;
@@ -238,6 +246,11 @@ export namespace CalendarCost {
         focusTimeOneHourPlus += adjustedGapTime;
       }
 
+      // If the adjusted gap is greater than or equal to 2 hours, add it to focus time
+      if (adjustedGapTime >= 7200) {
+        focusTimeTwoHoursPlus += adjustedGapTime;
+      }
+
       // Update the longest meeting stretch
       if (gapTime > 900) {
         // 15 minutes
@@ -265,6 +278,10 @@ export namespace CalendarCost {
       focusTimeOneHourPlus += finalGapTime;
     }
 
+    if (finalGapTime >= 7200) {
+      focusTimeTwoHoursPlus += finalGapTime;
+    }
+
     // Finalize the longest meeting stretch
     longestMeetingStretch = Math.max(
       longestMeetingStretch,
@@ -275,6 +292,7 @@ export namespace CalendarCost {
       meetingHours: totalMeetingTime / 3600, // convert to hours
       longestMeetingStretchHours: longestMeetingStretch / 3600, // convert to hours
       focusTimeOneHourPlus: focusTimeOneHourPlus / 3600, // convert to hours
+      focusTimeTwoHoursPlus: focusTimeTwoHoursPlus / 3600, // convert to hours
     };
   }
 }

@@ -397,6 +397,43 @@ describe("calculateCostFactorsPerDay", () => {
       meetingHours: 4.5,
       longestMeetingStretchHours: 3,
       focusTimeOneHourPlus: 2.5,
+      focusTimeTwoHourPlus: 0,
+    });
+  });
+
+  it("should return 5 focus hours for day with two 1hr meetings", () => {
+    const events: GoogleAppsScript.Calendar.Schema.Event[] = [
+      {
+        ...myOneOnOneEvent,
+        id: "1",
+        start: { dateTime: "2024-08-19T09:00:00-07:00" },
+        end: { dateTime: "2024-08-19T10:00:00-07:00" },
+        summary: "event 1",
+      },
+
+      {
+        ...myOneOnOneEvent,
+        id: "2",
+        start: { dateTime: "2024-08-19T11:00:00-07:00" },
+        end: { dateTime: "2024-08-19T12:00:00-07:00" },
+        summary: "event 2",
+      },
+    ];
+    const workingHours = {
+      startTimeSeconds: 9 * 3600,
+      endTimeSeconds: 17 * 3600,
+    };
+    const result = CalendarCost.calculateCostFactorsPerDay(
+      events,
+      new Map(),
+      workingHours
+    );
+
+    expect(result).toEqual({
+      meetingHours: 2,
+      longestMeetingStretchHours: 1,
+      focusTimeOneHourPlus: 6,
+      focusTimeTwoHourPlus: 5,
     });
   });
 });
