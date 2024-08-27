@@ -83,6 +83,13 @@ export namespace CalendarCost {
       (sum, costFactors) => costFactors.meetingHours + sum,
       0
     );
+
+    // Add cost based on time difference between event start and modified timing
+    cost += CalendarCost.calculateMovingMeetingPenalty(
+      events,
+      modifiedEventTimings
+    );
+
     // Every meeting after 2 continuous hours costs 3x
     costFactorsArray.forEach((costFactors) => {
       if (costFactors.longestMeetingStretchHours > 2) {
@@ -107,6 +114,43 @@ export namespace CalendarCost {
     }
 
     return cost / CalendarCost.ROUGH_MAX_COST;
+  }
+
+  export function calculateMovingMeetingPenalty(
+    events: GoogleAppsScript.Calendar.Schema.Event[],
+    modifiedEventTimings: Map<string, EventTiming>
+  ): number {
+    let cost = 0;
+    events.forEach((event) => {
+      if (event.start?.dateTime && modifiedEventTimings.has(event.id!)) {
+        const originalStart = new Date(event.start.dateTime);
+        const modifiedTiming = modifiedEventTimings.get(event.id!);
+        if (modifiedTiming) {
+          const modifiedStart = new Date(originalStart);
+          modifiedStart.setHours(0, 0, 0, 0);
+          modifiedStart.setDate(
+            modifiedStart.getDate() +
+              modifiedTiming.dayOfWeek -
+              originalStart.getDay()
+          );
+          modifiedStart.setSeconds(modifiedTiming.startTimeOfDaySeconds);
+
+          const differenceInHours =
+            Math.abs(originalStart.getTime() - modifiedStart.getTime()) / 36e5;
+
+          if (differenceInHours == 0) {
+            return 0;
+          }
+
+          if (differenceInHours <= 8) {
+            cost += 0.125;
+          } else {
+            cost += 0.25;
+          }
+        }
+      }
+    });
+    return cost;
   }
 
   export function calculateCostFactorsPerDay(

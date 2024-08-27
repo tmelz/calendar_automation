@@ -1,6 +1,69 @@
 import { CalendarCost } from "../../src/defrag/calendar-cost";
 import { lunchEvent, myOneOnOneEvent } from "../checks/event-data";
 
+describe("calculateMovingMeetingPenalty", () => {
+  it("should return 8 focus hours for empty day", () => {
+    const events: GoogleAppsScript.Calendar.Schema.Event[] = [
+      {
+        ...myOneOnOneEvent,
+        start: { dateTime: "2024-08-22T09:00:00-07:00" },
+        end: { dateTime: "2024-08-22T10:00:00-07:00" },
+      },
+    ];
+
+    // zero cost for same day same time
+    expect(
+      CalendarCost.calculateMovingMeetingPenalty(
+        events,
+        new Map([
+          [
+            events[0].id!,
+            {
+              dayOfWeek: 4, // same day
+              startTimeOfDaySeconds: 9 * 3600, // same time
+              endTimeOfDaySeconds: 10 * 3600, // same time
+            },
+          ],
+        ])
+      )
+    ).toEqual(0);
+
+    // 0.125 cost for same day different time
+    expect(
+      CalendarCost.calculateMovingMeetingPenalty(
+        events,
+        new Map([
+          [
+            events[0].id!,
+            {
+              dayOfWeek: 4, // same day
+              startTimeOfDaySeconds: 10 * 3600, // same time
+              endTimeOfDaySeconds: 11 * 3600, // same time
+            },
+          ],
+        ])
+      )
+    ).toEqual(0.125);
+
+    // 0.25 cost for diff day
+    expect(
+      CalendarCost.calculateMovingMeetingPenalty(
+        events,
+        new Map([
+          [
+            events[0].id!,
+            {
+              dayOfWeek: 5, // same day
+              startTimeOfDaySeconds: 10 * 3600, // same time
+              endTimeOfDaySeconds: 11 * 3600, // same time
+            },
+          ],
+        ])
+      )
+    ).toEqual(0.25);
+  });
+});
+
 describe("calculateCostFactorsPerDay", () => {
   it("should return 8 focus hours for empty day", () => {
     const events: GoogleAppsScript.Calendar.Schema.Event[] = [];

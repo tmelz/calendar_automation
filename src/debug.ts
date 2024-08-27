@@ -2,7 +2,7 @@ import { Orchestrator } from "./orchestrator";
 import { GetEvents } from "./checks/get-events";
 import { LogLevel, Log } from "./checks/log";
 import { EventUtil } from "./checks/event-util";
-import { SimulatedAnnealing } from "./defrag/simulated-annealing";
+import { SimulatedAnnealing } from "./defrag/calendar-alg";
 
 // export function debugEstimateWorkingHoursForManyFolks() {
 //   console.log("tmellor@block.xyz");
