@@ -11,7 +11,7 @@ export namespace WorkingHours {
 
   export function estimateWorkingHours(email: string): WorkingHours.TimeRange {
     const cache = CacheService.getUserCache();
-    const cacheKey = `workingHours_${email}_v3`;
+    const cacheKey = `workingHours_${email}_v5`;
     const cachedValue = cache.get(cacheKey);
 
     if (cachedValue) {
@@ -24,7 +24,7 @@ export namespace WorkingHours {
     const today = new Date();
     const lookBack = new Date(today);
     // TODO play around with this threshold
-    lookBack.setMonth(lookBack.getMonth() - 1);
+    lookBack.setMonth(lookBack.getMonth() - 2);
 
     const events = GetEvents.getEventsForDateRangeCustomCalendar(
       lookBack,
@@ -71,18 +71,23 @@ export namespace WorkingHours {
       .slice()
       .sort((a, b) => a.endTimeOfDay - b.endTimeOfDay);
 
-    const p10Index = Math.floor(sortedByStartTime.length * 0.1);
+    // console.log(eventTuples.map((eventTuple) => eventTuple.startTimeOfDay));
+
+    const p05Index = Math.floor(sortedByStartTime.length * 0.05);
     const p90Index = Math.floor(sortedByEndTime.length * 0.9);
 
-    const p10StartTime = sortedByStartTime[p10Index].startTimeOfDay;
-    const p90EndTime = sortedByEndTime[p90Index].endTimeOfDay;
+    const p5StartTime = sortedByStartTime[p05Index].startTimeOfDay;
+    const p95EndTime = sortedByEndTime[p90Index].endTimeOfDay;
+    // round to the nearest multiple of 1800
+    const roundedStartTime = Math.floor(p5StartTime / 1800) * 1800;
+    const roundedEndTime = Math.ceil(p95EndTime / 1800) * 1800;
 
-    Log.log(`10th percentile start time: ${formatTime(p10StartTime)}`);
-    Log.log(`90th percentile end time: ${formatTime(p90EndTime)}`);
+    Log.log(`5th percentile start time: ${formatTime(p5StartTime)}`);
+    Log.log(`95th percentile end time: ${formatTime(p95EndTime)}`);
 
     const timeRange: WorkingHours.TimeRange = {
-      startTimeSeconds: p10StartTime,
-      endTimeSeconds: p90EndTime,
+      startTimeSeconds: roundedStartTime,
+      endTimeSeconds: roundedEndTime,
     };
 
     // Cache the result, with an expiration of 1 month (30 days)

@@ -4,6 +4,7 @@ import { LogLevel, Log } from "./checks/log";
 import { EventUtil } from "./checks/event-util";
 import { CalendarAlg, SimulatedAnnealing } from "./defrag/calendar-alg";
 import { GreedyDefrag } from "./defrag/greedy-defrag";
+import { WorkingHours } from "./defrag/working-hours";
 
 // export function debugEstimateWorkingHoursForManyFolks() {
 //   console.log("tmellor@block.xyz");
@@ -40,6 +41,9 @@ import { GreedyDefrag } from "./defrag/greedy-defrag";
 export function debug(): void {
   // test
   // SimulatedAnnealing.main();
+  // console.log(
+  //   JSON.stringify(WorkingHours.estimateWorkingHours("tmellor@block.xyz"))
+  // );
   const inputs = CalendarAlg.getInputs(new Date("2024-10-06"));
   GreedyDefrag.main(inputs);
 }

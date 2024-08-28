@@ -315,6 +315,18 @@ export namespace CalendarAlg {
     return clonedMap;
   }
 
+  export function convertTimingToDate(
+    timing: CalendarCost.EventTiming,
+    refDate: Date
+  ): Date {
+    const date = new Date(refDate);
+    date.setDate(date.getDate() + (timing.dayOfWeek - date.getDay()));
+    date.setHours(0, 0, 0, 0);
+    date.setSeconds(timing.startTimeOfDaySeconds);
+
+    return date;
+  }
+
   export function formatToPacificTime(
     event: GoogleAppsScript.Calendar.Schema.Event,
     newTiming: CalendarCost.EventTiming | undefined
@@ -365,27 +377,90 @@ export namespace CalendarAlg {
     inputs: CalendarAlg.Inputs,
     solution: Map<string, CalendarCost.EventTiming>
   ): void {
-    inputs.moveableEvents.forEach((eventId) => {
-      const event = inputs.myEvents.get(eventId);
-      if (event) {
-        Log.log(`Event: ${event.summary}`);
-        const originalTiming = CalendarAlg.formatToPacificTime(
-          event,
-          undefined
-        );
-        const newTiming = CalendarAlg.formatToPacificTime(
-          event,
-          solution.get(eventId)
-        );
-        if (originalTiming === newTiming) {
-          Log.log(`  Timing is unchanged.`);
-        } else {
-          Log.log(`  Original timing: ${originalTiming}`);
-          Log.log(`  New timing: ${newTiming}`);
-        }
-      } else {
-        Log.log(`Event with ID ${eventId} not found in myEvents.`);
-      }
+    const beforeCost = CalendarCost.calculateCost(
+      inputs.myEventsList,
+      new Map(),
+      inputs.myWorkingHours
+    );
+    Log.logPhase("Calendar before: (cost: " + beforeCost + ")");
+    let eventsToDisplay = inputs.myEventsList.filter(
+      (event) => event.start?.dateTime !== undefined
+    );
+    // sort eventsToDisplay based on new Date(event.start?.dateTime).getTime()
+    eventsToDisplay.sort((a, b) => {
+      return (
+        new Date(a.start!.dateTime!).getTime() -
+        new Date(b.start!.dateTime!).getTime()
+      );
     });
+    eventsToDisplay.forEach((event) => {
+      Log.log(
+        CalendarAlg.formatToPacificTime(event, undefined) + " " + event.summary
+      );
+    });
+
+    const afterCost = CalendarCost.calculateCost(
+      inputs.myEventsList,
+      solution,
+      inputs.myWorkingHours
+    );
+    Log.logPhase("Calendar after: (cost: " + afterCost + ")");
+    eventsToDisplay = inputs.myEventsList.filter(
+      (event) => event.start?.dateTime !== undefined
+    );
+    // sort eventsToDisplay based on new Date(event.start?.dateTime).getTime()
+    eventsToDisplay.sort((a, b) => {
+      let aDate = new Date(a.start!.dateTime!).getTime();
+      if (solution.has(a.id!)) {
+        aDate = CalendarAlg.convertTimingToDate(
+          solution.get(a.id!)!,
+          new Date(a.start!.dateTime!)
+        ).getTime();
+      }
+      let bDate = new Date(b.start!.dateTime!).getTime();
+      if (solution.has(b.id!)) {
+        bDate = CalendarAlg.convertTimingToDate(
+          solution.get(b.id!)!,
+          new Date(b.start!.dateTime!)
+        ).getTime();
+      }
+      return aDate - bDate;
+    });
+    eventsToDisplay.forEach((event) => {
+      const changed =
+        CalendarAlg.formatToPacificTime(event, solution.get(event.id!)) !==
+        CalendarAlg.formatToPacificTime(event, undefined);
+      Log.log(
+        CalendarAlg.formatToPacificTime(event, solution.get(event.id!)) +
+          " " +
+          event.summary +
+          " " +
+          event.id! +
+          (changed ? " 🕰️" : "")
+      );
+    });
+
+    // inputs.moveableEvents.forEach((eventId) => {
+    //   const event = inputs.myEvents.get(eventId);
+    //   if (event) {
+    //     Log.log(`Event: ${event.summary}`);
+    //     const originalTiming = CalendarAlg.formatToPacificTime(
+    //       event,
+    //       undefined
+    //     );
+    //     const newTiming = CalendarAlg.formatToPacificTime(
+    //       event,
+    //       solution.get(eventId)
+    //     );
+    //     if (originalTiming === newTiming) {
+    //       Log.log(`  Timing is unchanged.`);
+    //     } else {
+    //       Log.log(`  Original timing: ${originalTiming}`);
+    //       Log.log(`  New timing: ${newTiming}`);
+    //     }
+    //   } else {
+    //     Log.log(`Event with ID ${eventId} not found in myEvents.`);
+    //   }
+    // });
   }
 }

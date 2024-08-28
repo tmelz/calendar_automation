@@ -135,8 +135,9 @@ export namespace CalendarCost {
       cost -= costFactors.focusTimeOneHourPlus / 2;
     });
 
+    // win here needs to exceed cost of moving to another day
     costFactorsArray.forEach((costFactors) => {
-      cost -= costFactors.focusTimeTwoHoursPlus * 0.25;
+      cost -= costFactors.focusTimeTwoHoursPlus * 0.75;
     });
 
     const meetingHours = costFactorsArray
@@ -149,8 +150,8 @@ export namespace CalendarCost {
     // Weigh this delta heavily to encourage spreading meetings out
     if (meetingHours.length == 5) {
       // dont care if the gap is <= 1 hr
-      if (meetingHours[4] - meetingHours[1] > 1) {
-        cost += (meetingHours[4] - meetingHours[1]) * 4;
+      if (meetingHours[4] - meetingHours[0] > 2) {
+        cost += (meetingHours[4] - meetingHours[0]) / 2;
       }
     }
 

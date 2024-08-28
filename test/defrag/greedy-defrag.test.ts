@@ -5,6 +5,10 @@ import { WorkingHours } from "../../src/defrag/working-hours";
 import { myOneOnOneEvent } from "../checks/event-data";
 
 describe("GreedyDefrag.main", () => {
+  beforeEach(() => {
+    global.console = require("console");
+  });
+
   it("TODO", () => {
     const events: GoogleAppsScript.Calendar.Schema.Event[] = [
       {
@@ -138,6 +142,6 @@ describe("GreedyDefrag.main", () => {
     };
 
     const solution = GreedyDefrag.main(inputs);
-    CalendarAlg.describeSolution(inputs, solution);
+    // CalendarAlg.describeSolution(inputs, solution);
   });
 });
