@@ -109,23 +109,25 @@ export namespace GreedyDefrag {
       );
     }
 
-    Log.log(
-      "Initial cost: " +
-        CalendarCost.calculateCost(
-          inputs.myEventsList,
-          inputs.moveableEventTimings,
-          inputs.myWorkingHours
-        )
-    );
+    // Log.log(
+    //   "Initial cost: " +
+    //     CalendarCost.calculateCost(
+    //       inputs.myEventsList,
+    //       inputs.moveableEventTimings,
+    //       inputs.myWorkingHours
+    //     )
+    // );
 
-    Log.log(
-      "Final cost: " +
-        CalendarCost.calculateCost(
-          inputs.myEventsList,
-          finalizedTimings,
-          inputs.myWorkingHours
-        )
-    );
+    // Log.log(
+    //   "Final cost: " +
+    //     CalendarCost.calculateCost(
+    //       inputs.myEventsList.filter((event) =>
+    //         finalizedTimings.has(event.id!)
+    //       ),
+    //       finalizedTimings,
+    //       inputs.myWorkingHours
+    //     )
+    // );
 
     unplaceableMeetings.forEach((event) => {
       Log.log(`Unplaceable meeting: ${event.id}, ${event.summary}`);
@@ -134,7 +136,13 @@ export namespace GreedyDefrag {
     Log.log(
       `GreedyDefrag.main completed successfully. Finalized timings: ${JSON.stringify(finalizedTimings)}`
     );
-    CalendarAlg.describeSolution(inputs, finalizedTimings);
+    CalendarAlg.describeSolution(
+      inputs.myEventsList.filter(
+        (event) => !unplaceableMeetings.includes(event)
+      ),
+      inputs.myWorkingHours,
+      finalizedTimings
+    );
     return finalizedTimings;
   }
 }

@@ -126,7 +126,7 @@ export namespace CalendarCost {
     // Every meeting after 2 continuous hours costs 3x
     costFactorsArray.forEach((costFactors) => {
       if (costFactors.longestMeetingStretchHours > 2) {
-        cost += (costFactors.longestMeetingStretchHours - 2) * 3;
+        cost += (costFactors.longestMeetingStretchHours - 2) * 5;
       }
     });
 
@@ -261,7 +261,9 @@ export namespace CalendarCost {
     let currentMeetingStretch = 0;
 
     sortedMeetings.forEach((meeting) => {
-      const meetingDuration = meeting.endTime - meeting.startTime;
+      const meetingDurationRaw = meeting.endTime - meeting.startTime;
+      // round meeting duration up to the next 15min interval
+      const meetingDuration = Math.ceil(meetingDurationRaw / 900) * 900;
       totalMeetingTime += meetingDuration;
 
       const gapTime = meeting.startTime - previousEndTime;

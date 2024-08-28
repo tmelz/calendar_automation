@@ -61,7 +61,12 @@ export namespace CalendarAlg {
     const offsetMinutes = originalStartDate.getMinutes() % 30;
 
     const newStartTimeOptions: Date[] = [];
-    const possibleDays = [0, -1, 1]; // Same day, previous day, next day
+    // Allow moves to same day, previous day, next day
+    // if Monday, allow moves to Wednesday
+    const possibleDays = [0, -1, 1];
+    if (originalStartDate.getDay() === 1) {
+      possibleDays.push(2);
+    }
 
     for (const dayOffset of possibleDays) {
       const newDate = new Date(originalStartDate);
@@ -374,16 +379,17 @@ export namespace CalendarAlg {
   }
 
   export function describeSolution(
-    inputs: CalendarAlg.Inputs,
+    myEventsList: GoogleAppsScript.Calendar.Schema.Event[],
+    myWorkingHours: WorkingHours.TimeRange,
     solution: Map<string, CalendarCost.EventTiming>
   ): void {
     const beforeCost = CalendarCost.calculateCost(
-      inputs.myEventsList,
+      myEventsList,
       new Map(),
-      inputs.myWorkingHours
+      myWorkingHours
     );
     Log.logPhase("Calendar before: (cost: " + beforeCost + ")");
-    let eventsToDisplay = inputs.myEventsList.filter(
+    let eventsToDisplay = myEventsList.filter(
       (event) => event.start?.dateTime !== undefined
     );
     // sort eventsToDisplay based on new Date(event.start?.dateTime).getTime()
@@ -400,12 +406,12 @@ export namespace CalendarAlg {
     });
 
     const afterCost = CalendarCost.calculateCost(
-      inputs.myEventsList,
+      myEventsList,
       solution,
-      inputs.myWorkingHours
+      myWorkingHours
     );
     Log.logPhase("Calendar after: (cost: " + afterCost + ")");
-    eventsToDisplay = inputs.myEventsList.filter(
+    eventsToDisplay = myEventsList.filter(
       (event) => event.start?.dateTime !== undefined
     );
     // sort eventsToDisplay based on new Date(event.start?.dateTime).getTime()
@@ -439,28 +445,5 @@ export namespace CalendarAlg {
           (changed ? " 🕰️" : "")
       );
     });
-
-    // inputs.moveableEvents.forEach((eventId) => {
-    //   const event = inputs.myEvents.get(eventId);
-    //   if (event) {
-    //     Log.log(`Event: ${event.summary}`);
-    //     const originalTiming = CalendarAlg.formatToPacificTime(
-    //       event,
-    //       undefined
-    //     );
-    //     const newTiming = CalendarAlg.formatToPacificTime(
-    //       event,
-    //       solution.get(eventId)
-    //     );
-    //     if (originalTiming === newTiming) {
-    //       Log.log(`  Timing is unchanged.`);
-    //     } else {
-    //       Log.log(`  Original timing: ${originalTiming}`);
-    //       Log.log(`  New timing: ${newTiming}`);
-    //     }
-    //   } else {
-    //     Log.log(`Event with ID ${eventId} not found in myEvents.`);
-    //   }
-    // });
   }
 }
