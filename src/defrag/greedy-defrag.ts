@@ -1,13 +1,48 @@
 import { CalendarCost } from "./calendar-cost";
 import { CalendarAlg } from "./calendar-alg";
 import { Log } from "../checks/log";
+import { WorkingHours } from "./working-hours";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace GreedyDefrag {
+  export function getEventWithLeastTimeOptions(
+    unplacedEvents: GoogleAppsScript.Calendar.Schema.Event[],
+    placedEvents: GoogleAppsScript.Calendar.Schema.Event[],
+    myWorkingHours: WorkingHours.TimeRange,
+    theirEvents: Map<string, GoogleAppsScript.Calendar.Schema.Event[]>,
+    theirWorkingHoursMap: Map<string, WorkingHours.TimeRange>,
+    currentSolution: Map<string, CalendarCost.EventTiming>
+  ): {
+    event: GoogleAppsScript.Calendar.Schema.Event;
+    timeOptions: Date[];
+  } {
+    const unplacedEventsWithTimeOptionsCount = Array.from(unplacedEvents).map(
+      (event) => {
+        const timeOptions = CalendarAlg.getAlternateStartTimeOptions(
+          placedEvents,
+          myWorkingHours,
+          theirEvents,
+          theirWorkingHoursMap,
+          currentSolution,
+          event!
+        );
+
+        return {
+          event,
+          timeOptions: timeOptions,
+        };
+      }
+    );
+
+    unplacedEventsWithTimeOptionsCount.sort(
+      (a, b) => a.timeOptions.length - b.timeOptions.length
+    );
+
+    return unplacedEventsWithTimeOptionsCount[0];
+  }
+
   export function main(inputs: CalendarAlg.Inputs) {
     Log.log(`GreedyDefrag.main started`);
-
-    const emptyMap = new Map();
 
     Log.log("Filtering non-moveable events...");
     const nonMoveableEvents = inputs.myEventsList.filter(
@@ -15,62 +50,44 @@ export namespace GreedyDefrag {
     );
     Log.log(`Non-moveable events found: ${nonMoveableEvents.length}`);
 
-    Log.log("Mapping moveable events with their time options count...");
-    const moveableEventsWithTimeOptionsCount = Array.from(
-      inputs.moveableEvents
-    ).map((eventId) => {
-      const event = inputs.myEvents.get(eventId);
-      const timeOptions = CalendarAlg.getAlternateStartTimeOptions(
-        nonMoveableEvents,
-        inputs.myWorkingHours,
-        inputs.theirEvents,
-        inputs.theirWorkingHours,
-        emptyMap,
-        event!
-      );
-
-      Log.log(
-        `Event ID: ${eventId}, ${event?.summary}, Time options count: ${timeOptions.length}`
-      );
-      for (const timeOption of timeOptions) {
-        Log.log(`\tTime option: ${timeOption}`);
-      }
-      return {
-        event,
-        timeOptionsCount: timeOptions.length,
-      };
-    });
-
-    Log.log("Sorting moveable events by time options count...");
-    moveableEventsWithTimeOptionsCount.sort(
-      (a, b) => a.timeOptionsCount - b.timeOptionsCount
-    );
-
     const finalizedTimings: Map<string, CalendarCost.EventTiming> = new Map();
     const finalizedEvents: GoogleAppsScript.Calendar.Schema.Event[] =
       nonMoveableEvents.slice();
     const unplaceableMeetings: GoogleAppsScript.Calendar.Schema.Event[] = [];
+    const moveableEvents = inputs.myEventsList.filter((event) =>
+      inputs.moveableEvents.has(event.id!)
+    );
 
-    for (const { event } of moveableEventsWithTimeOptionsCount) {
-      Log.log(`Processing event ID: ${event!.id}; ${event?.summary}`);
-      finalizedEvents.push(event!);
-
-      Log.log("Getting alternate start time options...");
-      const timeOptions = CalendarAlg.getAlternateStartTimeOptions(
+    while (
+      finalizedEvents.length + unplaceableMeetings.length <
+      inputs.myEventsList.length
+    ) {
+      const { event, timeOptions } = getEventWithLeastTimeOptions(
+        moveableEvents.filter(
+          (event) =>
+            !finalizedEvents.includes(event) &&
+            !unplaceableMeetings.includes(event)
+        ),
         finalizedEvents,
         inputs.myWorkingHours,
         inputs.theirEvents,
         inputs.theirWorkingHours,
-        finalizedTimings,
-        event!
+        finalizedTimings
       );
-      Log.log(`Time options found: ${timeOptions.length}`);
+
+      Log.log(
+        "Placing event: " +
+          event!.summary +
+          "; it had the fewest time options for the current calendar (" +
+          timeOptions.length +
+          ")"
+      );
 
       let minCost = undefined;
       let minCostTimeOption = undefined;
 
       for (const timeOption of timeOptions) {
-        Log.log(`Evaluating time option: ${timeOption}`);
+        Log.log(`\tEvaluating time option: ${timeOption}`);
         const temporarySolution =
           CalendarAlg.deepCloneEventTimingsMap(finalizedTimings);
         temporarySolution.set(
@@ -79,16 +96,16 @@ export namespace GreedyDefrag {
         );
 
         const cost = CalendarCost.calculateCost(
-          finalizedEvents,
+          [...finalizedEvents, event],
           temporarySolution,
           inputs.myWorkingHours
         );
-        Log.log(`Cost for time option: ${cost}`);
+        Log.log(`\t\tCost for time option: ${cost}`);
 
         if (minCost === undefined || cost < minCost) {
           minCost = cost;
           minCostTimeOption = timeOption;
-          Log.log(`New minimum cost found: ${minCost}`);
+          Log.log(`\tNew minimum cost found: ${minCost}`);
         }
       }
 
@@ -107,27 +124,8 @@ export namespace GreedyDefrag {
         event!.id!,
         CalendarAlg.convertDateToEventTiming(event!, minCostTimeOption!)
       );
+      finalizedEvents.push(event!);
     }
-
-    // Log.log(
-    //   "Initial cost: " +
-    //     CalendarCost.calculateCost(
-    //       inputs.myEventsList,
-    //       inputs.moveableEventTimings,
-    //       inputs.myWorkingHours
-    //     )
-    // );
-
-    // Log.log(
-    //   "Final cost: " +
-    //     CalendarCost.calculateCost(
-    //       inputs.myEventsList.filter((event) =>
-    //         finalizedTimings.has(event.id!)
-    //       ),
-    //       finalizedTimings,
-    //       inputs.myWorkingHours
-    //     )
-    // );
 
     unplaceableMeetings.forEach((event) => {
       Log.log(`Unplaceable meeting: ${event.id}, ${event.summary}`);
