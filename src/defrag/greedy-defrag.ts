@@ -2,6 +2,7 @@ import { CalendarCost } from "./calendar-cost";
 import { CalendarAlg } from "./calendar-alg";
 import { Log } from "../checks/log";
 import { WorkingHours } from "./working-hours";
+import { EventRecurrence } from "./event-recurrence";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace GreedyDefrag {
@@ -11,7 +12,8 @@ export namespace GreedyDefrag {
     myWorkingHours: WorkingHours.TimeRange,
     theirEvents: Map<string, GoogleAppsScript.Calendar.Schema.Event[]>,
     theirWorkingHoursMap: Map<string, WorkingHours.TimeRange>,
-    currentSolution: Map<string, CalendarCost.EventTiming>
+    currentSolution: Map<string, CalendarCost.EventTiming>,
+    recurrenceSchedule: Map<string, EventRecurrence.RecurrenceType>
   ): {
     event: GoogleAppsScript.Calendar.Schema.Event;
     timeOptions: Date[];
@@ -24,7 +26,8 @@ export namespace GreedyDefrag {
           theirEvents,
           theirWorkingHoursMap,
           currentSolution,
-          event!
+          event!,
+          recurrenceSchedule
         );
 
         return {
@@ -72,7 +75,8 @@ export namespace GreedyDefrag {
         inputs.myWorkingHours,
         inputs.theirEvents,
         inputs.theirWorkingHours,
-        finalizedTimings
+        finalizedTimings,
+        inputs.recurrenceSchedule
       );
 
       Log.log(

@@ -2,8 +2,8 @@ import { Log } from "../src/checks/log";
 
 // Disable all console.log since it makes test logs very noisy
 // TODO
-// const consoleSpy = jest.spyOn(Log, "log").mockImplementation(jest.fn());
-// export default consoleSpy;
+const consoleSpy = jest.spyOn(Log, "log").mockImplementation(jest.fn());
+export default consoleSpy;
 
 const scriptPropertiesMock = {
   getProperty: jest.fn(),

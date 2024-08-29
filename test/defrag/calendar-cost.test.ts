@@ -439,8 +439,8 @@ describe("calculateCostFactorsPerDay", () => {
     expect(result).toEqual({
       meetingHours: 2,
       longestMeetingStretchHours: 1,
-      focusTimeOneHoursPlus: 6,
-      focusTimeTwoHourPlus: 5,
+      focusTimeOneHourPlus: 6,
+      focusTimeTwoHoursPlus: 5,
     });
   });
 });

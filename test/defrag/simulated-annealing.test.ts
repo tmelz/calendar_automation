@@ -134,6 +134,7 @@ describe("SimulatedAnnualing.runSim", () => {
       theirWorkingHours: theirWorkingHours,
       moveableEvents,
       moveableEventTimings,
+      recurrenceSchedule: new Map(),
     };
 
     // const solution = SimulatedAnnealing.runSim(inputs);

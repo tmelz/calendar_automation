@@ -1,12 +1,19 @@
 import { CalendarAlg } from "../../src/defrag/calendar-alg";
-import { CalendarCost } from "../../src/defrag/calendar-cost";
 import { GreedyDefrag } from "../../src/defrag/greedy-defrag";
 import { WorkingHours } from "../../src/defrag/working-hours";
 import { myOneOnOneEvent } from "../checks/event-data";
 
+import consoleSpy from "../jest.setup";
+
 describe("GreedyDefrag.main", () => {
+  // We have logging mocked out for tests, but allow it in this case
   beforeEach(() => {
+    consoleSpy.mockRestore();
     global.console = require("console");
+  });
+
+  afterEach(() => {
+    consoleSpy.mockImplementation(jest.fn());
   });
 
   it("TODO", () => {
@@ -139,6 +146,7 @@ describe("GreedyDefrag.main", () => {
       theirWorkingHours: theirWorkingHours,
       moveableEvents,
       moveableEventTimings,
+      recurrenceSchedule: new Map(),
     };
 
     const solution = GreedyDefrag.main(inputs);

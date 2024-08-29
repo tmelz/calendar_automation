@@ -2,6 +2,7 @@ import { SimulatedAnnealing } from "../../src/defrag/simulated-annealing";
 import { WorkingHours } from "../../src/defrag/working-hours";
 import { lunchEvent, myOneOnOneEvent } from "../checks/event-data";
 import { CalendarAlg } from "../../src/defrag/calendar-alg";
+import { EventRecurrence } from "../../src/defrag/event-recurrence";
 
 describe("CalendarAlg.getAlternateStartTimeOptions", () => {
   it("finds openings, respecting work hours and conflicts", () => {
@@ -123,6 +124,7 @@ describe("CalendarAlg.getAlternateStartTimeOptions", () => {
       theirWorkingHours: theirWorkingHours,
       moveableEvents,
       moveableEventTimings,
+      recurrenceSchedule: new Map(),
     };
     const currentSolution = new Map();
     currentSolution.set(events[1].id, {
@@ -137,13 +139,13 @@ describe("CalendarAlg.getAlternateStartTimeOptions", () => {
       inputs.theirEvents,
       inputs.theirWorkingHours,
       currentSolution,
-      events[0]
+      events[0],
+      new Map([["1", EventRecurrence.RecurrenceType.WEEKLY]])
     );
     options.forEach((date) => console.log(date.toISOString()));
     expect(options).toEqual([
       //// Monday
-      // This is the original start time, should be excluded
-      // new Date("2024-08-19T09:00:00-07:00"),
+      new Date("2024-08-19T09:00:00-07:00"),
       new Date("2024-08-19T09:30:00-07:00"),
       new Date("2024-08-19T10:00:00-07:00"),
       new Date("2024-08-19T10:30:00-07:00"),
@@ -174,6 +176,14 @@ describe("CalendarAlg.getAlternateStartTimeOptions", () => {
       // These dates are after their working hours
       // new Date("2024-08-20T15:30:00-07:00"),
       // new Date("2024-08-20T16:00:00-07:00"),
+      new Date("2024-08-21T10:00:00-07:00"),
+      new Date("2024-08-21T12:00:00-07:00"),
+      new Date("2024-08-21T12:30:00-07:00"),
+      new Date("2024-08-21T13:00:00-07:00"),
+      new Date("2024-08-21T13:30:00-07:00"),
+      new Date("2024-08-21T14:00:00-07:00"),
+      new Date("2024-08-21T14:30:00-07:00"),
+      new Date("2024-08-21T15:00:00-07:00"),
     ]);
 
     // expect(
