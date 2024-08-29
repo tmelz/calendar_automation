@@ -4,6 +4,7 @@ import { Log } from "../checks/log";
 import { Time } from "../checks/time";
 import { CalendarCost } from "./calendar-cost";
 import { WorkingHours } from "./working-hours";
+import { EventRecurrence } from "./event-recurrence";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace CalendarAlg {
@@ -17,7 +18,7 @@ export namespace CalendarAlg {
     moveableEvents: Set<string>;
     // id ==> timing
     moveableEventTimings: Map<string, CalendarCost.EventTiming>;
-    // TODO understand the recurrence schedule of an event
+    recurrenceSchedule: Map<string, EventRecurrence.RecurrenceType>;
   };
 
   export function convertDateToEventTiming(
@@ -289,6 +290,19 @@ export namespace CalendarAlg {
       }
     });
 
+    const recurrenceSchedule = new Map<
+      string,
+      EventRecurrence.RecurrenceType
+    >();
+    moveableEvents.forEach((eventId) => {
+      const recurenceInfo = EventRecurrence.getRecurrenceInformation(
+        myEvents.get(eventId)!
+      );
+      if (recurenceInfo !== undefined) {
+        recurrenceSchedule.set(eventId, recurenceInfo);
+      }
+    });
+
     return {
       myEvents,
       myEventsList,
@@ -297,6 +311,7 @@ export namespace CalendarAlg {
       theirWorkingHours,
       moveableEvents,
       moveableEventTimings,
+      recurrenceSchedule,
     };
   }
 

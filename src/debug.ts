@@ -44,8 +44,28 @@ export function debug(): void {
   // console.log(
   //   JSON.stringify(WorkingHours.estimateWorkingHours("tmellor@block.xyz"))
   // );
-  const inputs = CalendarAlg.getInputs(new Date("2024-10-06"));
-  GreedyDefrag.main(inputs);
+  // const inputs = CalendarAlg.getInputs(new Date("2024-10-06"));
+  // GreedyDefrag.main(inputs);
+
+  const events = GetEvents.getEventsForDateRange(
+    new Date("2024-10-06"),
+    new Date("2024-10-13")
+  );
+  events.forEach((event) => {
+    console.log(`${event.summary}`);
+    console.log(`${event}`);
+  });
+
+  const results = [
+    Calendar.Events?.get("primary", "tpqn2or4otb8sqb6l187gt3u0b"),
+    Calendar.Events?.get("primary", "i34h2a19gu3u0fb9iphb1h6mdg"),
+    Calendar.Events?.get("primary", "oi69i0nf3ii39qmi3olqj4ct9j"),
+    Calendar.Events?.get("primary", "63jqc0ooqge8l0lrduc9ecplb8"),
+  ];
+  results.forEach((result) => {
+    console.log(`${result?.summary}`);
+    console.log(`${result?.recurrence}`);
+  });
 }
 
 // export function debug() {
