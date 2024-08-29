@@ -13,6 +13,9 @@ export namespace CalendarCost {
     focusTimeOneHourPlus: number;
     // time not in meetings that is not interrupted for at least 2 hours
     focusTimeTwoHoursPlus: number;
+    // this shouldn't happen, but in case we're evaluating a calendar
+    // before it's been optimized, we track overlaps to penalize them significantly
+    overlappingMeetingHours: number;
   };
 
   export type EventTiming = {
@@ -140,6 +143,12 @@ export namespace CalendarCost {
       cost -= costFactors.focusTimeTwoHoursPlus * 0.75;
     });
 
+    // The overlapping penalty is arbitary, just needs to be some big number
+    cost += costFactorsArray.reduce(
+      (sum, costFactors) => sum + costFactors.overlappingMeetingHours * 10,
+      0
+    );
+
     const meetingHours = costFactorsArray
       .map((costFactors) => costFactors.meetingHours)
       // Sort in ascending order
@@ -217,6 +226,7 @@ export namespace CalendarCost {
     let longestMeetingStretch = 0;
     let focusTimeOneHourPlus = 0;
     let focusTimeTwoHoursPlus = 0;
+    let overlappingMeetingHours = 0;
 
     const workDayStart = workingHours.startTimeSeconds;
     const workDayEnd = workingHours.endTimeSeconds;
@@ -260,7 +270,7 @@ export namespace CalendarCost {
     let previousEndTime = workDayStart;
     let currentMeetingStretch = 0;
 
-    sortedMeetings.forEach((meeting) => {
+    sortedMeetings.forEach((meeting, index) => {
       const meetingDurationRaw = meeting.endTime - meeting.startTime;
       // round meeting duration up to the next 15min interval
       const meetingDuration = Math.ceil(meetingDurationRaw / 900) * 900;
@@ -302,6 +312,15 @@ export namespace CalendarCost {
       }
 
       previousEndTime = meeting.endTime;
+
+      // Check for overlaps with the next meeting
+      if (index < sortedMeetings.length - 1) {
+        const nextMeeting = sortedMeetings[index + 1];
+        if (nextMeeting.startTime < meeting.endTime) {
+          overlappingMeetingHours +=
+            (meeting.endTime - nextMeeting.startTime) / 3600;
+        }
+      }
     });
 
     // Handle the final gap after the last meeting until the end of the workday
@@ -331,6 +350,7 @@ export namespace CalendarCost {
       longestMeetingStretchHours: longestMeetingStretch / 3600, // convert to hours
       focusTimeOneHourPlus: focusTimeOneHourPlus / 3600, // convert to hours
       focusTimeTwoHoursPlus: focusTimeTwoHoursPlus / 3600, // convert to hours
+      overlappingMeetingHours, // Overlapping hours in the day
     };
   }
 }

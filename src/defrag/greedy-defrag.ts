@@ -44,7 +44,9 @@ export namespace GreedyDefrag {
     return unplacedEventsWithTimeOptionsCount[0];
   }
 
-  export function main(inputs: CalendarAlg.Inputs) {
+  export function main(
+    inputs: CalendarAlg.Inputs
+  ): Map<string, CalendarCost.EventTiming> {
     Log.log(`GreedyDefrag.main started`);
 
     Log.log("Filtering non-moveable events...");
@@ -145,6 +147,7 @@ export namespace GreedyDefrag {
       inputs.myWorkingHours,
       finalizedTimings
     );
+    // TODO return unplaceable events as well?
     return finalizedTimings;
   }
 }

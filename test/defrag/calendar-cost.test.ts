@@ -82,6 +82,7 @@ describe("calculateCostFactorsPerDay", () => {
       longestMeetingStretchHours: 0,
       focusTimeOneHourPlus: 8,
       focusTimeTwoHoursPlus: 8,
+      overlappingMeetingHours: 0,
     });
   });
 
@@ -102,6 +103,7 @@ describe("calculateCostFactorsPerDay", () => {
       longestMeetingStretchHours: 0,
       focusTimeOneHourPlus: 7,
       focusTimeTwoHoursPlus: 7,
+      overlappingMeetingHours: 0,
     });
   });
 
@@ -139,6 +141,7 @@ describe("calculateCostFactorsPerDay", () => {
       longestMeetingStretchHours: 3,
       focusTimeOneHourPlus: 4,
       focusTimeTwoHoursPlus: 4,
+      overlappingMeetingHours: 0,
     });
   });
 
@@ -196,6 +199,7 @@ describe("calculateCostFactorsPerDay", () => {
       longestMeetingStretchHours: 4,
       focusTimeOneHourPlus: 0,
       focusTimeTwoHoursPlus: 0,
+      overlappingMeetingHours: 0,
     });
   });
 
@@ -253,6 +257,7 @@ describe("calculateCostFactorsPerDay", () => {
       longestMeetingStretchHours: 4,
       focusTimeOneHourPlus: 0,
       focusTimeTwoHoursPlus: 0,
+      overlappingMeetingHours: 0,
     });
   });
 
@@ -305,6 +310,7 @@ describe("calculateCostFactorsPerDay", () => {
       longestMeetingStretchHours: 4,
       focusTimeOneHourPlus: 1,
       focusTimeTwoHoursPlus: 0,
+      overlappingMeetingHours: 0,
     });
   });
 
@@ -357,6 +363,7 @@ describe("calculateCostFactorsPerDay", () => {
       longestMeetingStretchHours: 4,
       focusTimeOneHourPlus: 1.5,
       focusTimeTwoHoursPlus: 0,
+      overlappingMeetingHours: 0,
     });
   });
 
@@ -405,6 +412,7 @@ describe("calculateCostFactorsPerDay", () => {
       longestMeetingStretchHours: 3,
       focusTimeOneHourPlus: 2.5,
       focusTimeTwoHoursPlus: 0,
+      overlappingMeetingHours: 0,
     });
   });
 
@@ -441,6 +449,89 @@ describe("calculateCostFactorsPerDay", () => {
       longestMeetingStretchHours: 1,
       focusTimeOneHourPlus: 6,
       focusTimeTwoHoursPlus: 5,
+      overlappingMeetingHours: 0,
+    });
+  });
+
+  it("calculate overlap correctly with 2 meetings", () => {
+    const events: GoogleAppsScript.Calendar.Schema.Event[] = [
+      {
+        ...myOneOnOneEvent,
+        id: "1",
+        start: { dateTime: "2024-08-19T09:00:00-07:00" },
+        end: { dateTime: "2024-08-19T11:00:00-07:00" },
+        summary: "event 1",
+      },
+
+      {
+        ...myOneOnOneEvent,
+        id: "2",
+        start: { dateTime: "2024-08-19T10:00:00-07:00" },
+        end: { dateTime: "2024-08-19T11:00:00-07:00" },
+        summary: "event 2",
+      },
+    ];
+    const workingHours = {
+      startTimeSeconds: 9 * 3600,
+      endTimeSeconds: 17 * 3600,
+    };
+    const result = CalendarCost.calculateCostFactorsPerDay(
+      events,
+      new Map(),
+      workingHours
+    );
+
+    expect(result).toEqual({
+      meetingHours: 3,
+      longestMeetingStretchHours: 3,
+      focusTimeOneHourPlus: 6,
+      focusTimeTwoHoursPlus: 6,
+      overlappingMeetingHours: 1,
+    });
+  });
+
+  it("calculate overlap correctly with 3 meetings", () => {
+    const events: GoogleAppsScript.Calendar.Schema.Event[] = [
+      {
+        ...myOneOnOneEvent,
+        id: "1",
+        start: { dateTime: "2024-08-19T09:00:00-07:00" },
+        end: { dateTime: "2024-08-19T11:00:00-07:00" },
+        summary: "event 1",
+      },
+
+      {
+        ...myOneOnOneEvent,
+        id: "2",
+        start: { dateTime: "2024-08-19T10:00:00-07:00" },
+        end: { dateTime: "2024-08-19T10:30:00-07:00" },
+        summary: "event 2",
+      },
+
+      {
+        ...myOneOnOneEvent,
+        id: "3",
+        start: { dateTime: "2024-08-19T10:30:00-07:00" },
+        end: { dateTime: "2024-08-19T11:00:00-07:00" },
+        summary: "event 3",
+      },
+    ];
+    const workingHours = {
+      startTimeSeconds: 9 * 3600,
+      endTimeSeconds: 17 * 3600,
+    };
+    const result = CalendarCost.calculateCostFactorsPerDay(
+      events,
+      new Map(),
+      workingHours
+    );
+
+    expect(result).toEqual({
+      meetingHours: 3,
+      longestMeetingStretchHours: 3,
+      focusTimeOneHourPlus: 6,
+      focusTimeTwoHoursPlus: 6,
+      overlappingMeetingHours: 1,
     });
   });
 });

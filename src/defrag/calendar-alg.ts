@@ -305,6 +305,12 @@ export namespace CalendarAlg {
     const moveableEvents = new Set(
       Array.from(myEvents.values())
         .filter((event) => EventUtil.isOneOnOneWithMe(event))
+        .filter(
+          (event) =>
+            !event.attendees?.some(
+              (attendee) => attendee.email === "azra@block.xyz"
+            )
+        )
         .map((event) => event.id!)
     );
     const moveableEventTimings = new Map<string, CalendarCost.EventTiming>();
@@ -373,14 +379,15 @@ export namespace CalendarAlg {
     return clonedMap;
   }
 
-  export function convertTimingToDate(
-    timing: CalendarCost.EventTiming,
+  export function convertSecondsTimingToDate(
+    secondsTiming: number,
+    dayOfWeek: number,
     refDate: Date
   ): Date {
     const date = new Date(refDate);
-    date.setDate(date.getDate() + (timing.dayOfWeek - date.getDay()));
+    date.setDate(date.getDate() + (dayOfWeek - date.getDay()));
     date.setHours(0, 0, 0, 0);
-    date.setSeconds(timing.startTimeOfDaySeconds);
+    date.setSeconds(secondsTiming);
 
     return date;
   }
@@ -471,15 +478,19 @@ export namespace CalendarAlg {
     eventsToDisplay.sort((a, b) => {
       let aDate = new Date(a.start!.dateTime!).getTime();
       if (solution.has(a.id!)) {
-        aDate = CalendarAlg.convertTimingToDate(
-          solution.get(a.id!)!,
+        const timing = solution.get(a.id!)!;
+        aDate = CalendarAlg.convertSecondsTimingToDate(
+          timing.startTimeOfDaySeconds,
+          timing.dayOfWeek,
           new Date(a.start!.dateTime!)
         ).getTime();
       }
       let bDate = new Date(b.start!.dateTime!).getTime();
       if (solution.has(b.id!)) {
-        bDate = CalendarAlg.convertTimingToDate(
-          solution.get(b.id!)!,
+        const timing = solution.get(b.id!)!;
+        bDate = CalendarAlg.convertSecondsTimingToDate(
+          timing.startTimeOfDaySeconds,
+          timing.dayOfWeek,
           new Date(b.start!.dateTime!)
         ).getTime();
       }

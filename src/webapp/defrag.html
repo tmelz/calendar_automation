@@ -1,0 +1,369 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Defrag Calendar View</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background-color: #f7f7f7;
+        position: relative;
+      }
+
+      #loading-spinner {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        border: 4px solid rgba(0, 0, 0, 0.1);
+        border-left-color: #000;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: translate(-50%, -50%) rotate(0deg);
+        }
+        100% {
+          transform: translate(-50%, -50%) rotate(360deg);
+        }
+      }
+
+      .calendar-container-wrapper {
+        width: 95%;
+        max-width: 1600px;
+        margin: 20px 0;
+        display: flex;
+        flex-direction: row;
+      }
+
+      .time-labels {
+        width: 50px;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        margin-right: 10px;
+        padding-top: 30px;
+      }
+
+      .time-label {
+        height: 50px;
+        font-size: 10px;
+        color: #666;
+        line-height: 50px;
+      }
+
+      .calendar-container {
+        display: flex;
+        flex-grow: 1;
+      }
+
+      .calendar-day {
+        flex-grow: 1;
+        background-color: #fff;
+        padding: 10px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid #eaeaea;
+      }
+
+      .calendar-day:last-child {
+        border-right: none;
+      }
+
+      .day-header {
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 10px;
+        border-bottom: 1px solid #eaeaea;
+        padding-bottom: 5px;
+      }
+
+      .events-container {
+        position: relative;
+        flex-grow: 1;
+      }
+
+      .hour-line {
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background-color: #eaeaea;
+      }
+
+      .event {
+        border-radius: 4px;
+        border: 1px solid #000; /* Thin black outline */
+        padding: 5px;
+        margin: 5px 0;
+        color: #fff;
+        position: absolute;
+        overflow: hidden;
+        box-sizing: border-box;
+        font-size: 12px;
+        line-height: 1.2;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .event-color-default {
+        background-color: #9e9e9e;
+        width: 100% !important;
+      }
+      .event-color-1 {
+        background-color: #1a73e8;
+      }
+      .event-color-2 {
+        background-color: #34a853;
+      }
+      .event-color-3 {
+        background-color: #fbbc05;
+      }
+      .event-color-4 {
+        background-color: #ea4335;
+      }
+      .event-color-5 {
+        background-color: #a142f4;
+      }
+      .event-color-6 {
+        background-color: #ff6d01;
+      }
+      .event-color-7 {
+        background-color: #46bdc6;
+      }
+      .event-color-8 {
+        background-color: #ffcb00;
+      }
+      .event-color-9 {
+        background-color: #d93025;
+      }
+      .event-color-10 {
+        background-color: #9aa0a6;
+      }
+      .event-color-11 {
+        background-color: #ff4081;
+      }
+      .event-color-12 {
+        background-color: #7e57c2;
+      }
+      .event-color-13 {
+        background-color: #00bcd4;
+      }
+      .event-color-14 {
+        background-color: #009688;
+      }
+      .event-color-15 {
+        background-color: #8bc34a;
+      }
+      .event-color-16 {
+        background-color: #cddc39;
+      }
+      .event-color-17 {
+        background-color: #ffeb3b;
+      }
+      .event-color-18 {
+        background-color: #ffc107;
+      }
+      .event-color-19 {
+        background-color: #ff9800;
+      }
+      .event-color-20 {
+        background-color: #795548;
+      }
+    </style>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        document.getElementById("loading-spinner").style.display = "block";
+        google.script.run.withSuccessHandler(renderCalendars).defrag();
+      });
+
+      function renderCalendars(data) {
+        document.getElementById("loading-spinner").style.display = "none";
+        const startingEvents = data.startingEvents;
+        const solutionEvents = data.solutionEvents;
+        const moveableMeetingIds = data.moveableMeetingIds;
+
+        renderCalendar(startingEvents, "starting-calendar", moveableMeetingIds);
+        renderCalendar(solutionEvents, "solution-calendar", moveableMeetingIds);
+      }
+
+      function renderCalendar(events, containerId, moveableMeetingIds) {
+        const container = document.getElementById(containerId);
+        const hourHeight = 50;
+
+        let earliestStart = 24;
+        let latestEnd = 0;
+
+        events.forEach((event) => {
+          const startDate = new Date(event.start.dateTime);
+          const endDate = new Date(event.end.dateTime);
+          const startHour = startDate.getHours() + startDate.getMinutes() / 60;
+          const endHour = endDate.getHours() + endDate.getMinutes() / 60;
+
+          if (startHour < earliestStart) earliestStart = startHour;
+          if (endHour > latestEnd) latestEnd = endHour;
+        });
+
+        const dayHeight = (latestEnd - earliestStart) * hourHeight;
+
+        container.querySelectorAll(".calendar-day").forEach((day) => {
+          const eventsContainer = document.createElement("div");
+          eventsContainer.classList.add("events-container");
+          eventsContainer.style.height = `${dayHeight}px`;
+
+          for (
+            let hour = Math.floor(earliestStart);
+            hour <= Math.ceil(latestEnd);
+            hour++
+          ) {
+            const hourLine = document.createElement("div");
+            hourLine.classList.add("hour-line");
+            hourLine.style.top = `${(hour - earliestStart) * hourHeight}px`;
+            eventsContainer.appendChild(hourLine);
+          }
+
+          day.appendChild(eventsContainer);
+        });
+
+        events.forEach((event) => {
+          const startDate = new Date(event.start.dateTime);
+          const endDate = new Date(event.end.dateTime);
+          const dayOfWeek = startDate.getDay() - 1;
+
+          if (dayOfWeek >= 0 && dayOfWeek < 5) {
+            const eventDurationHours = (endDate - startDate) / 3600000;
+            const eventElement = document.createElement("div");
+            let colorClass;
+
+            if (moveableMeetingIds.includes(event.id)) {
+              const colorIndex = (parseInt(event.id, 16) % 20) + 1 || 1;
+              colorClass = `event-color-${colorIndex}`;
+            } else {
+              colorClass = "event-color-default";
+            }
+
+            eventElement.classList.add("event", colorClass);
+            eventElement.style.top = `${(startDate.getHours() + startDate.getMinutes() / 60 - earliestStart) * hourHeight}px`;
+            eventElement.style.height = `${Math.max(eventDurationHours * hourHeight, 20)}px`;
+
+            const [left, width] = calculateEventPosition(
+              events,
+              event,
+              startDate
+            );
+            eventElement.style.left = `${left}%`;
+            eventElement.style.width = `${width}%`;
+
+            eventElement.innerText = event.summary;
+
+            container.children[dayOfWeek]
+              .querySelector(".events-container")
+              .appendChild(eventElement);
+          }
+        });
+
+        // Add time labels
+        const timeLabelsContainer = container.previousElementSibling;
+        timeLabelsContainer.innerHTML = "";
+
+        for (
+          let hour = Math.floor(earliestStart);
+          hour <= Math.ceil(latestEnd);
+          hour++
+        ) {
+          const timeLabel = document.createElement("div");
+          timeLabel.classList.add("time-label");
+          timeLabel.innerText = `${hour % 12 || 12}:00 ${hour >= 12 ? "PM" : "AM"}`;
+          timeLabelsContainer.appendChild(timeLabel);
+        }
+      }
+
+      function calculateEventPosition(events, currentEvent, startDate) {
+        const overlappingEvents = events.filter(
+          (event) =>
+            new Date(event.start.dateTime).getDay() === startDate.getDay() &&
+            doEventsOverlap(currentEvent, event)
+        );
+
+        if (overlappingEvents.length === 1) {
+          return [0, 100]; // Full width if no overlap
+        }
+
+        const index = overlappingEvents.findIndex(
+          (event) => event.id === currentEvent.id
+        );
+        const width = 100 / overlappingEvents.length;
+        const left = index * width;
+
+        return [left, width];
+      }
+
+      function doEventsOverlap(event1, event2) {
+        const start1 = new Date(event1.start.dateTime);
+        const end1 = new Date(event1.end.dateTime);
+        const start2 = new Date(event2.start.dateTime);
+        const end2 = new Date(event2.end.dateTime);
+
+        return start1 < end2 && start2 < end1;
+      }
+    </script>
+  </head>
+  <body>
+    <div id="loading-spinner"></div>
+    <h2>Starting Calendar</h2>
+    <div class="calendar-container-wrapper">
+      <div class="time-labels"></div>
+      <div class="calendar-container" id="starting-calendar">
+        <div class="calendar-day">
+          <div class="day-header">Monday</div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">Tuesday</div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">Wednesday</div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">Thursday</div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">Friday</div>
+        </div>
+      </div>
+    </div>
+    <h2>Optimized Calendar</h2>
+    <div class="calendar-container-wrapper">
+      <div class="time-labels"></div>
+      <div class="calendar-container" id="solution-calendar">
+        <div class="calendar-day">
+          <div class="day-header">Monday</div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">Tuesday</div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">Wednesday</div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">Thursday</div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">Friday</div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
