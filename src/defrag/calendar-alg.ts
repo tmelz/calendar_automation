@@ -37,13 +37,53 @@ export namespace CalendarAlg {
     };
   }
 
+  // how much should we allow a particular meeting to shift
+  // throughout the week?
+  export function getAllowedDayDeltas(
+    recurrence: EventRecurrence.RecurrenceType | undefined,
+    eventDayOfWeek: number
+  ): number[] {
+    let possibleDayDeltas: number[] = [];
+    if (
+      recurrence === undefined ||
+      recurrence === EventRecurrence.RecurrenceType.DAILY
+    ) {
+      // undefined means it's an adhoc event, could be time sensitive to keep same day
+      possibleDayDeltas = [0];
+    } else if (recurrence === EventRecurrence.RecurrenceType.WEEKLY) {
+      // weekly event, ok to move a bit but not too much
+      possibleDayDeltas = [0, -1, 1];
+      // Allow moves Monday ==> Wednesday since Tues is no meeting day
+      if (eventDayOfWeek === 1) {
+        possibleDayDeltas.push(2);
+      }
+    } else if (
+      recurrence === EventRecurrence.RecurrenceType.EVERY_TWO_WEEKS ||
+      recurrence === EventRecurrence.RecurrenceType.THREE_WEEKS_PLUS
+    ) {
+      possibleDayDeltas = [0];
+      //// Allow moving anyday Monday --> Friday since these events are less common
+      // all moves to all days before this day of week
+      for (let i = 1; i <= eventDayOfWeek - 1; i++) {
+        possibleDayDeltas.push(-1 * i);
+      }
+      // allow moves to all days after
+      for (let i = 1; i <= 5 - eventDayOfWeek; i++) {
+        possibleDayDeltas.push(i);
+      }
+    }
+
+    return possibleDayDeltas;
+  }
+
   export function getAlternateStartTimeOptions(
     myEventsList: GoogleAppsScript.Calendar.Schema.Event[],
     myWorkingHours: WorkingHours.TimeRange,
     theirEvents: Map<string, GoogleAppsScript.Calendar.Schema.Event[]>,
     theirWorkingHoursMap: Map<string, WorkingHours.TimeRange>,
     currentSolution: Map<string, CalendarCost.EventTiming>,
-    event: GoogleAppsScript.Calendar.Schema.Event
+    event: GoogleAppsScript.Calendar.Schema.Event,
+    recurrenceSchedule: Map<string, EventRecurrence.RecurrenceType>
   ): Date[] {
     const theirEmail = EventUtil.getEmailForOtherAttendee(event);
     if (theirEmail === undefined) {
@@ -62,14 +102,12 @@ export namespace CalendarAlg {
     const offsetMinutes = originalStartDate.getMinutes() % 30;
 
     const newStartTimeOptions: Date[] = [];
-    // Allow moves to same day, previous day, next day
-    // if Monday, allow moves to Wednesday
-    const possibleDays = [0, -1, 1];
-    if (originalStartDate.getDay() === 1) {
-      possibleDays.push(2);
-    }
+    const possibleDayDeltas: number[] = getAllowedDayDeltas(
+      recurrenceSchedule.get(event.id!),
+      originalStartDate.getDay()
+    );
 
-    for (const dayOffset of possibleDays) {
+    for (const dayOffset of possibleDayDeltas) {
       const newDate = new Date(originalStartDate);
       newDate.setDate(newDate.getDate() + dayOffset);
 

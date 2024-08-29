@@ -24,7 +24,14 @@ export namespace EventRecurrence {
       "primary",
       event.recurringEventId
     );
-    const recurrenceRule = recurringEvent?.recurrence?.find((recurrence) =>
+
+    return parseRecurrenceRule(recurringEvent!);
+  }
+
+  export function parseRecurrenceRule(
+    event: GoogleAppsScript.Calendar.Schema.Event
+  ): EventRecurrence.RecurrenceType | undefined {
+    const recurrenceRule = event?.recurrence?.find((recurrence) =>
       recurrence.startsWith("RRULE")
     );
 
