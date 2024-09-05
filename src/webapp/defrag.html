@@ -7,25 +7,31 @@
       body {
         font-family: Arial, sans-serif;
         margin: 0;
-        padding: 0;
+        padding: 20px;
         display: flex;
         flex-direction: column;
         align-items: center;
-        background-color: #f7f7f7;
-        position: relative;
+        background-color: #f0f4f8;
+        color: #333;
+      }
+
+      h2 {
+        color: #2c3e50;
+        margin-bottom: 10px;
       }
 
       #loading-spinner {
-        position: absolute;
+        position: fixed;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
         border: 4px solid rgba(0, 0, 0, 0.1);
-        border-left-color: #000;
+        border-left-color: #3498db;
         border-radius: 50%;
         width: 40px;
         height: 40px;
         animation: spin 1s linear infinite;
+        z-index: 1000;
       }
 
       @keyframes spin {
@@ -39,25 +45,29 @@
 
       .calendar-container-wrapper {
         width: 95%;
-        max-width: 1600px;
+        max-width: 1200px;
         margin: 20px 0;
         display: flex;
         flex-direction: row;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
       }
 
       .time-labels {
-        width: 50px;
+        width: 60px;
         flex-shrink: 0;
         display: flex;
         flex-direction: column;
         align-items: flex-end;
-        margin-right: 10px;
-        padding-top: 30px;
+        padding: 30px 10px 0 0;
+        background-color: #f8f9fa;
+        border-radius: 8px 0 0 8px;
       }
 
       .time-label {
         height: 50px;
-        font-size: 10px;
+        font-size: 12px;
         color: #666;
         line-height: 50px;
       }
@@ -65,18 +75,19 @@
       .calendar-container {
         display: flex;
         flex-grow: 1;
+        overflow-x: auto;
       }
 
       .calendar-day {
-        flex-grow: 1;
+        flex: 1;
+        min-width: 150px;
         background-color: #fff;
         padding: 10px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         position: relative;
         overflow: hidden;
         display: flex;
         flex-direction: column;
-        border-right: 1px solid #eaeaea;
+        border-right: 1px solid #e0e0e0;
       }
 
       .calendar-day:last-child {
@@ -87,8 +98,9 @@
         font-weight: bold;
         text-align: center;
         margin-bottom: 10px;
-        border-bottom: 1px solid #eaeaea;
         padding-bottom: 5px;
+        border-bottom: 2px solid #3498db;
+        color: #2c3e50;
       }
 
       .events-container {
@@ -101,107 +113,194 @@
         left: 0;
         right: 0;
         height: 1px;
-        background-color: #eaeaea;
+        background-color: #e0e0e0;
       }
 
       .event {
         border-radius: 4px;
-        border: 1px solid #000; /* Thin black outline */
         padding: 5px;
-        margin: 5px 0;
-        color: #fff;
+        margin: 1px 0;
         position: absolute;
         overflow: hidden;
         box-sizing: border-box;
         font-size: 12px;
         line-height: 1.2;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .event:hover {
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        transform: translateY(-1px);
       }
 
       .event-color-default {
-        background-color: #9e9e9e;
-        width: 100% !important;
-      }
-      .event-color-1 {
-        background-color: #1a73e8;
-      }
-      .event-color-2 {
-        background-color: #34a853;
-      }
-      .event-color-3 {
-        background-color: #fbbc05;
-      }
-      .event-color-4 {
-        background-color: #ea4335;
-      }
-      .event-color-5 {
-        background-color: #a142f4;
-      }
-      .event-color-6 {
-        background-color: #ff6d01;
-      }
-      .event-color-7 {
-        background-color: #46bdc6;
-      }
-      .event-color-8 {
-        background-color: #ffcb00;
-      }
-      .event-color-9 {
-        background-color: #d93025;
-      }
-      .event-color-10 {
-        background-color: #9aa0a6;
-      }
-      .event-color-11 {
-        background-color: #ff4081;
-      }
-      .event-color-12 {
-        background-color: #7e57c2;
-      }
-      .event-color-13 {
-        background-color: #00bcd4;
-      }
-      .event-color-14 {
-        background-color: #009688;
-      }
-      .event-color-15 {
-        background-color: #8bc34a;
-      }
-      .event-color-16 {
-        background-color: #cddc39;
-      }
-      .event-color-17 {
-        background-color: #ffeb3b;
-      }
-      .event-color-18 {
-        background-color: #ffc107;
-      }
-      .event-color-19 {
-        background-color: #ff9800;
-      }
-      .event-color-20 {
-        background-color: #795548;
+        background-color: #95a5a6;
+        color: #fff;
       }
     </style>
     <script>
-      document.addEventListener("DOMContentLoaded", function () {
-        document.getElementById("loading-spinner").style.display = "block";
-        google.script.run.withSuccessHandler(renderCalendars).defrag();
-      });
+      function generateTestData() {
+        const startDate = new Date("2024-09-02T08:00:00"); // A Monday
+        const events = [];
+        const moveableMeetingIds = [];
+
+        for (let day = 0; day < 5; day++) {
+          const dailyEvents = Math.floor(Math.random() * 5) + 3; // 3 to 7 events per day
+          for (let i = 0; i < dailyEvents; i++) {
+            const startHour = Math.floor(Math.random() * 8) + 9; // 9 AM to 4 PM
+            const duration = Math.floor(Math.random() * 2) + 1; // 1 to 2 hours
+            const eventDate = new Date(startDate);
+            eventDate.setDate(startDate.getDate() + day);
+            eventDate.setHours(startHour, 0, 0, 0);
+
+            const event = {
+              id: Math.random().toString(16).substr(2, 8),
+              summary: `Meeting ${i + 1}`,
+              start: {
+                dateTime: new Date(eventDate).toISOString(),
+              },
+              end: {
+                dateTime: new Date(
+                  eventDate.getTime() + duration * 60 * 60 * 1000
+                ).toISOString(),
+              },
+            };
+
+            events.push(event);
+            if (Math.random() > 0.5) {
+              moveableMeetingIds.push(event.id);
+            }
+          }
+        }
+
+        // Create a copy of events for the solution calendar
+        const solutionEvents = JSON.parse(JSON.stringify(events));
+        // Randomly modify some event times in the solution calendar
+        solutionEvents.forEach((event) => {
+          if (moveableMeetingIds.includes(event.id) && Math.random() > 0.5) {
+            const startDate = new Date(event.start.dateTime);
+            startDate.setHours(
+              startDate.getHours() + Math.floor(Math.random() * 3) - 1
+            );
+            event.start.dateTime = startDate.toISOString();
+            event.end.dateTime = new Date(
+              startDate.getTime() + 60 * 60 * 1000
+            ).toISOString();
+          }
+        });
+
+        return {
+          startingEvents: events,
+          solutionEvents: solutionEvents,
+          moveableMeetingIds: moveableMeetingIds,
+        };
+      }
 
       function renderCalendars(data) {
-        document.getElementById("loading-spinner").style.display = "none";
+        const loadingSpinner = document.getElementById("loading-spinner");
+        if (loadingSpinner) {
+          loadingSpinner.style.display = "none";
+        }
+
         const startingEvents = data.startingEvents;
         const solutionEvents = data.solutionEvents;
         const moveableMeetingIds = data.moveableMeetingIds;
 
-        renderCalendar(startingEvents, "starting-calendar", moveableMeetingIds);
-        renderCalendar(solutionEvents, "solution-calendar", moveableMeetingIds);
+        // Generate dynamic colors
+        const colors = generateColors(moveableMeetingIds.length);
+
+        renderCalendar(
+          startingEvents,
+          "starting-calendar",
+          moveableMeetingIds,
+          colors
+        );
+        renderCalendar(
+          solutionEvents,
+          "solution-calendar",
+          moveableMeetingIds,
+          colors
+        );
       }
 
-      function renderCalendar(events, containerId, moveableMeetingIds) {
+      function generateColors(count) {
+        const colors = [];
+        const hueStep = 360 / count;
+
+        for (let i = 0; i < count; i++) {
+          const hue = i * hueStep;
+          const saturation = 70 + Math.random() * 20; // 70-90%
+          const lightness = 50 + Math.random() * 10; // 50-60%
+
+          colors.push(`hsl(${hue}, ${saturation}%, ${lightness}%)`);
+        }
+
+        return colors;
+      }
+
+      function getContrastColor(hslColor) {
+        // Convert HSL to RGB
+        const rgbColor = hslToRgb(hslColor);
+        const [r, g, b] = rgbColor.match(/[\d\.]+/g).map(Number);
+
+        // Calculate relative luminance
+        const luminance =
+          0.2126 * adjustColor(r) +
+          0.7152 * adjustColor(g) +
+          0.0722 * adjustColor(b);
+
+        // Log for debugging
+        console.log(`HSL Color: ${hslColor}`);
+        console.log(`RGB Color: ${rgbColor}`);
+        console.log(`Relative Luminance: ${luminance}`);
+
+        // Choose black or white based on luminance
+        // The threshold is adjusted to align with typical recommendations in the WCAG (0.179 is approximately equivalent to 45.9 on a scale of 0 to 255)
+        return luminance > 45.9 ? "#000000" : "#FFFFFF";
+      }
+
+      function hslToRgb(hsl) {
+        const hslComponents = hsl.match(/[\d\.]+/g).map(Number);
+        const h = hslComponents[0];
+        const s = hslComponents[1] / 100;
+        const l = hslComponents[2] / 100;
+
+        let r, g, b;
+        if (s === 0) {
+          r = g = b = l; // achromatic
+        } else {
+          const hue2rgb = (p, q, t) => {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1 / 6) return p + (q - p) * 6 * t;
+            if (t < 1 / 2) return q;
+            if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+            return p;
+          };
+
+          const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+          const p = 2 * l - q;
+          r = hue2rgb(p, q, h / 360 + 1 / 3);
+          g = hue2rgb(p, q, h / 360);
+          b = hue2rgb(p, q, h / 360 - 1 / 3);
+        }
+
+        r = Math.round(r * 255);
+        g = Math.round(g * 255);
+        b = Math.round(b * 255);
+
+        return `rgb(${r}, ${g}, ${b})`;
+      }
+
+      function adjustColor(c) {
+        return c <= 10 ? c / 3294.6 : Math.pow(c / 269 + 0.0513, 2.4) * 100;
+      }
+
+      function renderCalendar(events, containerId, moveableMeetingIds, colors) {
         const container = document.getElementById(containerId);
+        if (!container) return;
+
         const hourHeight = 50;
 
         let earliestStart = 24;
@@ -220,9 +319,12 @@
         const dayHeight = (latestEnd - earliestStart) * hourHeight;
 
         container.querySelectorAll(".calendar-day").forEach((day) => {
-          const eventsContainer = document.createElement("div");
+          const eventsContainer =
+            day.querySelector(".events-container") ||
+            document.createElement("div");
           eventsContainer.classList.add("events-container");
           eventsContainer.style.height = `${dayHeight}px`;
+          eventsContainer.innerHTML = ""; // Clear existing events
 
           for (
             let hour = Math.floor(earliestStart);
@@ -235,10 +337,12 @@
             eventsContainer.appendChild(hourLine);
           }
 
-          day.appendChild(eventsContainer);
+          if (!day.querySelector(".events-container")) {
+            day.appendChild(eventsContainer);
+          }
         });
 
-        events.forEach((event) => {
+        events.forEach((event, index) => {
           const startDate = new Date(event.start.dateTime);
           const endDate = new Date(event.end.dateTime);
           const dayOfWeek = startDate.getDay() - 1;
@@ -246,16 +350,21 @@
           if (dayOfWeek >= 0 && dayOfWeek < 5) {
             const eventDurationHours = (endDate - startDate) / 3600000;
             const eventElement = document.createElement("div");
-            let colorClass;
+            let backgroundColor, textColor;
 
             if (moveableMeetingIds.includes(event.id)) {
-              const colorIndex = (parseInt(event.id, 16) % 20) + 1 || 1;
-              colorClass = `event-color-${colorIndex}`;
+              const colorIndex = moveableMeetingIds.indexOf(event.id);
+              backgroundColor = colors[colorIndex];
+              textColor = getContrastColor(backgroundColor);
             } else {
-              colorClass = "event-color-default";
+              backgroundColor = "#95a5a6"; // Default color for non-movable events
+              textColor = "#FFFFFF";
             }
 
-            eventElement.classList.add("event", colorClass);
+            eventElement.classList.add("event");
+            eventElement.style.backgroundColor = backgroundColor;
+            eventElement.style.color = textColor;
+
             eventElement.style.top = `${(startDate.getHours() + startDate.getMinutes() / 60 - earliestStart) * hourHeight}px`;
             eventElement.style.height = `${Math.max(eventDurationHours * hourHeight, 20)}px`;
 
@@ -269,25 +378,32 @@
 
             eventElement.innerText = event.summary;
 
-            container.children[dayOfWeek]
-              .querySelector(".events-container")
-              .appendChild(eventElement);
+            const dayContainer = container.children[dayOfWeek];
+            if (dayContainer) {
+              const eventsContainer =
+                dayContainer.querySelector(".events-container");
+              if (eventsContainer) {
+                eventsContainer.appendChild(eventElement);
+              }
+            }
           }
         });
 
         // Add time labels
         const timeLabelsContainer = container.previousElementSibling;
-        timeLabelsContainer.innerHTML = "";
+        if (timeLabelsContainer) {
+          timeLabelsContainer.innerHTML = "";
 
-        for (
-          let hour = Math.floor(earliestStart);
-          hour <= Math.ceil(latestEnd);
-          hour++
-        ) {
-          const timeLabel = document.createElement("div");
-          timeLabel.classList.add("time-label");
-          timeLabel.innerText = `${hour % 12 || 12}:00 ${hour >= 12 ? "PM" : "AM"}`;
-          timeLabelsContainer.appendChild(timeLabel);
+          for (
+            let hour = Math.floor(earliestStart);
+            hour <= Math.ceil(latestEnd);
+            hour++
+          ) {
+            const timeLabel = document.createElement("div");
+            timeLabel.classList.add("time-label");
+            timeLabel.innerText = `${hour % 12 || 12}:00 ${hour >= 12 ? "PM" : "AM"}`;
+            timeLabelsContainer.appendChild(timeLabel);
+          }
         }
       }
 
@@ -319,6 +435,18 @@
 
         return start1 < end2 && start2 < end1;
       }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        const loadingSpinner = document.getElementById("loading-spinner");
+        if (loadingSpinner) {
+          loadingSpinner.style.display = "block";
+        }
+
+        google.script.run.withSuccessHandler(renderCalendars).defrag();
+        // // Use test data
+        // const testData = generateTestData();
+        // renderCalendars(testData);
+      });
     </script>
   </head>
   <body>
