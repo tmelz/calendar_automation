@@ -18,6 +18,26 @@
       h2 {
         color: #2c3e50;
         margin-bottom: 10px;
+        font-size: 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 95%;
+        max-width: 1200px;
+      }
+
+      #hover-area {
+        padding: 5px 10px;
+        background-color: #3498db;
+        color: #fff;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        font-size: 16px;
+      }
+
+      #hover-area:hover {
+        background-color: #2980b9;
       }
 
       #loading-spinner {
@@ -52,6 +72,7 @@
         background-color: #fff;
         border-radius: 8px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        position: relative;
       }
 
       .time-labels {
@@ -127,11 +148,33 @@
         line-height: 1.2;
         cursor: pointer;
         transition: all 0.3s ease;
+        color: #fff;
+      }
+
+      .event-title {
+        font-weight: bold;
+        font-size: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .event:hover {
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         transform: translateY(-1px);
+      }
+
+      .tooltip {
+        display: none;
+        position: absolute;
+        background-color: #000;
+        color: #fff;
+        padding: 5px;
+        border-radius: 4px;
+        font-size: 12px;
+        z-index: 100;
+        pointer-events: none;
+        white-space: nowrap;
       }
 
       .event-color-default {
@@ -140,88 +183,68 @@
       }
     </style>
     <script>
-      function generateTestData() {
-        const startDate = new Date("2024-09-02T08:00:00"); // A Monday
-        const events = [];
-        const moveableMeetingIds = [];
+      document.addEventListener("DOMContentLoaded", function () {
+        const loadingSpinner = document.getElementById("loading-spinner");
+        const tooltip = document.createElement("div");
+        tooltip.className = "tooltip";
+        document.body.appendChild(tooltip);
 
-        for (let day = 0; day < 5; day++) {
-          const dailyEvents = Math.floor(Math.random() * 5) + 3; // 3 to 7 events per day
-          for (let i = 0; i < dailyEvents; i++) {
-            const startHour = Math.floor(Math.random() * 8) + 9; // 9 AM to 4 PM
-            const duration = Math.floor(Math.random() * 2) + 1; // 1 to 2 hours
-            const eventDate = new Date(startDate);
-            eventDate.setDate(startDate.getDate() + day);
-            eventDate.setHours(startHour, 0, 0, 0);
+        google.script.run
+          .withSuccessHandler((data) => {
+            renderCalendars(data, false);
 
-            const event = {
-              id: Math.random().toString(16).substr(2, 8),
-              summary: `Meeting ${i + 1}`,
-              start: {
-                dateTime: new Date(eventDate).toISOString(),
-              },
-              end: {
-                dateTime: new Date(
-                  eventDate.getTime() + duration * 60 * 60 * 1000
-                ).toISOString(),
-              },
-            };
+            // Remove the loading spinner
+            loadingSpinner.style.display = "none";
 
-            events.push(event);
-            if (Math.random() > 0.5) {
-              moveableMeetingIds.push(event.id);
-            }
-          }
-        }
+            const hoverArea = document.getElementById("hover-area");
+            hoverArea.addEventListener("mouseover", function () {
+              renderCalendars(data, true);
+              applyTooltipListeners();
+            });
 
-        // Create a copy of events for the solution calendar
-        const solutionEvents = JSON.parse(JSON.stringify(events));
-        // Randomly modify some event times in the solution calendar
-        solutionEvents.forEach((event) => {
-          if (moveableMeetingIds.includes(event.id) && Math.random() > 0.5) {
-            const startDate = new Date(event.start.dateTime);
-            startDate.setHours(
-              startDate.getHours() + Math.floor(Math.random() * 3) - 1
-            );
-            event.start.dateTime = startDate.toISOString();
-            event.end.dateTime = new Date(
-              startDate.getTime() + 60 * 60 * 1000
-            ).toISOString();
-          }
+            hoverArea.addEventListener("mouseout", function () {
+              renderCalendars(data, false);
+              applyTooltipListeners();
+            });
+
+            applyTooltipListeners();
+          })
+          .defrag();
+      });
+
+      function applyTooltipListeners() {
+        const tooltip = document.querySelector(".tooltip");
+        document.querySelectorAll(".event").forEach((eventElement) => {
+          eventElement.addEventListener("mouseover", function (e) {
+            const summary = eventElement.getAttribute("data-summary");
+            const start = eventElement.getAttribute("data-start");
+            const end = eventElement.getAttribute("data-end");
+
+            tooltip.innerHTML = `
+              ${summary}<br>
+              ${start} - ${end}
+            `;
+            tooltip.style.display = "block";
+          });
+
+          eventElement.addEventListener("mousemove", function (e) {
+            tooltip.style.left = e.pageX + 10 + "px";
+            tooltip.style.top = e.pageY + 10 + "px";
+          });
+
+          eventElement.addEventListener("mouseout", function () {
+            tooltip.style.display = "none";
+          });
         });
-
-        return {
-          startingEvents: events,
-          solutionEvents: solutionEvents,
-          moveableMeetingIds: moveableMeetingIds,
-        };
       }
 
-      function renderCalendars(data) {
-        const loadingSpinner = document.getElementById("loading-spinner");
-        if (loadingSpinner) {
-          loadingSpinner.style.display = "none";
-        }
-
-        const startingEvents = data.startingEvents;
-        const solutionEvents = data.solutionEvents;
+      function renderCalendars(data, showStarting) {
+        const events = showStarting ? data.startingEvents : data.solutionEvents;
         const moveableMeetingIds = data.moveableMeetingIds;
 
-        // Generate dynamic colors
         const colors = generateColors(moveableMeetingIds.length);
 
-        renderCalendar(
-          startingEvents,
-          "starting-calendar",
-          moveableMeetingIds,
-          colors
-        );
-        renderCalendar(
-          solutionEvents,
-          "solution-calendar",
-          moveableMeetingIds,
-          colors
-        );
+        renderCalendar(events, "calendar", moveableMeetingIds, colors);
       }
 
       function generateColors(count) {
@@ -230,8 +253,8 @@
 
         for (let i = 0; i < count; i++) {
           const hue = i * hueStep;
-          const saturation = 70 + Math.random() * 20; // 70-90%
-          const lightness = 50 + Math.random() * 10; // 50-60%
+          const saturation = 70 + Math.random() * 20;
+          const lightness = 50 + Math.random() * 10;
 
           colors.push(`hsl(${hue}, ${saturation}%, ${lightness}%)`);
         }
@@ -239,70 +262,11 @@
         return colors;
       }
 
-      function getContrastColor(hslColor) {
-        // Convert HSL to RGB
-        const rgbColor = hslToRgb(hslColor);
-        const [r, g, b] = rgbColor.match(/[\d\.]+/g).map(Number);
-
-        // Calculate relative luminance
-        const luminance =
-          0.2126 * adjustColor(r) +
-          0.7152 * adjustColor(g) +
-          0.0722 * adjustColor(b);
-
-        // Log for debugging
-        console.log(`HSL Color: ${hslColor}`);
-        console.log(`RGB Color: ${rgbColor}`);
-        console.log(`Relative Luminance: ${luminance}`);
-
-        // Choose black or white based on luminance
-        // The threshold is adjusted to align with typical recommendations in the WCAG (0.179 is approximately equivalent to 45.9 on a scale of 0 to 255)
-        return luminance > 45.9 ? "#000000" : "#FFFFFF";
-      }
-
-      function hslToRgb(hsl) {
-        const hslComponents = hsl.match(/[\d\.]+/g).map(Number);
-        const h = hslComponents[0];
-        const s = hslComponents[1] / 100;
-        const l = hslComponents[2] / 100;
-
-        let r, g, b;
-        if (s === 0) {
-          r = g = b = l; // achromatic
-        } else {
-          const hue2rgb = (p, q, t) => {
-            if (t < 0) t += 1;
-            if (t > 1) t -= 1;
-            if (t < 1 / 6) return p + (q - p) * 6 * t;
-            if (t < 1 / 2) return q;
-            if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
-            return p;
-          };
-
-          const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-          const p = 2 * l - q;
-          r = hue2rgb(p, q, h / 360 + 1 / 3);
-          g = hue2rgb(p, q, h / 360);
-          b = hue2rgb(p, q, h / 360 - 1 / 3);
-        }
-
-        r = Math.round(r * 255);
-        g = Math.round(g * 255);
-        b = Math.round(b * 255);
-
-        return `rgb(${r}, ${g}, ${b})`;
-      }
-
-      function adjustColor(c) {
-        return c <= 10 ? c / 3294.6 : Math.pow(c / 269 + 0.0513, 2.4) * 100;
-      }
-
       function renderCalendar(events, containerId, moveableMeetingIds, colors) {
         const container = document.getElementById(containerId);
         if (!container) return;
 
         const hourHeight = 50;
-
         let earliestStart = 24;
         let latestEnd = 0;
 
@@ -324,7 +288,7 @@
             document.createElement("div");
           eventsContainer.classList.add("events-container");
           eventsContainer.style.height = `${dayHeight}px`;
-          eventsContainer.innerHTML = ""; // Clear existing events
+          eventsContainer.innerHTML = "";
 
           for (
             let hour = Math.floor(earliestStart);
@@ -342,7 +306,7 @@
           }
         });
 
-        events.forEach((event, index) => {
+        events.forEach((event) => {
           const startDate = new Date(event.start.dateTime);
           const endDate = new Date(event.end.dateTime);
           const dayOfWeek = startDate.getDay() - 1;
@@ -357,7 +321,7 @@
               backgroundColor = colors[colorIndex];
               textColor = getContrastColor(backgroundColor);
             } else {
-              backgroundColor = "#95a5a6"; // Default color for non-movable events
+              backgroundColor = "#95a5a6";
               textColor = "#FFFFFF";
             }
 
@@ -365,8 +329,16 @@
             eventElement.style.backgroundColor = backgroundColor;
             eventElement.style.color = textColor;
 
-            eventElement.style.top = `${(startDate.getHours() + startDate.getMinutes() / 60 - earliestStart) * hourHeight}px`;
-            eventElement.style.height = `${Math.max(eventDurationHours * hourHeight, 20)}px`;
+            eventElement.style.top = `${
+              (startDate.getHours() +
+                startDate.getMinutes() / 60 -
+                earliestStart) *
+              hourHeight
+            }px`;
+            eventElement.style.height = `${Math.max(
+              eventDurationHours * hourHeight,
+              20
+            )}px`;
 
             const [left, width] = calculateEventPosition(
               events,
@@ -376,7 +348,25 @@
             eventElement.style.left = `${left}%`;
             eventElement.style.width = `${width}%`;
 
-            eventElement.innerText = event.summary;
+            const localizedStart = new Date(
+              event.start.dateTime
+            ).toLocaleTimeString("en-US", {
+              timeZone: "America/Los_Angeles",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            const localizedEnd = new Date(
+              event.end.dateTime
+            ).toLocaleTimeString("en-US", {
+              timeZone: "America/Los_Angeles",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+
+            eventElement.innerHTML = `<div class="event-title">${event.summary}</div>`;
+            eventElement.setAttribute("data-summary", event.summary);
+            eventElement.setAttribute("data-start", localizedStart);
+            eventElement.setAttribute("data-end", localizedEnd);
 
             const dayContainer = container.children[dayOfWeek];
             if (dayContainer) {
@@ -415,7 +405,7 @@
         );
 
         if (overlappingEvents.length === 1) {
-          return [0, 100]; // Full width if no overlap
+          return [0, 100];
         }
 
         const index = overlappingEvents.findIndex(
@@ -436,46 +426,65 @@
         return start1 < end2 && start2 < end1;
       }
 
-      document.addEventListener("DOMContentLoaded", function () {
-        const loadingSpinner = document.getElementById("loading-spinner");
-        if (loadingSpinner) {
-          loadingSpinner.style.display = "block";
+      function getContrastColor(hslColor) {
+        const rgbColor = hslToRgb(hslColor);
+        const [r, g, b] = rgbColor.match(/[\d\.]+/g).map(Number);
+
+        const luminance =
+          0.2126 * adjustColor(r) +
+          0.7152 * adjustColor(g) +
+          0.0722 * adjustColor(b);
+
+        return luminance > 45.9 ? "#000000" : "#FFFFFF";
+      }
+
+      function hslToRgb(hsl) {
+        const hslComponents = hsl.match(/[\d\.]+/g).map(Number);
+        const h = hslComponents[0];
+        const s = hslComponents[1] / 100;
+        const l = hslComponents[2] / 100;
+
+        let r, g, b;
+        if (s === 0) {
+          r = g = b = l;
+        } else {
+          const hue2rgb = (p, q, t) => {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1 / 6) return p + (q - p) * 6 * t;
+            if (t < 1 / 2) return q;
+            if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+            return p;
+          };
+
+          const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+          const p = 2 * l - q;
+          r = hue2rgb(p, q, h / 360 + 1 / 3);
+          g = hue2rgb(p, q, h / 360);
+          b = hue2rgb(p, q, h / 360 - 1 / 3);
         }
 
-        google.script.run.withSuccessHandler(renderCalendars).defrag();
-        // // Use test data
-        // const testData = generateTestData();
-        // renderCalendars(testData);
-      });
+        r = Math.round(r * 255);
+        g = Math.round(g * 255);
+        b = Math.round(b * 255);
+
+        return `rgb(${r}, ${g}, ${b})`;
+      }
+
+      function adjustColor(c) {
+        return c <= 10 ? c / 3294.6 : Math.pow(c / 269 + 0.0513, 2.4) * 100;
+      }
     </script>
   </head>
   <body>
     <div id="loading-spinner"></div>
-    <h2>Starting Calendar</h2>
+    <h2>
+      Optimized Calendar
+      <div id="hover-area">Hover to Show Original Calendar</div>
+    </h2>
     <div class="calendar-container-wrapper">
       <div class="time-labels"></div>
-      <div class="calendar-container" id="starting-calendar">
-        <div class="calendar-day">
-          <div class="day-header">Monday</div>
-        </div>
-        <div class="calendar-day">
-          <div class="day-header">Tuesday</div>
-        </div>
-        <div class="calendar-day">
-          <div class="day-header">Wednesday</div>
-        </div>
-        <div class="calendar-day">
-          <div class="day-header">Thursday</div>
-        </div>
-        <div class="calendar-day">
-          <div class="day-header">Friday</div>
-        </div>
-      </div>
-    </div>
-    <h2>Optimized Calendar</h2>
-    <div class="calendar-container-wrapper">
-      <div class="time-labels"></div>
-      <div class="calendar-container" id="solution-calendar">
+      <div class="calendar-container" id="calendar">
         <div class="calendar-day">
           <div class="day-header">Monday</div>
         </div>
