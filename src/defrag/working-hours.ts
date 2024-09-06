@@ -113,13 +113,13 @@ export namespace WorkingHours {
     const p90Index = Math.floor(sortedByEndTime.length * 0.9);
 
     const p5StartTime = sortedByStartTime[p05Index].startTimeOfDay;
-    const p95EndTime = sortedByEndTime[p90Index].endTimeOfDay;
+    const p90EndTime = sortedByEndTime[p90Index].endTimeOfDay;
     // round to the nearest multiple of 1800
     const roundedStartTime = Math.floor(p5StartTime / 1800) * 1800;
-    const roundedEndTime = Math.ceil(p95EndTime / 1800) * 1800;
+    const roundedEndTime = Math.ceil(p90EndTime / 1800) * 1800;
 
     Log.log(`5th percentile start time: ${formatTime(p5StartTime)}`);
-    Log.log(`95th percentile end time: ${formatTime(p95EndTime)}`);
+    Log.log(`90th percentile end time: ${formatTime(p90EndTime)}`);
 
     const timeRange: WorkingHours.TimeRange = {
       startTimeSeconds: roundedStartTime,
