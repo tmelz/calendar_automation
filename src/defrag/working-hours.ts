@@ -11,7 +11,7 @@ export namespace WorkingHours {
 
   export function estimateWorkingHours(email: string): WorkingHours.TimeRange {
     const cache = CacheService.getUserCache();
-    const cacheKey = `workingHours_${email}_v6`;
+    const cacheKey = `workingHours_${email}_v7`;
     const cachedValue = cache.get(cacheKey);
 
     if (cachedValue) {
@@ -23,7 +23,6 @@ export namespace WorkingHours {
 
     const today = new Date();
     const lookBack = new Date(today);
-    // TODO play around with this threshold
     lookBack.setMonth(lookBack.getMonth() - 2);
 
     const events = GetEvents.getEventsForDateRangeCustomCalendar(
@@ -36,7 +35,11 @@ export namespace WorkingHours {
       true
     );
 
-    const relevantEvents = events.filter((event) => {
+    // Only look at events that are type=default (not focus time), not all day events,
+    // where they RSVP'd yes, and all attendees have the same business email domain.
+    // This should focus on meetings they actually go to, and also personal meetings on work calendar.
+    let relevantEvents = events.filter((event) => {
+      Log.log(JSON.stringify(event));
       return (
         // event.eventType === "focusTime" ||
         // (event.eventType === "default" &&
@@ -49,13 +52,46 @@ export namespace WorkingHours {
       );
     });
 
+    // Private events look like this and wont pass the above filter, because they dont have eventType set.
+    // If we didn't get any events to analyze, relax our
+    // {
+    //   "etag": "\"3451150106884000\"",
+    //   "updated": "2024-09-05T22:24:13.442Z",
+    //   "kind": "calendar#event",
+    //   "htmlLink": "https://www.google.com/calendar/event?eid=NGQ4aWZoYTlkdXVtYmhybzczNmgyMDBzODUgZWJhcmFqYXNAc3F1YXJldXAuY29t",
+    //   "start": {
+    //     "dateTime": "2024-09-05T14:30:00-04:00",
+    //     "timeZone": "America/New_York"
+    //   },
+    //   "end": {
+    //     "dateTime": "2024-09-05T15:00:00-04:00",
+    //     "timeZone": "America/New_York"
+    //   },
+    //   "visibility": "private",
+    //   "status": "confirmed",
+    //   "id": "4d8ifha9duumbhro736h200s85",
+    //   "iCalUID": "4d8ifha9duumbhro736h200s85@google.com"
+    // }
     if (relevantEvents.length === 0) {
       Log.log(
-        `Error calculating working hours for  ${email}, probably they use a lot of private events or somethign?? TODO`
+        `Error calculating working hours for  ${email}, probably they use a lot of private events? Relaxing constraints and trying again`
       );
-      // date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds();
-      // TODO fix hack but assume 9-5 local
-      return { startTimeSeconds: 9 * 3600, endTimeSeconds: 17 * 3600 };
+
+      relevantEvents = events.filter((event) => {
+        return (
+          event.start?.dateTime !== undefined &&
+          event.end?.dateTime !== undefined
+        );
+      });
+
+      // No luck guessing work hours at all, this should only happen if we don't even have read
+      // access to their calendar, or they have no events at all in the lookback period.
+      if (relevantEvents.length === 0) {
+        Log.log(
+          `Still error getting working hours for ${email}, even with relaxing constraints to allow private events; defaulting to assume 9-5 pacific`
+        );
+        return { startTimeSeconds: 9 * 3600, endTimeSeconds: 17 * 3600 };
+      }
     }
 
     const eventTuples = relevantEvents.map((event) => {
@@ -72,8 +108,6 @@ export namespace WorkingHours {
     const sortedByEndTime = eventTuples
       .slice()
       .sort((a, b) => a.endTimeOfDay - b.endTimeOfDay);
-
-    // console.log(eventTuples.map((eventTuple) => eventTuple.startTimeOfDay));
 
     const p05Index = Math.floor(sortedByStartTime.length * 0.05);
     const p90Index = Math.floor(sortedByEndTime.length * 0.9);
