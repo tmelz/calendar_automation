@@ -1,4 +1,3 @@
-import { SimulatedAnnealing } from "../../src/defrag/simulated-annealing";
 import { WorkingHours } from "../../src/defrag/working-hours";
 import { lunchEvent, myOneOnOneEvent } from "../checks/event-data";
 import { CalendarAlg } from "../../src/defrag/calendar-alg";
