@@ -25,7 +25,7 @@ export function debug(): void {
   //   JSON.stringify(WorkingHours.estimateWorkingHours("tmellor@block.xyz"))
   // );
   const inputs = CalendarAlg.getInputs(new Date("2024-10-06"));
-  GreedyDefrag.main(inputs);
+  GreedyDefrag.solve(inputs);
 
   // const events = GetEvents.getEventsForDateRange(
   //   new Date("2024-10-06"),

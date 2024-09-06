@@ -6,6 +6,11 @@ import { EventRecurrence } from "./event-recurrence";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace GreedyDefrag {
+  export type Solution = {
+    timings: Map<string, CalendarCost.EventTiming>;
+    unplaceableEventIds: Set<string>;
+  };
+
   export function getEventWithLeastTimeOptions(
     unplacedEvents: GoogleAppsScript.Calendar.Schema.Event[],
     placedEvents: GoogleAppsScript.Calendar.Schema.Event[],
@@ -44,10 +49,8 @@ export namespace GreedyDefrag {
     return unplacedEventsWithTimeOptionsCount[0];
   }
 
-  export function main(
-    inputs: CalendarAlg.Inputs
-  ): Map<string, CalendarCost.EventTiming> {
-    Log.log(`GreedyDefrag.main started`);
+  export function solve(inputs: CalendarAlg.Inputs): GreedyDefrag.Solution {
+    Log.log(`GreedyDefrag.solve started`);
 
     Log.log("Filtering non-moveable events...");
     const nonMoveableEvents = inputs.myEventsList.filter(
@@ -147,7 +150,12 @@ export namespace GreedyDefrag {
       inputs.myWorkingHours,
       finalizedTimings
     );
-    // TODO return unplaceable events as well?
-    return finalizedTimings;
+
+    return {
+      timings: finalizedTimings,
+      unplaceableEventIds: new Set(
+        unplaceableMeetings.map((event) => event.id!)
+      ),
+    };
   }
 }

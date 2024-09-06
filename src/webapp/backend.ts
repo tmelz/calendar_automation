@@ -32,13 +32,19 @@ function isUserInstalled(): { installed: boolean; email: string } {
 
 function defrag() {
   const inputs = CalendarAlg.getInputs(new Date("2024-10-06"));
-  const solution = GreedyDefrag.main(inputs);
+  const solution = GreedyDefrag.solve(inputs);
 
-  const eventsDeepClone = JSON.parse(JSON.stringify(inputs.myEventsList));
+  const eventsDeepClone = JSON.parse(
+    JSON.stringify(
+      inputs.myEventsList.filter(
+        (event) => !solution.unplaceableEventIds.has(event.id!)
+      )
+    )
+  );
   eventsDeepClone.forEach((event: GoogleAppsScript.Calendar.Schema.Event) => {
     const id = event.id!;
-    if (solution.has(id)) {
-      const timing = solution.get(id)!;
+    if (solution.timings.has(id)) {
+      const timing = solution.timings.get(id)!;
       const startDate = new Date(event.start!.dateTime!);
       const endDate = new Date(event.end!.dateTime!);
       CalendarAlg.convertSecondsTimingToDate;
@@ -58,6 +64,7 @@ function defrag() {
     startingEvents: inputs.myEventsList,
     solutionEvents: eventsDeepClone,
     moveableMeetingIds: Array.from(inputs.moveableEvents),
+    unplaceableMeetingIds: Array.from(solution.unplaceableEventIds),
   };
 }
 

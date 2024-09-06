@@ -149,7 +149,7 @@ describe("GreedyDefrag.main", () => {
       recurrenceSchedule: new Map(),
     };
 
-    const solution = GreedyDefrag.main(inputs);
+    const solution = GreedyDefrag.solve(inputs);
     // CalendarAlg.describeSolution(inputs, solution);
   });
 });
