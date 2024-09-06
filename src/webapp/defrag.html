@@ -181,6 +181,29 @@
         background-color: #95a5a6;
         color: #fff;
       }
+
+      .unplaceable-meetings {
+        width: 95%;
+        max-width: 1200px;
+        margin: 20px 0;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .unplaceable-meetings h3 {
+        margin-top: 0;
+        color: #e74c3c;
+      }
+
+      .unplaceable-meeting {
+        margin-bottom: 10px;
+      }
+
+      .unplaceable-meeting p {
+        margin: 0;
+      }
     </style>
     <script>
       document.addEventListener("DOMContentLoaded", function () {
@@ -192,6 +215,10 @@
         google.script.run
           .withSuccessHandler((data) => {
             renderCalendars(data, false);
+            renderUnplaceableMeetings(
+              data.startingEvents,
+              data.unplaceableMeetingIds
+            );
 
             // Remove the loading spinner
             loadingSpinner.style.display = "none";
@@ -395,6 +422,62 @@
             timeLabelsContainer.appendChild(timeLabel);
           }
         }
+      }
+
+      function renderUnplaceableMeetings(
+        startingEvents,
+        unplaceableMeetingIds
+      ) {
+        const unplaceableContainer = document.createElement("div");
+        unplaceableContainer.className = "unplaceable-meetings";
+
+        const heading = document.createElement("h3");
+        heading.innerText = "Unplaceable Meetings";
+        unplaceableContainer.appendChild(heading);
+
+        unplaceableMeetingIds.forEach((id) => {
+          const event = startingEvents.find((event) => event.id === id);
+          if (event) {
+            const meetingElement = document.createElement("div");
+            meetingElement.className = "unplaceable-meeting";
+
+            const eventDate = new Date(event.start.dateTime).toLocaleDateString(
+              "en-US",
+              {
+                timeZone: "America/Los_Angeles",
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              }
+            );
+
+            const localizedStart = new Date(
+              event.start.dateTime
+            ).toLocaleTimeString("en-US", {
+              timeZone: "America/Los_Angeles",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            const localizedEnd = new Date(
+              event.end.dateTime
+            ).toLocaleTimeString("en-US", {
+              timeZone: "America/Los_Angeles",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+
+            meetingElement.innerHTML = `
+              <p><strong>${eventDate}</strong></p>
+              <p>${event.summary}</p>
+              <p>${localizedStart} - ${localizedEnd}</p>
+            `;
+
+            unplaceableContainer.appendChild(meetingElement);
+          }
+        });
+
+        document.body.appendChild(unplaceableContainer);
       }
 
       function calculateEventPosition(events, currentEvent, startDate) {

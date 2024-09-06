@@ -130,6 +130,10 @@ export namespace CalendarAlg {
         0,
         0
       );
+      // if newDate is on a Friday, set dayEnd one hour earlier
+      if (newDate.getDay() === 5) {
+        dayEnd.setHours(dayEnd.getHours() - 1);
+      }
 
       for (
         let currentStartTime = dayStart.getTime();
@@ -152,11 +156,17 @@ export namespace CalendarAlg {
         const proposedEndSeconds =
           WorkingHours.getTimeOfDaySeconds(proposedEnd);
 
+        // On Friday expect folks prefer to end meetings one hour earlier than normal
+        const theirWorkingHoursEndSeconds =
+          newDate.getDay() === 5
+            ? theirWorkingHours.endTimeSeconds - 3600
+            : theirWorkingHours.endTimeSeconds;
+
         if (
           proposedStartSeconds >= myWorkingHours.startTimeSeconds &&
           proposedEndSeconds <= myWorkingHours.endTimeSeconds &&
           proposedStartSeconds >= theirWorkingHours.startTimeSeconds &&
-          proposedEndSeconds <= theirWorkingHours.endTimeSeconds
+          proposedEndSeconds <= theirWorkingHoursEndSeconds
         ) {
           const hasConflict = (
             events: GoogleAppsScript.Calendar.Schema.Event[],
