@@ -158,9 +158,11 @@ export namespace CalendarCost {
     // and the second lightest; assume lightest is a no meeting day
     // Weigh this delta heavily to encourage spreading meetings out
     if (meetingHours.length == 5) {
-      // dont care if the gap is <= 1 hr
-      if (meetingHours[4] - meetingHours[0] > 2) {
-        cost += (meetingHours[4] - meetingHours[0]) / 2;
+      // only kick in the penalty once the days diverge too much
+      // over emphasizing spreading meeting load with no threshold
+      // leads to weird behaviors
+      if (meetingHours[4] - meetingHours[0] > 1.5) {
+        cost += (meetingHours[4] - meetingHours[0]) * 2;
       }
     }
 
