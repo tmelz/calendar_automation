@@ -32,7 +32,13 @@ function isUserInstalled(): { installed: boolean; email: string } {
 
 function defrag() {
   const inputs = CalendarAlg.getInputs(new Date("2024-10-06"));
+
+  const logMessages: string[] = [];
+  Log.hook = (entry: string) => {
+    logMessages.push(entry);
+  };
   const solution = GreedyDefrag.solve(inputs);
+  Log.hook = undefined;
 
   const eventsDeepClone = JSON.parse(
     JSON.stringify(
@@ -65,6 +71,7 @@ function defrag() {
     solutionEvents: eventsDeepClone,
     moveableMeetingIds: Array.from(inputs.moveableEvents),
     unplaceableMeetingIds: Array.from(solution.unplaceableEventIds),
+    consoleLog: logMessages.join("\n"),
   };
 }
 

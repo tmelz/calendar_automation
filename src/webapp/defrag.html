@@ -20,10 +20,14 @@
         margin-bottom: 10px;
         font-size: 24px;
         display: flex;
-        justify-content: space-between;
+        justify-content: left;
         align-items: center;
         width: 95%;
         max-width: 1200px;
+      }
+
+      h2.title {
+        justify-content: space-between;
       }
 
       #hover-area {
@@ -182,27 +186,107 @@
         color: #fff;
       }
 
-      .unplaceable-meetings {
+      .meeting-changelog {
         width: 95%;
         max-width: 1200px;
+        margin: 20px 0;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        display: none; /* Hidden by default */
+      }
+
+      .meeting-tile {
+        padding: 10px;
+        border-radius: 8px;
+        color: #333;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        background-color: #f8f9fa; /* Updated color */
+        border: 2px solid;
+      }
+
+      .meeting-tile p {
+        margin: 5px 0;
+      }
+
+      .meeting-tile.unplaceable {
+        border-color: #e74c3c;
+        position: relative;
+      }
+
+      .meeting-tile.unplaceable::after {
+        content: "Unplaceable";
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        font-size: 12px;
+        font-weight: bold;
+        color: #e74c3c;
+      }
+
+      .commit-container {
+        width: 95%;
+        max-width: 800px; /* Reduced max-width */
         margin: 20px 0;
         padding: 10px;
         background-color: #f8f9fa;
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        display: flex;
+        justify-content: center; /* Center align */
+        align-items: center;
+        flex-direction: column;
       }
 
-      .unplaceable-meetings h3 {
-        margin-top: 0;
-        color: #e74c3c;
-      }
-
-      .unplaceable-meeting {
+      .commit-container input[type="text"] {
+        width: 90%; /* Center align */
+        padding: 5px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
         margin-bottom: 10px;
       }
 
-      .unplaceable-meeting p {
-        margin: 0;
+      .commit-container button {
+        padding: 5px 15px;
+        background-color: #3498db;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+
+      .commit-container button:hover {
+        background-color: #2980b9;
+      }
+
+      .defrag-logs {
+        background-color: #2c3e50;
+        color: #ecf0f1;
+        font-family: monospace;
+        padding: 15px;
+        border-radius: 5px;
+        white-space: pre;
+        word-wrap: break-word;
+        margin-top: 20px;
+        overflow: auto;
+        max-height: 500px;
+        display: none; /* Collapsed by default */
+      }
+
+      /* Chevron styles */
+      .chevron {
+        cursor: pointer;
+        margin-right: 10px;
+        transition: transform 0.3s ease;
+        transform: rotate(90deg);
+      }
+      .chevron.collapsed {
+        transform: rotate(0deg);
       }
     </style>
     <script>
@@ -215,26 +299,64 @@
         google.script.run
           .withSuccessHandler((data) => {
             renderCalendars(data, false);
-            renderUnplaceableMeetings(
-              data.startingEvents,
-              data.unplaceableMeetingIds
-            );
+            renderMeetingChangelog(data);
+            renderDefragLogs(data.consoleLog);
+            renderCommitContainer(); // Re-add Commit Changes section
 
             // Remove the loading spinner
             loadingSpinner.style.display = "none";
 
-            const hoverArea = document.getElementById("hover-area");
-            hoverArea.addEventListener("mouseover", function () {
-              renderCalendars(data, true);
-              applyTooltipListeners();
-            });
+            // Add event listeners after rendering
+            document
+              .getElementById("hover-area")
+              .addEventListener("mouseover", function () {
+                renderCalendars(data, true);
+                applyTooltipListeners();
+              });
 
-            hoverArea.addEventListener("mouseout", function () {
-              renderCalendars(data, false);
-              applyTooltipListeners();
-            });
+            document
+              .getElementById("hover-area")
+              .addEventListener("mouseout", function () {
+                renderCalendars(data, false);
+                applyTooltipListeners();
+              });
+
+            // Add event listener for commit button
+            document
+              .getElementById("commit-button")
+              .addEventListener("click", function () {
+                const message = document.getElementById("commit-message").value;
+                google.script.run.commitDefrag(message);
+              });
 
             applyTooltipListeners();
+
+            // Chevron toggles
+            document
+              .getElementById("toggle-changelog")
+              .addEventListener("click", function () {
+                const changelog = document.querySelector(".meeting-changelog");
+                const chevron = this.querySelector(".chevron");
+                changelog.style.display =
+                  changelog.style.display !== "grid" ? "grid" : "none";
+                chevron.classList.toggle(
+                  "collapsed",
+                  changelog.style.display !== "grid"
+                );
+              });
+
+            document
+              .getElementById("toggle-defrag-logs")
+              .addEventListener("click", function () {
+                const logs = document.querySelector(".defrag-logs");
+                const chevron = this.querySelector(".chevron");
+                logs.style.display =
+                  logs.style.display !== "block" ? "block" : "none";
+                chevron.classList.toggle(
+                  "collapsed",
+                  logs.style.display !== "block"
+                );
+              });
           })
           .defrag();
       });
@@ -301,7 +423,7 @@
           const startDate = new Date(event.start.dateTime);
           const endDate = new Date(event.end.dateTime);
           const startHour = startDate.getHours() + startDate.getMinutes() / 60;
-          const endHour = endDate.getHours() + endDate.getMinutes() / 60;
+          const endHour = endDate.getHours() + startDate.getMinutes() / 60;
 
           if (startHour < earliestStart) earliestStart = startHour;
           if (endHour > latestEnd) latestEnd = endHour;
@@ -424,60 +546,154 @@
         }
       }
 
-      function renderUnplaceableMeetings(
-        startingEvents,
-        unplaceableMeetingIds
-      ) {
-        const unplaceableContainer = document.createElement("div");
-        unplaceableContainer.className = "unplaceable-meetings";
+      function renderMeetingChangelog(data) {
+        const changelogHeader = document.createElement("h2");
+        changelogHeader.innerHTML = `
+          <div class="chevron collapsed">&#9654;</div>
+          <span>Meeting Timing Changelog</span>
+        `;
+        changelogHeader.id = "toggle-changelog";
+        document.body.appendChild(changelogHeader);
 
-        const heading = document.createElement("h3");
-        heading.innerText = "Unplaceable Meetings";
-        unplaceableContainer.appendChild(heading);
+        const changelogContainer = document.createElement("div");
+        changelogContainer.className = "meeting-changelog";
 
-        unplaceableMeetingIds.forEach((id) => {
-          const event = startingEvents.find((event) => event.id === id);
-          if (event) {
-            const meetingElement = document.createElement("div");
-            meetingElement.className = "unplaceable-meeting";
+        const colors = generateColors(data.moveableMeetingIds.length);
 
-            const eventDate = new Date(event.start.dateTime).toLocaleDateString(
-              "en-US",
-              {
-                timeZone: "America/Los_Angeles",
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              }
-            );
+        data.moveableMeetingIds.forEach((id) => {
+          const startingEvent = data.startingEvents.find(
+            (event) => event.id === id
+          );
+          const solutionEvent = data.solutionEvents.find(
+            (event) => event.id === id
+          );
 
-            const localizedStart = new Date(
-              event.start.dateTime
-            ).toLocaleTimeString("en-US", {
+          if (startingEvent && solutionEvent) {
+            const tileElement = document.createElement("div");
+            tileElement.className = "meeting-tile";
+            const colorIndex = data.moveableMeetingIds.indexOf(id);
+            tileElement.style.borderColor = colors[colorIndex];
+
+            const localizedStartOld = new Date(
+              startingEvent.start.dateTime
+            ).toLocaleString("en-US", {
+              timeZone: "America/Los_Angeles",
+              weekday: "long",
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            const localizedEndOld = new Date(
+              startingEvent.end.dateTime
+            ).toLocaleString("en-US", {
               timeZone: "America/Los_Angeles",
               hour: "2-digit",
               minute: "2-digit",
             });
-            const localizedEnd = new Date(
-              event.end.dateTime
-            ).toLocaleTimeString("en-US", {
+
+            const localizedStartNew = new Date(
+              solutionEvent.start.dateTime
+            ).toLocaleString("en-US", {
+              timeZone: "America/Los_Angeles",
+              weekday: "long",
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            const localizedEndNew = new Date(
+              solutionEvent.end.dateTime
+            ).toLocaleString("en-US", {
               timeZone: "America/Los_Angeles",
               hour: "2-digit",
               minute: "2-digit",
             });
 
-            meetingElement.innerHTML = `
-              <p><strong>${eventDate}</strong></p>
-              <p>${event.summary}</p>
-              <p>${localizedStart} - ${localizedEnd}</p>
+            tileElement.innerHTML = `
+              <p><strong>${startingEvent.summary}</strong></p>
+              <p>Old: ${localizedStartOld} - ${localizedEndOld}</p>
+              <p>New: ${localizedStartNew} - ${localizedEndNew}</p>
             `;
-
-            unplaceableContainer.appendChild(meetingElement);
+            changelogContainer.appendChild(tileElement);
           }
         });
 
-        document.body.appendChild(unplaceableContainer);
+        data.unplaceableMeetingIds.forEach((id) => {
+          const event = data.startingEvents.find((event) => event.id === id);
+          if (event) {
+            const tileElement = document.createElement("div");
+            tileElement.className = "meeting-tile unplaceable";
+            tileElement.style.borderColor = "#e74c3c";
+
+            const localizedStart = new Date(
+              event.start.dateTime
+            ).toLocaleString("en-US", {
+              timeZone: "America/Los_Angeles",
+              weekday: "long",
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            const localizedEnd = new Date(event.end.dateTime).toLocaleString(
+              "en-US",
+              {
+                timeZone: "America/Los_Angeles",
+                hour: "2-digit",
+                minute: "2-digit",
+              }
+            );
+
+            tileElement.innerHTML = `
+              <p><strong>${event.summary}</strong></p>
+              <p>${localizedStart} - ${localizedEnd}</p>
+            `;
+            changelogContainer.appendChild(tileElement);
+          }
+        });
+
+        document.body.appendChild(changelogContainer);
+      }
+
+      function renderCommitContainer() {
+        const commitHeader = document.createElement("h2");
+        commitHeader.innerText = "Commit Changes";
+        document.body.appendChild(commitHeader);
+
+        const commitContainer = document.createElement("div");
+        commitContainer.className = "commit-container";
+
+        const messageInput = document.createElement("input");
+        messageInput.type = "text";
+        messageInput.id = "commit-message";
+        messageInput.value =
+          "Organizing my calendar for more focus time, reach out with any concerns";
+
+        const commitButton = document.createElement("button");
+        commitButton.id = "commit-button";
+        commitButton.innerText = "Commit Changes";
+
+        commitContainer.appendChild(messageInput);
+        commitContainer.appendChild(commitButton);
+
+        document.body.appendChild(commitContainer);
+      }
+
+      function renderDefragLogs(consoleLog) {
+        const logsHeader = document.createElement("h2");
+        logsHeader.innerHTML = `
+          <div class="chevron collapsed">&#9654;</div>
+          <span>Defrag Command Logs</span>
+        `;
+        logsHeader.id = "toggle-defrag-logs";
+        document.body.appendChild(logsHeader);
+
+        const logsContainer = document.createElement("div");
+        logsContainer.className = "defrag-logs";
+        logsContainer.innerText = consoleLog;
+
+        document.body.appendChild(logsContainer);
       }
 
       function calculateEventPosition(events, currentEvent, startDate) {
@@ -561,8 +777,8 @@
   </head>
   <body>
     <div id="loading-spinner"></div>
-    <h2>
-      Optimized Calendar
+    <h2 class="title">
+      <span>Optimized Calendar</span>
       <div id="hover-area">Hover to Show Original Calendar</div>
     </h2>
     <div class="calendar-container-wrapper">

@@ -128,8 +128,8 @@ export namespace CalendarCost {
 
     // Every meeting after 2 continuous hours costs 3x
     costFactorsArray.forEach((costFactors) => {
-      if (costFactors.longestMeetingStretchHours > 2) {
-        cost += (costFactors.longestMeetingStretchHours - 2) * 6;
+      if (costFactors.longestMeetingStretchHours > 1.5) {
+        cost += (costFactors.longestMeetingStretchHours - 1.5) * 6;
       }
     });
 
