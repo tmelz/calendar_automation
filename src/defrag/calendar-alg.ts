@@ -457,7 +457,7 @@ export namespace CalendarAlg {
     cache.put(
       CalendarAlg.THEIR_EVENTS_CACHE_KEY_1,
       compressedTheirEvents1,
-      30 * 60
+      120 * 60
     );
 
     const serializedTheirEvents2 = JSON.stringify(
@@ -474,7 +474,7 @@ export namespace CalendarAlg {
     cache.put(
       CalendarAlg.THEIR_EVENTS_CACHE_KEY_2,
       compressedTheirEvents2,
-      30 * 60
+      120 * 60
     );
 
     const serializedTheirEvents3 = JSON.stringify(
@@ -491,10 +491,11 @@ export namespace CalendarAlg {
     cache.put(
       CalendarAlg.THEIR_EVENTS_CACHE_KEY_3,
       compressedTheirEvents3,
-      30 * 60
+      120 * 60
     );
 
-    Log.log("Inputs cached in four parts for 30 minutes.");
+    // TODO I would never want to cache this long
+    Log.log("Inputs cached in four parts for 120 minutes.");
 
     return {
       ...inputs,
