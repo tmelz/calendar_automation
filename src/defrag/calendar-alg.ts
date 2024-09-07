@@ -8,6 +8,11 @@ import { EventRecurrence } from "./event-recurrence";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace CalendarAlg {
+  export const INPUTS_CACHE_KEY = "calendarAlgInputs_v6";
+  export const THEIR_EVENTS_CACHE_KEY_1 = "calendarAlgTheirEvents_v6_1";
+  export const THEIR_EVENTS_CACHE_KEY_2 = "calendarAlgTheirEvents_v6_2";
+  export const THEIR_EVENTS_CACHE_KEY_3 = "calendarAlgTheirEvents_v6_3";
+
   export type Inputs = {
     // id ==> event
     myEvents: Map<string, GoogleAppsScript.Calendar.Schema.Event>;
@@ -37,8 +42,6 @@ export namespace CalendarAlg {
     };
   }
 
-  // how much should we allow a particular meeting to shift
-  // throughout the week?
   export function getAllowedDayDeltas(
     recurrence: EventRecurrence.RecurrenceType | undefined,
     eventDayOfWeek: number
@@ -48,12 +51,9 @@ export namespace CalendarAlg {
       recurrence === undefined ||
       recurrence === EventRecurrence.RecurrenceType.DAILY
     ) {
-      // undefined means it's an adhoc event, could be time sensitive to keep same day
       possibleDayDeltas = [0];
     } else if (recurrence === EventRecurrence.RecurrenceType.WEEKLY) {
-      // weekly event, ok to move a bit but not too much
       possibleDayDeltas = [0, -1, 1];
-      // Allow moves Monday ==> Wednesday since Tues is no meeting day
       if (eventDayOfWeek === 1) {
         possibleDayDeltas.push(2);
       }
@@ -62,12 +62,9 @@ export namespace CalendarAlg {
       recurrence === EventRecurrence.RecurrenceType.THREE_WEEKS_PLUS
     ) {
       possibleDayDeltas = [0];
-      //// Allow moving anyday Monday --> Friday since these events are less common
-      // all moves to all days before this day of week
       for (let i = 1; i <= eventDayOfWeek - 1; i++) {
         possibleDayDeltas.push(-1 * i);
       }
-      // allow moves to all days after
       for (let i = 1; i <= 5 - eventDayOfWeek; i++) {
         possibleDayDeltas.push(i);
       }
@@ -130,7 +127,6 @@ export namespace CalendarAlg {
         0,
         0
       );
-      // if newDate is on a Friday, set dayEnd one hour earlier
       if (newDate.getDay() === 5) {
         dayEnd.setHours(dayEnd.getHours() - 1);
       }
@@ -140,23 +136,16 @@ export namespace CalendarAlg {
         currentStartTime + eventDuration <= dayEnd.getTime();
         currentStartTime += 30 * 60 * 1000
       ) {
-        // 30-minute increments
-
         const proposedStart = new Date(
           currentStartTime + offsetMinutes * 60 * 1000
         );
         const proposedEnd = new Date(proposedStart.getTime() + eventDuration);
-
-        // if (proposedStart.getTime() === originalStartDate.getTime()) {
-        //   continue;
-        // }
 
         const proposedStartSeconds =
           WorkingHours.getTimeOfDaySeconds(proposedStart);
         const proposedEndSeconds =
           WorkingHours.getTimeOfDaySeconds(proposedEnd);
 
-        // On Friday expect folks prefer to end meetings one hour earlier than normal
         const theirWorkingHoursEndSeconds =
           newDate.getDay() === 5
             ? theirWorkingHours.endTimeSeconds - 3600
@@ -180,12 +169,10 @@ export namespace CalendarAlg {
               const eventTiming = solution.get(otherEvent.id!);
               const otherStart = eventTiming
                 ? (() => {
-                    // Create a new date based on the event's day of the week
                     const startDate = new Date(newDate);
                     const dayDifference =
                       eventTiming.dayOfWeek - startDate.getDay();
                     startDate.setDate(startDate.getDate() + dayDifference);
-                    // necessary, weird Date behavior o/w
                     startDate.setHours(0, 0, 0, 0);
                     startDate.setSeconds(eventTiming.startTimeOfDaySeconds);
                     return startDate.getTime();
@@ -194,19 +181,16 @@ export namespace CalendarAlg {
 
               const otherEnd = eventTiming
                 ? (() => {
-                    // Create a new date based on the event's day of the week
                     const endDate = new Date(newDate);
                     const dayDifference =
                       eventTiming.dayOfWeek - endDate.getDay();
                     endDate.setDate(endDate.getDate() + dayDifference);
-                    // necessary, weird Date behavior o/w
                     endDate.setHours(0, 0, 0, 0);
                     endDate.setSeconds(eventTiming.endTimeOfDaySeconds);
                     return endDate.getTime();
                   })()
                 : new Date(otherEvent.end!.dateTime!).getTime();
 
-              // Check for all-day OOO events only
               if (otherEvent.start?.date && otherEvent.end?.date) {
                 const isOOOEvent =
                   otherEvent.eventType === "outOfOffice" ||
@@ -216,7 +200,7 @@ export namespace CalendarAlg {
                   const oooStart = new Date(otherEvent.start!.date!).getTime();
                   const oooEnd =
                     new Date(otherEvent.end!.date!).getTime() +
-                    24 * 60 * 60 * 1000; // All-day event lasts the entire day
+                    24 * 60 * 60 * 1000;
 
                   return (
                     proposedStart.getTime() < oooEnd &&
@@ -245,36 +229,117 @@ export namespace CalendarAlg {
   }
 
   export function getInputs(refDate: Date): CalendarAlg.Inputs {
-    // const sunday: Date = Time.getSundayOfCurrentWeek();
-    // sunday.setHours(24, 0, 0, 0);
-    // const followingSunday: Date = Time.getSundayOfCurrentWeek();
-    // followingSunday.setDate(followingSunday.getDate() + 7);
-    // followingSunday.setHours(24, 0, 0, 0);
+    const cache = CacheService.getScriptCache();
+    const cachedInputs = cache.get(CalendarAlg.INPUTS_CACHE_KEY);
+    const cachedTheirEvents1 = cache.get(CalendarAlg.THEIR_EVENTS_CACHE_KEY_1);
+    const cachedTheirEvents2 = cache.get(CalendarAlg.THEIR_EVENTS_CACHE_KEY_2);
+    const cachedTheirEvents3 = cache.get(CalendarAlg.THEIR_EVENTS_CACHE_KEY_3);
 
-    const startDate = refDate;
+    if (
+      cachedInputs &&
+      cachedTheirEvents1 &&
+      cachedTheirEvents2 &&
+      cachedTheirEvents3
+    ) {
+      Log.log("Using cached inputs.");
+      const inputsWithoutTheirEvents = deserializeInputs(
+        JSON.parse(
+          Utilities.ungzip(
+            Utilities.newBlob(
+              Utilities.base64Decode(cachedInputs),
+              "application/x-gzip"
+            )
+          ).getDataAsString()
+        )
+      ) as CalendarAlg.Inputs;
+
+      const theirEventsPart1 = new Map(
+        JSON.parse(
+          Utilities.ungzip(
+            Utilities.newBlob(
+              Utilities.base64Decode(cachedTheirEvents1),
+              "application/x-gzip"
+            )
+          ).getDataAsString()
+        )
+      );
+
+      const theirEventsPart2 = new Map(
+        JSON.parse(
+          Utilities.ungzip(
+            Utilities.newBlob(
+              Utilities.base64Decode(cachedTheirEvents2),
+              "application/x-gzip"
+            )
+          ).getDataAsString()
+        )
+      );
+
+      const theirEventsPart3 = new Map(
+        JSON.parse(
+          Utilities.ungzip(
+            Utilities.newBlob(
+              Utilities.base64Decode(cachedTheirEvents3),
+              "application/x-gzip"
+            )
+          ).getDataAsString()
+        )
+      );
+
+      const combinedTheirEvents = new Map<
+        string,
+        GoogleAppsScript.Calendar.Schema.Event[]
+      >();
+
+      theirEventsPart1.forEach((value, key) => {
+        combinedTheirEvents.set(
+          key as string,
+          value as GoogleAppsScript.Calendar.Schema.Event[]
+        );
+      });
+
+      theirEventsPart2.forEach((value, key) => {
+        combinedTheirEvents.set(
+          key as string,
+          value as GoogleAppsScript.Calendar.Schema.Event[]
+        );
+      });
+
+      theirEventsPart3.forEach((value, key) => {
+        combinedTheirEvents.set(
+          key as string,
+          value as GoogleAppsScript.Calendar.Schema.Event[]
+        );
+      });
+
+      return {
+        ...inputsWithoutTheirEvents,
+        theirEvents: combinedTheirEvents,
+      } as CalendarAlg.Inputs;
+    }
+
+    const startDate = new Date(refDate);
     startDate.setHours(24, 0, 0, 0);
     const endDate = new Date(refDate);
     endDate.setDate(endDate.getDate() + 7);
     endDate.setHours(24, 0, 0, 0);
 
-    Log.log("getting next weeks events");
-    // Retrieve events and convert to a Map with event IDs as keys
+    Log.log("Getting next week's events");
     const myEventsList = GetEvents.getEventsForDateRange(
       startDate,
       endDate
-      // TODO inline these filter checks into somewhere smarter
     ).filter(
       (event) => !EventUtil.didIRSVPNo(event) && event.eventType !== "focusTime"
     );
     const myEvents = new Map<string, GoogleAppsScript.Calendar.Schema.Event>();
-
     myEventsList.forEach((event) => {
       myEvents.set(event.id!, event);
     });
 
-    Log.log("getting my working hours");
+    Log.log("Getting my working hours");
     const myWorkingHours =
       WorkingHours.estimateWorkingHours("tmellor@block.xyz");
+
     const theirEvents = new Map<
       string,
       GoogleAppsScript.Calendar.Schema.Event[]
@@ -287,7 +352,7 @@ export namespace CalendarAlg {
       .map((event) => EventUtil.getEmailForOtherAttendee(event))
       .filter((email) => email !== undefined)
       .forEach((email) => {
-        Log.log("getting their events next week");
+        Log.log("Getting their events next week");
         theirEvents.set(
           email!,
           GetEvents.getEventsForDateRangeCustomCalendar(
@@ -305,7 +370,7 @@ export namespace CalendarAlg {
         );
         otherPeople.add(email);
 
-        Log.log("getting their working hours");
+        Log.log("Getting their working hours");
         theirWorkingHours.set(
           email!,
           WorkingHours.estimateWorkingHours(email!)
@@ -325,21 +390,14 @@ export namespace CalendarAlg {
     );
     const moveableEventTimings = new Map<string, CalendarCost.EventTiming>();
 
-    // Populate eventTimings
     myEvents.forEach((event) => {
       if (moveableEvents.has(event.id!)) {
         const startTime = new Date(event.start!.dateTime!);
         const endTime = new Date(event.end!.dateTime!);
-        const dayOfWeek = startTime.getDay();
-        const startTimeOfDay =
-          startTime.getHours() * 60 * 60 + startTime.getMinutes() * 60; // time in minutes from start of day
-        const endTimeOfDay =
-          endTime.getHours() * 60 * 60 + endTime.getMinutes() * 60; // time in minutes from start of day
-
         moveableEventTimings.set(event.id!, {
-          dayOfWeek,
-          startTimeOfDaySeconds: startTimeOfDay,
-          endTimeOfDaySeconds: endTimeOfDay,
+          dayOfWeek: startTime.getDay(),
+          startTimeOfDaySeconds: WorkingHours.getTimeOfDaySeconds(startTime),
+          endTimeOfDaySeconds: WorkingHours.getTimeOfDaySeconds(endTime),
         });
       }
     });
@@ -349,23 +407,122 @@ export namespace CalendarAlg {
       EventRecurrence.RecurrenceType
     >();
     moveableEvents.forEach((eventId) => {
-      const recurenceInfo = EventRecurrence.getRecurrenceInformation(
+      const recurrenceInfo = EventRecurrence.getRecurrenceInformation(
         myEvents.get(eventId)!
       );
-      if (recurenceInfo !== undefined) {
-        recurrenceSchedule.set(eventId, recurenceInfo);
+      if (recurrenceInfo !== undefined) {
+        recurrenceSchedule.set(eventId, recurrenceInfo);
       }
     });
 
-    return {
+    const inputs: CalendarAlg.Inputs = {
       myEvents,
       myEventsList,
       myWorkingHours,
-      theirEvents,
+      theirEvents: new Map(),
       theirWorkingHours,
       moveableEvents,
       moveableEventTimings,
       recurrenceSchedule,
+    };
+
+    const serializedInputs = JSON.stringify(serializeInputs(inputs));
+    const compressedBlob = Utilities.gzip(
+      Utilities.newBlob(serializedInputs, "application/json")
+    );
+
+    const compressedInputs = Utilities.base64Encode(compressedBlob.getBytes());
+
+    cache.put(CalendarAlg.INPUTS_CACHE_KEY, compressedInputs, 30 * 60); // Cache for 30 minutes
+
+    const theirEventsArray = Array.from(theirEvents.entries());
+    const partitionSize = Math.ceil(theirEventsArray.length / 3);
+    const theirEventsPart1 = new Map(theirEventsArray.slice(0, partitionSize));
+    const theirEventsPart2 = new Map(
+      theirEventsArray.slice(partitionSize, partitionSize * 2)
+    );
+    const theirEventsPart3 = new Map(theirEventsArray.slice(partitionSize * 2));
+
+    const serializedTheirEvents1 = JSON.stringify(
+      Array.from(theirEventsPart1.entries())
+    );
+    const compressedBlobTheirEvents1 = Utilities.gzip(
+      Utilities.newBlob(serializedTheirEvents1, "application/json")
+    );
+
+    const compressedTheirEvents1 = Utilities.base64Encode(
+      compressedBlobTheirEvents1.getBytes()
+    );
+
+    cache.put(
+      CalendarAlg.THEIR_EVENTS_CACHE_KEY_1,
+      compressedTheirEvents1,
+      30 * 60
+    );
+
+    const serializedTheirEvents2 = JSON.stringify(
+      Array.from(theirEventsPart2.entries())
+    );
+    const compressedBlobTheirEvents2 = Utilities.gzip(
+      Utilities.newBlob(serializedTheirEvents2, "application/json")
+    );
+
+    const compressedTheirEvents2 = Utilities.base64Encode(
+      compressedBlobTheirEvents2.getBytes()
+    );
+
+    cache.put(
+      CalendarAlg.THEIR_EVENTS_CACHE_KEY_2,
+      compressedTheirEvents2,
+      30 * 60
+    );
+
+    const serializedTheirEvents3 = JSON.stringify(
+      Array.from(theirEventsPart3.entries())
+    );
+    const compressedBlobTheirEvents3 = Utilities.gzip(
+      Utilities.newBlob(serializedTheirEvents3, "application/json")
+    );
+
+    const compressedTheirEvents3 = Utilities.base64Encode(
+      compressedBlobTheirEvents3.getBytes()
+    );
+
+    cache.put(
+      CalendarAlg.THEIR_EVENTS_CACHE_KEY_3,
+      compressedTheirEvents3,
+      30 * 60
+    );
+
+    Log.log("Inputs cached in four parts for 30 minutes.");
+
+    return {
+      ...inputs,
+      theirEvents,
+    };
+  }
+
+  function serializeInputs(inputs: CalendarAlg.Inputs) {
+    return {
+      ...inputs,
+      myEvents: Array.from(inputs.myEvents.entries()),
+      theirEvents: Array.from(inputs.theirEvents.entries()),
+      theirWorkingHours: Array.from(inputs.theirWorkingHours.entries()),
+      moveableEvents: Array.from(inputs.moveableEvents),
+      moveableEventTimings: Array.from(inputs.moveableEventTimings.entries()),
+      recurrenceSchedule: Array.from(inputs.recurrenceSchedule.entries()),
+    };
+  }
+
+  function deserializeInputs(data: any): CalendarAlg.Inputs {
+    return {
+      ...data,
+      myEvents: new Map(data.myEvents),
+      theirEvents: new Map(data.theirEvents),
+      theirWorkingHours: new Map(data.theirWorkingHours),
+      moveableEvents: new Set(data.moveableEvents),
+      moveableEventTimings: new Map(data.moveableEventTimings),
+      recurrenceSchedule: new Map(data.recurrenceSchedule),
     };
   }
 
@@ -375,14 +532,12 @@ export namespace CalendarAlg {
     const clonedMap = new Map<string, CalendarCost.EventTiming>();
 
     originalMap.forEach((value, key) => {
-      // Create a deep clone of the EventTiming object
       const clonedValue: CalendarCost.EventTiming = {
         dayOfWeek: value.dayOfWeek,
         startTimeOfDaySeconds: value.startTimeOfDaySeconds,
         endTimeOfDaySeconds: value.endTimeOfDaySeconds,
       };
 
-      // Add the cloned key-value pair to the new Map
       clonedMap.set(key, clonedValue);
     });
 
@@ -429,7 +584,7 @@ export namespace CalendarAlg {
     }
 
     const solutionStartDate = new Date(originalStart);
-    solutionStartDate.setHours(0, 0, 0, 0); // Reset to midnight
+    solutionStartDate.setHours(0, 0, 0, 0);
     solutionStartDate.setDate(
       solutionStartDate.getDate() + newTiming.dayOfWeek - originalStart.getDay()
     );
@@ -462,7 +617,6 @@ export namespace CalendarAlg {
     let eventsToDisplay = myEventsList.filter(
       (event) => event.start?.dateTime !== undefined
     );
-    // sort eventsToDisplay based on new Date(event.start?.dateTime).getTime()
     eventsToDisplay.sort((a, b) => {
       return (
         new Date(a.start!.dateTime!).getTime() -
@@ -484,7 +638,6 @@ export namespace CalendarAlg {
     eventsToDisplay = myEventsList.filter(
       (event) => event.start?.dateTime !== undefined
     );
-    // sort eventsToDisplay based on new Date(event.start?.dateTime).getTime()
     eventsToDisplay.sort((a, b) => {
       let aDate = new Date(a.start!.dateTime!).getTime();
       if (solution.has(a.id!)) {
