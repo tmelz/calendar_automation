@@ -6,6 +6,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    env:
+      TZ: "America/Los_Angeles" # Set the time zone to ensure consistent time handling
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -15,11 +18,22 @@ jobs:
         with:
           node-version: "16" # Specify the Node.js version you are using
 
+      - name: Cache Node.js modules
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
       - name: Install dependencies
         run: npm install
 
-      - name: Run tests
-        run: npm test
+      - name: Verify dependency versions
+        run: npm ci # Ensures clean dependency versions matching lock file
+
+      - name: Run tests with verbose output
+        run: npm test -- --verbose # Add verbose flag to get more detailed output
 
       - name: Run coverage
         run: npm run coverage
@@ -28,3 +42,9 @@ jobs:
         uses: codecov/codecov-action@v4.0.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Display Node.js version and environment info
+        run: |
+          node -v
+          npm -v
+          echo "Time zone: $TZ"
