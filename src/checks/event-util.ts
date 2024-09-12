@@ -1,3 +1,4 @@
+import { attempt } from "lodash";
 import { LogLevel, Log } from "./log";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -142,6 +143,53 @@ export namespace EventUtil {
       }) !== undefined;
 
     return hasRSVPdYes || otherRSVPdYes;
+  }
+
+  export function didRSVPNo(
+    event: GoogleAppsScript.Calendar.Schema.Event,
+    email: string
+  ): boolean {
+    const [username, domain] = email.split("@");
+
+    // Check if the provided email has RSVP'd "declined"
+    const hasRSVPdNo =
+      event.attendees?.find(
+        (attendee) =>
+          attendee.email === email && attendee.responseStatus === "declined"
+      ) !== undefined;
+
+    // If the email domain is not in the Block domains, return the result of the initial check
+    if (!EventUtil.BLOCK_EMAIL_DOMAINS.has(domain)) {
+      return hasRSVPdNo;
+    }
+
+    // If the email domain is a Block domain, check other emails in the Block with the same username
+    // really gross to have to do this
+    const otherRSVPdNo =
+      event.attendees?.find((attendee) => {
+        if (!attendee.email) {
+          return false;
+        }
+
+        const [attendeeUsername, attendeeDomain] = attendee.email.split("@");
+        return (
+          attendeeUsername === username &&
+          EventUtil.BLOCK_EMAIL_DOMAINS.has(attendeeDomain) &&
+          attendee.responseStatus === "declined"
+        );
+      }) !== undefined;
+
+    return hasRSVPdNo || otherRSVPdNo;
+  }
+
+  export function didIRSVPNo(
+    event: GoogleAppsScript.Calendar.Schema.Event
+  ): boolean {
+    return (
+      event.attendees
+        ?.filter((attendee) => attendee.self === true)
+        .some((attendee) => attendee.responseStatus === "declined") ?? false
+    );
   }
 
   export function getMeetingStartMinuteOfDay(

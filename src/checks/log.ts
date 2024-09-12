@@ -28,7 +28,8 @@ export namespace Log {
     if (Log.hook !== undefined) {
       Log.hook(updatedMessage);
     }
-    Logger.log(updatedMessage);
+    // TODO
+    console.log(updatedMessage);
   }
 
   export function logPhase(phase: string): void {

@@ -89,14 +89,18 @@ export namespace GetEvents {
     timeMin: Date,
     timeMax: Date,
     calendarId: string,
-    updatedMin: Date | undefined = undefined
+    updatedMin: Date | undefined = undefined,
+    maxResults: number | undefined = undefined,
+    suppressEventListLog: boolean = false
   ): GoogleAppsScript.Calendar.Schema.Event[] {
     const result: GoogleAppsScript.Calendar.Schema.Event[] | undefined =
       getEventsForDateRangeCustomCalendarWithErrorCatch(
         timeMin,
         timeMax,
         calendarId,
-        updatedMin
+        updatedMin,
+        maxResults,
+        suppressEventListLog
       );
 
     if (result === undefined) {
@@ -110,7 +114,9 @@ export namespace GetEvents {
     timeMin: Date,
     timeMax: Date,
     calendarId: string,
-    updatedMin: Date | undefined = undefined
+    updatedMin: Date | undefined = undefined,
+    maxResults: number | undefined = GetEvents.MAX_EVENTS_ALLOWED_TO_FETCH,
+    suppressEventListLog: boolean = false
   ): GoogleAppsScript.Calendar.Schema.Event[] | undefined {
     try {
       Log.log(
@@ -123,8 +129,8 @@ export namespace GetEvents {
           timeMax: timeMax.toISOString(),
           singleEvents: true,
           orderBy: "startTime",
-          maxResults: GetEvents.MAX_EVENTS_ALLOWED_TO_FETCH,
-          updatedMin: updatedMin?.toISOString(),
+          maxResults: maxResults,
+          // updatedMin: updatedMin?.toISOString(),
         })?.items ?? [];
 
       if (events.length === 0) {
@@ -133,16 +139,15 @@ export namespace GetEvents {
       }
 
       Log.log(
-        `Got ${events.length} events (note this result will be capped at ${GetEvents.MAX_EVENTS_ALLOWED_TO_FETCH} for safety)`
+        `Got ${events.length} events (note this result will be capped at ${maxResults} for safety)`
       );
-      const cappedResults = events.slice(
-        0,
-        GetEvents.MAX_EVENTS_ALLOWED_TO_FETCH
-      );
-      for (const event of cappedResults) {
-        Log.log(
-          `📅 "${event.summary}" ${event.summary === undefined ? "(undefined may mean event is private)" : ""}`
-        );
+      const cappedResults = events.slice(0, maxResults);
+      if (!suppressEventListLog) {
+        for (const event of cappedResults) {
+          Log.log(
+            `📅 "${event.summary}" ${event.summary === undefined ? "(undefined may mean event is private)" : ""}`
+          );
+        }
       }
       return cappedResults;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

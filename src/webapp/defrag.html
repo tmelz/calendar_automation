@@ -1,0 +1,805 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Defrag Calendar View</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background-color: #f0f4f8;
+        color: #333;
+      }
+
+      h2 {
+        color: #2c3e50;
+        margin-bottom: 10px;
+        font-size: 24px;
+        display: flex;
+        justify-content: left;
+        align-items: center;
+        width: 95%;
+        max-width: 1200px;
+      }
+
+      h2.title {
+        justify-content: space-between;
+      }
+
+      #hover-area {
+        padding: 5px 10px;
+        background-color: #3498db;
+        color: #fff;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        font-size: 16px;
+      }
+
+      #hover-area:hover {
+        background-color: #2980b9;
+      }
+
+      #loading-spinner {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        border: 4px solid rgba(0, 0, 0, 0.1);
+        border-left-color: #3498db;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        z-index: 1000;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: translate(-50%, -50%) rotate(0deg);
+        }
+        100% {
+          transform: translate(-50%, -50%) rotate(360deg);
+        }
+      }
+
+      .calendar-container-wrapper {
+        width: 95%;
+        max-width: 1200px;
+        margin: 20px 0;
+        display: flex;
+        flex-direction: row;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        position: relative;
+      }
+
+      .time-labels {
+        width: 60px;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        padding: 30px 10px 0 0;
+        background-color: #f8f9fa;
+        border-radius: 8px 0 0 8px;
+      }
+
+      .time-label {
+        height: 50px;
+        font-size: 12px;
+        color: #666;
+        line-height: 50px;
+      }
+
+      .calendar-container {
+        display: flex;
+        flex-grow: 1;
+        overflow-x: auto;
+      }
+
+      .calendar-day {
+        flex: 1;
+        min-width: 150px;
+        background-color: #fff;
+        padding: 10px;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid #e0e0e0;
+      }
+
+      .calendar-day:last-child {
+        border-right: none;
+      }
+
+      .day-header {
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 10px;
+        padding-bottom: 5px;
+        border-bottom: 2px solid #3498db;
+        color: #2c3e50;
+      }
+
+      .events-container {
+        position: relative;
+        flex-grow: 1;
+      }
+
+      .hour-line {
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background-color: #e0e0e0;
+      }
+
+      .event {
+        border-radius: 4px;
+        padding: 5px;
+        margin: 1px 0;
+        position: absolute;
+        overflow: hidden;
+        box-sizing: border-box;
+        font-size: 12px;
+        line-height: 1.2;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        color: #fff;
+      }
+
+      .event-title {
+        font-weight: bold;
+        font-size: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .event:hover {
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        transform: translateY(-1px);
+      }
+
+      .tooltip {
+        display: none;
+        position: absolute;
+        background-color: #000;
+        color: #fff;
+        padding: 5px;
+        border-radius: 4px;
+        font-size: 12px;
+        z-index: 100;
+        pointer-events: none;
+        white-space: nowrap;
+      }
+
+      .event-color-default {
+        background-color: #95a5a6;
+        color: #fff;
+      }
+
+      .meeting-changelog {
+        width: 95%;
+        max-width: 1200px;
+        margin: 20px 0;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        display: none; /* Hidden by default */
+      }
+
+      .meeting-tile {
+        padding: 10px;
+        border-radius: 8px;
+        color: #333;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        background-color: #f8f9fa; /* Updated color */
+        border: 2px solid;
+      }
+
+      .meeting-tile p {
+        margin: 5px 0;
+      }
+
+      .meeting-tile.unplaceable {
+        border-color: #e74c3c;
+        position: relative;
+      }
+
+      .meeting-tile.unplaceable::after {
+        content: "Unplaceable";
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        font-size: 12px;
+        font-weight: bold;
+        color: #e74c3c;
+      }
+
+      .commit-container {
+        width: 95%;
+        max-width: 800px; /* Reduced max-width */
+        margin: 20px 0;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        display: flex;
+        justify-content: center; /* Center align */
+        align-items: center;
+        flex-direction: column;
+      }
+
+      .commit-container input[type="text"] {
+        width: 90%; /* Center align */
+        padding: 5px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+        margin-bottom: 10px;
+      }
+
+      .commit-container button {
+        padding: 5px 15px;
+        background-color: #3498db;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+
+      .commit-container button:hover {
+        background-color: #2980b9;
+      }
+
+      .defrag-logs {
+        background-color: #2c3e50;
+        color: #ecf0f1;
+        font-family: monospace;
+        padding: 15px;
+        border-radius: 5px;
+        white-space: pre;
+        word-wrap: break-word;
+        margin-top: 20px;
+        overflow: auto;
+        max-height: 500px;
+        display: none; /* Collapsed by default */
+      }
+
+      /* Chevron styles */
+      .chevron {
+        cursor: pointer;
+        margin-right: 10px;
+        transition: transform 0.3s ease;
+        transform: rotate(90deg);
+      }
+      .chevron.collapsed {
+        transform: rotate(0deg);
+      }
+    </style>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const loadingSpinner = document.getElementById("loading-spinner");
+        const tooltip = document.createElement("div");
+        tooltip.className = "tooltip";
+        document.body.appendChild(tooltip);
+
+        google.script.run
+          .withSuccessHandler((data) => {
+            renderCalendars(data, false);
+            renderMeetingChangelog(data);
+            renderDefragLogs(data.consoleLog);
+            renderCommitContainer(); // Re-add Commit Changes section
+
+            // Remove the loading spinner
+            loadingSpinner.style.display = "none";
+
+            // Add event listeners after rendering
+            document
+              .getElementById("hover-area")
+              .addEventListener("mouseover", function () {
+                renderCalendars(data, true);
+                applyTooltipListeners();
+              });
+
+            document
+              .getElementById("hover-area")
+              .addEventListener("mouseout", function () {
+                renderCalendars(data, false);
+                applyTooltipListeners();
+              });
+
+            // Add event listener for commit button
+            document
+              .getElementById("commit-button")
+              .addEventListener("click", function () {
+                const message = document.getElementById("commit-message").value;
+                google.script.run.commitDefrag(message);
+              });
+
+            applyTooltipListeners();
+
+            // Chevron toggles
+            document
+              .getElementById("toggle-changelog")
+              .addEventListener("click", function () {
+                const changelog = document.querySelector(".meeting-changelog");
+                const chevron = this.querySelector(".chevron");
+                changelog.style.display =
+                  changelog.style.display !== "grid" ? "grid" : "none";
+                chevron.classList.toggle(
+                  "collapsed",
+                  changelog.style.display !== "grid"
+                );
+              });
+
+            document
+              .getElementById("toggle-defrag-logs")
+              .addEventListener("click", function () {
+                const logs = document.querySelector(".defrag-logs");
+                const chevron = this.querySelector(".chevron");
+                logs.style.display =
+                  logs.style.display !== "block" ? "block" : "none";
+                chevron.classList.toggle(
+                  "collapsed",
+                  logs.style.display !== "block"
+                );
+              });
+          })
+          .defrag();
+      });
+
+      function applyTooltipListeners() {
+        const tooltip = document.querySelector(".tooltip");
+        document.querySelectorAll(".event").forEach((eventElement) => {
+          eventElement.addEventListener("mouseover", function (e) {
+            const summary = eventElement.getAttribute("data-summary");
+            const start = eventElement.getAttribute("data-start");
+            const end = eventElement.getAttribute("data-end");
+
+            tooltip.innerHTML = `
+              ${summary}<br>
+              ${start} - ${end}
+            `;
+            tooltip.style.display = "block";
+          });
+
+          eventElement.addEventListener("mousemove", function (e) {
+            tooltip.style.left = e.pageX + 10 + "px";
+            tooltip.style.top = e.pageY + 10 + "px";
+          });
+
+          eventElement.addEventListener("mouseout", function () {
+            tooltip.style.display = "none";
+          });
+        });
+      }
+
+      function renderCalendars(data, showStarting) {
+        const events = showStarting ? data.startingEvents : data.solutionEvents;
+        const moveableMeetingIds = data.moveableMeetingIds;
+
+        const colors = generateColors(moveableMeetingIds.length);
+
+        renderCalendar(events, "calendar", moveableMeetingIds, colors);
+      }
+
+      function generateColors(count) {
+        const colors = [];
+        const hueStep = 360 / count;
+
+        for (let i = 0; i < count; i++) {
+          const hue = i * hueStep;
+          const saturation = 70 + Math.random() * 20;
+          const lightness = 50 + Math.random() * 10;
+
+          colors.push(`hsl(${hue}, ${saturation}%, ${lightness}%)`);
+        }
+
+        return colors;
+      }
+
+      function renderCalendar(events, containerId, moveableMeetingIds, colors) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const hourHeight = 50;
+        let earliestStart = 24;
+        let latestEnd = 0;
+
+        events.forEach((event) => {
+          const startDate = new Date(event.start.dateTime);
+          const endDate = new Date(event.end.dateTime);
+          const startHour = startDate.getHours() + startDate.getMinutes() / 60;
+          const endHour = endDate.getHours() + startDate.getMinutes() / 60;
+
+          if (startHour < earliestStart) earliestStart = startHour;
+          if (endHour > latestEnd) latestEnd = endHour;
+        });
+
+        const dayHeight = (latestEnd - earliestStart) * hourHeight;
+
+        container.querySelectorAll(".calendar-day").forEach((day) => {
+          const eventsContainer =
+            day.querySelector(".events-container") ||
+            document.createElement("div");
+          eventsContainer.classList.add("events-container");
+          eventsContainer.style.height = `${dayHeight}px`;
+          eventsContainer.innerHTML = "";
+
+          for (
+            let hour = Math.floor(earliestStart);
+            hour <= Math.ceil(latestEnd);
+            hour++
+          ) {
+            const hourLine = document.createElement("div");
+            hourLine.classList.add("hour-line");
+            hourLine.style.top = `${(hour - earliestStart) * hourHeight}px`;
+            eventsContainer.appendChild(hourLine);
+          }
+
+          if (!day.querySelector(".events-container")) {
+            day.appendChild(eventsContainer);
+          }
+        });
+
+        events.forEach((event) => {
+          const startDate = new Date(event.start.dateTime);
+          const endDate = new Date(event.end.dateTime);
+          const dayOfWeek = startDate.getDay() - 1;
+
+          if (dayOfWeek >= 0 && dayOfWeek < 5) {
+            const eventDurationHours = (endDate - startDate) / 3600000;
+            const eventElement = document.createElement("div");
+            let backgroundColor, textColor;
+
+            if (moveableMeetingIds.includes(event.id)) {
+              const colorIndex = moveableMeetingIds.indexOf(event.id);
+              backgroundColor = colors[colorIndex];
+              textColor = getContrastColor(backgroundColor);
+            } else {
+              backgroundColor = "#95a5a6";
+              textColor = "#FFFFFF";
+            }
+
+            eventElement.classList.add("event");
+            eventElement.style.backgroundColor = backgroundColor;
+            eventElement.style.color = textColor;
+
+            eventElement.style.top = `${
+              (startDate.getHours() +
+                startDate.getMinutes() / 60 -
+                earliestStart) *
+              hourHeight
+            }px`;
+            eventElement.style.height = `${Math.max(
+              eventDurationHours * hourHeight,
+              20
+            )}px`;
+
+            const [left, width] = calculateEventPosition(
+              events,
+              event,
+              startDate
+            );
+            eventElement.style.left = `${left}%`;
+            eventElement.style.width = `${width}%`;
+
+            const localizedStart = new Date(
+              event.start.dateTime
+            ).toLocaleTimeString("en-US", {
+              timeZone: "America/Los_Angeles",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            const localizedEnd = new Date(
+              event.end.dateTime
+            ).toLocaleTimeString("en-US", {
+              timeZone: "America/Los_Angeles",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+
+            eventElement.innerHTML = `<div class="event-title">${event.summary}</div>`;
+            eventElement.setAttribute("data-summary", event.summary);
+            eventElement.setAttribute("data-start", localizedStart);
+            eventElement.setAttribute("data-end", localizedEnd);
+
+            const dayContainer = container.children[dayOfWeek];
+            if (dayContainer) {
+              const eventsContainer =
+                dayContainer.querySelector(".events-container");
+              if (eventsContainer) {
+                eventsContainer.appendChild(eventElement);
+              }
+            }
+          }
+        });
+
+        // Add time labels
+        const timeLabelsContainer = container.previousElementSibling;
+        if (timeLabelsContainer) {
+          timeLabelsContainer.innerHTML = "";
+
+          for (
+            let hour = Math.floor(earliestStart);
+            hour <= Math.ceil(latestEnd);
+            hour++
+          ) {
+            const timeLabel = document.createElement("div");
+            timeLabel.classList.add("time-label");
+            timeLabel.innerText = `${hour % 12 || 12}:00 ${hour >= 12 ? "PM" : "AM"}`;
+            timeLabelsContainer.appendChild(timeLabel);
+          }
+        }
+      }
+
+      function renderMeetingChangelog(data) {
+        const changelogHeader = document.createElement("h2");
+        changelogHeader.innerHTML = `
+          <div class="chevron collapsed">&#9654;</div>
+          <span>Meeting Timing Changelog</span>
+        `;
+        changelogHeader.id = "toggle-changelog";
+        document.body.appendChild(changelogHeader);
+
+        const changelogContainer = document.createElement("div");
+        changelogContainer.className = "meeting-changelog";
+
+        const colors = generateColors(data.moveableMeetingIds.length);
+
+        data.moveableMeetingIds.forEach((id) => {
+          const startingEvent = data.startingEvents.find(
+            (event) => event.id === id
+          );
+          const solutionEvent = data.solutionEvents.find(
+            (event) => event.id === id
+          );
+
+          if (startingEvent && solutionEvent) {
+            const tileElement = document.createElement("div");
+            tileElement.className = "meeting-tile";
+            const colorIndex = data.moveableMeetingIds.indexOf(id);
+            tileElement.style.borderColor = colors[colorIndex];
+
+            const localizedStartOld = new Date(
+              startingEvent.start.dateTime
+            ).toLocaleString("en-US", {
+              timeZone: "America/Los_Angeles",
+              weekday: "long",
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            const localizedEndOld = new Date(
+              startingEvent.end.dateTime
+            ).toLocaleString("en-US", {
+              timeZone: "America/Los_Angeles",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+
+            const localizedStartNew = new Date(
+              solutionEvent.start.dateTime
+            ).toLocaleString("en-US", {
+              timeZone: "America/Los_Angeles",
+              weekday: "long",
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            const localizedEndNew = new Date(
+              solutionEvent.end.dateTime
+            ).toLocaleString("en-US", {
+              timeZone: "America/Los_Angeles",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+
+            tileElement.innerHTML = `
+              <p><strong>${startingEvent.summary}</strong></p>
+              <p>Old: ${localizedStartOld} - ${localizedEndOld}</p>
+              <p>New: ${localizedStartNew} - ${localizedEndNew}</p>
+            `;
+            changelogContainer.appendChild(tileElement);
+          }
+        });
+
+        data.unplaceableMeetingIds.forEach((id) => {
+          const event = data.startingEvents.find((event) => event.id === id);
+          if (event) {
+            const tileElement = document.createElement("div");
+            tileElement.className = "meeting-tile unplaceable";
+            tileElement.style.borderColor = "#e74c3c";
+
+            const localizedStart = new Date(
+              event.start.dateTime
+            ).toLocaleString("en-US", {
+              timeZone: "America/Los_Angeles",
+              weekday: "long",
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            const localizedEnd = new Date(event.end.dateTime).toLocaleString(
+              "en-US",
+              {
+                timeZone: "America/Los_Angeles",
+                hour: "2-digit",
+                minute: "2-digit",
+              }
+            );
+
+            tileElement.innerHTML = `
+              <p><strong>${event.summary}</strong></p>
+              <p>${localizedStart} - ${localizedEnd}</p>
+            `;
+            changelogContainer.appendChild(tileElement);
+          }
+        });
+
+        document.body.appendChild(changelogContainer);
+      }
+
+      function renderCommitContainer() {
+        const commitHeader = document.createElement("h2");
+        commitHeader.innerText = "Commit Changes";
+        document.body.appendChild(commitHeader);
+
+        const commitContainer = document.createElement("div");
+        commitContainer.className = "commit-container";
+
+        const messageInput = document.createElement("input");
+        messageInput.type = "text";
+        messageInput.id = "commit-message";
+        messageInput.value =
+          "Organizing my calendar for more focus time, reach out with any concerns";
+
+        const commitButton = document.createElement("button");
+        commitButton.id = "commit-button";
+        commitButton.innerText = "Commit Changes";
+
+        commitContainer.appendChild(messageInput);
+        commitContainer.appendChild(commitButton);
+
+        document.body.appendChild(commitContainer);
+      }
+
+      function renderDefragLogs(consoleLog) {
+        const logsHeader = document.createElement("h2");
+        logsHeader.innerHTML = `
+          <div class="chevron collapsed">&#9654;</div>
+          <span>Defrag Command Logs</span>
+        `;
+        logsHeader.id = "toggle-defrag-logs";
+        document.body.appendChild(logsHeader);
+
+        const logsContainer = document.createElement("div");
+        logsContainer.className = "defrag-logs";
+        logsContainer.innerText = consoleLog;
+
+        document.body.appendChild(logsContainer);
+      }
+
+      function calculateEventPosition(events, currentEvent, startDate) {
+        const overlappingEvents = events.filter(
+          (event) =>
+            new Date(event.start.dateTime).getDay() === startDate.getDay() &&
+            doEventsOverlap(currentEvent, event)
+        );
+
+        if (overlappingEvents.length === 1) {
+          return [0, 100];
+        }
+
+        const index = overlappingEvents.findIndex(
+          (event) => event.id === currentEvent.id
+        );
+        const width = 100 / overlappingEvents.length;
+        const left = index * width;
+
+        return [left, width];
+      }
+
+      function doEventsOverlap(event1, event2) {
+        const start1 = new Date(event1.start.dateTime);
+        const end1 = new Date(event1.end.dateTime);
+        const start2 = new Date(event2.start.dateTime);
+        const end2 = new Date(event2.end.dateTime);
+
+        return start1 < end2 && start2 < end1;
+      }
+
+      function getContrastColor(hslColor) {
+        const rgbColor = hslToRgb(hslColor);
+        const [r, g, b] = rgbColor.match(/[\d\.]+/g).map(Number);
+
+        const luminance =
+          0.2126 * adjustColor(r) +
+          0.7152 * adjustColor(g) +
+          0.0722 * adjustColor(b);
+
+        return luminance > 45.9 ? "#000000" : "#FFFFFF";
+      }
+
+      function hslToRgb(hsl) {
+        const hslComponents = hsl.match(/[\d\.]+/g).map(Number);
+        const h = hslComponents[0];
+        const s = hslComponents[1] / 100;
+        const l = hslComponents[2] / 100;
+
+        let r, g, b;
+        if (s === 0) {
+          r = g = b = l;
+        } else {
+          const hue2rgb = (p, q, t) => {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1 / 6) return p + (q - p) * 6 * t;
+            if (t < 1 / 2) return q;
+            if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+            return p;
+          };
+
+          const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+          const p = 2 * l - q;
+          r = hue2rgb(p, q, h / 360 + 1 / 3);
+          g = hue2rgb(p, q, h / 360);
+          b = hue2rgb(p, q, h / 360 - 1 / 3);
+        }
+
+        r = Math.round(r * 255);
+        g = Math.round(g * 255);
+        b = Math.round(b * 255);
+
+        return `rgb(${r}, ${g}, ${b})`;
+      }
+
+      function adjustColor(c) {
+        return c <= 10 ? c / 3294.6 : Math.pow(c / 269 + 0.0513, 2.4) * 100;
+      }
+    </script>
+  </head>
+  <body>
+    <div id="loading-spinner"></div>
+    <h2 class="title">
+      <span>Optimized Calendar</span>
+      <div id="hover-area">Hover to Show Original Calendar</div>
+    </h2>
+    <div class="calendar-container-wrapper">
+      <div class="time-labels"></div>
+      <div class="calendar-container" id="calendar">
+        <div class="calendar-day">
+          <div class="day-header">Monday</div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">Tuesday</div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">Wednesday</div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">Thursday</div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">Friday</div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
