@@ -68,6 +68,7 @@ describe("checkEvents", () => {
     Orchestrator.checkEvents(
       [mockCalendarCheck],
       [normalEvent, normalEvent],
+      { checks: { mock: true } },
       true,
       mockSaveEventChanges
     );
@@ -82,6 +83,7 @@ describe("checkEvents", () => {
     Orchestrator.checkEvents(
       [mockCalendarCheck],
       [normalEvent, optOutEvent],
+      { checks: { mock: true } },
       true,
       mockSaveEventChanges
     );
@@ -99,6 +101,7 @@ describe("checkEvents", () => {
     Orchestrator.checkEvents(
       [mockCalendarCheck],
       [normalEvent, normalEvent],
+      { checks: { mock: true } },
       true,
       mockSaveEventChanges
     );
@@ -114,6 +117,7 @@ describe("checkEvents", () => {
     Orchestrator.checkEvents(
       [mockCalendarCheck],
       [normalEvent],
+      { checks: { mock: true } },
       true,
       mockSaveEventChanges
     );
@@ -128,6 +132,7 @@ describe("checkEvents", () => {
     Orchestrator.checkEvents(
       [mockCalendarCheck],
       [normalEvent],
+      { checks: { mock: true } },
       false,
       mockSaveEventChanges
     );
@@ -144,6 +149,7 @@ describe("checkEvents", () => {
     Orchestrator.checkEvents(
       [mockCalendarCheck],
       manyEvents,
+      { checks: { mock: true } },
       false,
       mockSaveEventChanges
     );
@@ -166,6 +172,7 @@ describe("checkEvents", () => {
     const result = Orchestrator.checkEvents(
       [mockCalendarCheck],
       manyEvents,
+      { checks: { mock: true } },
       false,
       mockSaveEventChanges
     );
