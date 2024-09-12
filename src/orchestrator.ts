@@ -9,6 +9,7 @@ import { Time } from "./checks/time";
 import { Cache } from "./cache";
 import { LogLevel, Log } from "./checks/log";
 import { Analytics } from "./analytics";
+import { UserSettings } from "./checks/user-settings";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace Orchestrator {
@@ -19,7 +20,7 @@ export namespace Orchestrator {
     event: GoogleAppsScript.Calendar.Schema.Event
   ) => boolean;
 
-  const CalendarChecks: { [key: string]: CheckTypes.CalendarCheck } = {
+  export const CalendarChecks: { [key: string]: CheckTypes.CalendarCheck } = {
     OutOfOffice: CheckOOO.OutOfOfficeCheck,
     PlusFiveMinutes: CheckPlus5m.PlusFiveMinutesCheck,
     Quit: CheckQuit.QuitCheck,
@@ -58,6 +59,7 @@ export namespace Orchestrator {
     const withinModificationLimit = Orchestrator.checkEvents(
       Orchestrator.allChecks,
       events,
+      UserSettings.loadSettings(),
       isDryRun,
       Orchestrator.saveEvent
     );
@@ -87,6 +89,7 @@ export namespace Orchestrator {
     Orchestrator.checkEvents(
       Orchestrator.allChecks,
       events,
+      UserSettings.loadSettings(),
       isDryRun,
       Orchestrator.saveEvent
     );
@@ -97,6 +100,7 @@ export namespace Orchestrator {
   export function checkEvents(
     calendarChecks: CheckTypes.CalendarCheck[],
     events: GoogleAppsScript.Calendar.Schema.Event[],
+    userSettings: UserSettings.Settings,
     isDryRun: boolean = true,
     saveEventChanges: Orchestrator.SaveEventChanges
   ): boolean {
@@ -104,6 +108,16 @@ export namespace Orchestrator {
     const eventMap: Map<string, GoogleAppsScript.Calendar.Schema.Event> =
       new Map(events.map((event) => [event.id!, event]));
     const eventChangelog: Map<string, CheckTypes.Changelog> = new Map();
+
+    const enabledChecks: CheckTypes.CalendarCheck[] = [];
+    calendarChecks.forEach((check) => {
+      if (UserSettings.isCheckEnabled(userSettings, check.id)) {
+        Log.log(`✅ Check "${check.id}" is enabled`);
+        enabledChecks.push(check);
+      } else {
+        Log.log(`🛑 Check "${check.id}" is disabled`);
+      }
+    });
 
     Log.logPhase("Running checks on events 📆🔎");
     events.forEach((event) => {
@@ -121,7 +135,7 @@ export namespace Orchestrator {
       }
 
       Log.log(`✅ can analyze: running all checks for this event`);
-      calendarChecks.forEach((check) => {
+      enabledChecks.forEach((check) => {
         Log.log(`🚦 Check "${check.id}":shouldModifyEvent`);
         const modificationType = check.shouldModifyEvent(event);
         if (modificationType !== undefined) {
