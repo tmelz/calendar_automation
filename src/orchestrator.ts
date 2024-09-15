@@ -33,7 +33,6 @@ export namespace Orchestrator {
     CalendarChecks.Quit,
     CalendarChecks.Conflict,
   ];
-  export const experimentalChecks: CheckTypes.CalendarCheck[] = [];
 
   // Only look at events that have recently changed
   export function runFastChecks(isDryRun: boolean = true): void {

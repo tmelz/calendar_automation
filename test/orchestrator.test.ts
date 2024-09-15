@@ -1,7 +1,7 @@
 import { Orchestrator } from "../src/orchestrator";
 import { EventUtil } from "../src/checks/event-util";
 import { CheckTypes } from "../src/checks/check-types";
-
+import { UserSettings } from "../src/checks/user-settings";
 // Mock dependencies
 jest.mock("../src/checks/event-util", () => ({
   EventUtil: {
@@ -57,6 +57,18 @@ describe("checkEvents", () => {
     modifyEventLocally: jest.fn(),
   };
 
+  const mockUserSettings: UserSettings.Settings = {
+    enabled: true,
+    checks: {
+      outOfOffice: true,
+      plusFiveMinutes: true,
+      quit: true,
+      conflict: true,
+    },
+  };
+
+  jest.spyOn(UserSettings, "isCheckEnabled").mockImplementation(() => true);
+
   beforeEach(() => {
     jest.clearAllMocks();
     (mockCalendarCheck.modifyEventLocally as jest.Mock).mockReturnValue([]);
@@ -68,7 +80,7 @@ describe("checkEvents", () => {
     Orchestrator.checkEvents(
       [mockCalendarCheck],
       [normalEvent, normalEvent],
-      { checks: { mock: true } },
+      mockUserSettings,
       true,
       mockSaveEventChanges
     );
@@ -83,7 +95,7 @@ describe("checkEvents", () => {
     Orchestrator.checkEvents(
       [mockCalendarCheck],
       [normalEvent, optOutEvent],
-      { checks: { mock: true } },
+      mockUserSettings,
       true,
       mockSaveEventChanges
     );
@@ -101,7 +113,7 @@ describe("checkEvents", () => {
     Orchestrator.checkEvents(
       [mockCalendarCheck],
       [normalEvent, normalEvent],
-      { checks: { mock: true } },
+      mockUserSettings,
       true,
       mockSaveEventChanges
     );
@@ -117,7 +129,7 @@ describe("checkEvents", () => {
     Orchestrator.checkEvents(
       [mockCalendarCheck],
       [normalEvent],
-      { checks: { mock: true } },
+      mockUserSettings,
       true,
       mockSaveEventChanges
     );
@@ -132,7 +144,7 @@ describe("checkEvents", () => {
     Orchestrator.checkEvents(
       [mockCalendarCheck],
       [normalEvent],
-      { checks: { mock: true } },
+      mockUserSettings,
       false,
       mockSaveEventChanges
     );
@@ -149,7 +161,7 @@ describe("checkEvents", () => {
     Orchestrator.checkEvents(
       [mockCalendarCheck],
       manyEvents,
-      { checks: { mock: true } },
+      mockUserSettings,
       false,
       mockSaveEventChanges
     );
@@ -172,7 +184,7 @@ describe("checkEvents", () => {
     const result = Orchestrator.checkEvents(
       [mockCalendarCheck],
       manyEvents,
-      { checks: { mock: true } },
+      mockUserSettings,
       false,
       mockSaveEventChanges
     );
@@ -205,7 +217,7 @@ describe("saveEvent", () => {
 
     expect(Calendar.Events!.update).toHaveBeenCalledWith(
       event,
-      event.organizer?.email!,
+      event.organizer!.email!,
       event.id!,
       { sendUpdates: "none" }
     );
@@ -219,7 +231,7 @@ describe("saveEvent", () => {
 
     expect(Calendar.Events!.update).toHaveBeenCalledWith(
       event,
-      event.organizer?.email!,
+      event.organizer!.email!,
       event.id!,
       { sendUpdates: "none" }
     );
@@ -246,7 +258,7 @@ describe("saveEvent", () => {
 
     expect(Calendar.Events!.update).toHaveBeenCalledWith(
       event,
-      event.organizer?.email!,
+      event.organizer!.email!,
       event.id!,
       { sendUpdates: "none" }
     );

@@ -5,16 +5,37 @@ export namespace UserSettings {
   export const KEY = "userSettings";
 
   export type Settings = {
-    checks: { [key: string]: boolean };
-    // TODO
-    // check settings? like colors
+    enabled: boolean;
+    checks: {
+      outOfOffice: boolean;
+      plusFiveMinutes: boolean;
+      quit: boolean;
+      conflict: boolean;
+    };
+    // checkSettings: {};
   };
 
   export function isCheckEnabled(
     settings: UserSettings.Settings,
     checkId: string
   ): boolean {
-    return settings.checks[checkId] ?? false;
+    if (!settings.enabled) {
+      return false;
+    }
+
+    switch (checkId) {
+      case Orchestrator.CalendarChecks.OutOfOffice.id:
+        return settings.checks.outOfOffice;
+      case Orchestrator.CalendarChecks.PlusFiveMinutes.id:
+        return settings.checks.plusFiveMinutes;
+      case Orchestrator.CalendarChecks.Quit.id:
+        return settings.checks.quit;
+      case Orchestrator.CalendarChecks.Conflict.id:
+        return settings.checks.conflict;
+      default:
+        throw new Error(`Unknown check id: ${checkId}`);
+        return false;
+    }
   }
 
   export function saveSettings(settings: UserSettings.Settings): void {
@@ -41,7 +62,13 @@ export namespace UserSettings {
     });
 
     return {
-      checks: checksSettings,
+      enabled: false,
+      checks: {
+        outOfOffice: false,
+        plusFiveMinutes: false,
+        quit: false,
+        conflict: false,
+      },
     };
   }
 }
