@@ -3,6 +3,7 @@ import { Install } from "../install";
 import { Log } from "../checks/log";
 import { CalendarAlg } from "../defrag/calendar-alg";
 import { GreedyDefrag } from "../defrag/greedy-defrag";
+import { UserSettings } from "../checks/user-settings";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function doGet(e: GoogleAppsScript.Events.DoGet) {
@@ -14,20 +15,46 @@ function doGet(e: GoogleAppsScript.Events.DoGet) {
   }
 
   const template = HtmlService.createTemplateFromFile(templateFile);
-  const statusData = isUserInstalled();
-  template.installed = statusData.installed;
-  template.email = statusData.email;
+  const userSettings = UserSettings.loadSettings();
+  template.userSettings = JSON.stringify(userSettings);
   return template
     .evaluate()
     .setTitle("Calendar Automation")
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-function isUserInstalled(): { installed: boolean; email: string } {
-  const triggers = ScriptApp.getProjectTriggers();
-  const installed = triggers.length > 0;
-  const userEmail = Session.getActiveUser().getEmail();
-  return { installed, email: userEmail };
+// function isUserInstalled(): { installed: boolean; email: string } {
+//   const triggers = ScriptApp.getProjectTriggers();
+//   const installed = triggers.length > 0;
+//   const userEmail = Session.getActiveUser().getEmail();
+//   return { installed, email: userEmail };
+// }
+
+function onSettingsChanged(newSettings: UserSettings.Settings): {
+  success: boolean;
+  message: string;
+} {
+  const oldSettings = UserSettings.loadSettings();
+  if (!oldSettings.enabled && newSettings.enabled) {
+    Log.log(
+      "Old settings were disabled, new settings say enabled, installing triggers"
+    );
+    Install.setupTriggers();
+  } else if (oldSettings.enabled && !newSettings.enabled) {
+    Log.log(
+      "Old settings were enabled, new settings say disabled, uninstalling triggers"
+    );
+    Install.removeAllTriggers();
+  }
+
+  // Log the incoming settings
+  console.log("Received new settings:", JSON.stringify(newSettings));
+
+  // Save the settings
+  UserSettings.saveSettings(newSettings);
+  console.log("Settings updated successfully");
+
+  return { success: true, message: "Settings updated successfully" };
 }
 
 function defrag() {

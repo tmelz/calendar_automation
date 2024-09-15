@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Calendar Automation by @tmellor</title>
+    <title>📅 Calendar Automation by @tmellor ⚡️</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -26,20 +28,11 @@
         margin-bottom: 30px;
       }
       .feature-list {
-        padding-left: 20px;
+        padding-left: 30px;
       }
       .emoji {
         font-size: 1.2em;
         margin-right: 5px;
-      }
-      .registration-status {
-        display: flex;
-        align-items: center;
-        margin-bottom: 10px;
-      }
-      .status-icon {
-        font-size: 1.5em;
-        margin-right: 10px;
       }
       button {
         background-color: #3498db;
@@ -58,274 +51,181 @@
         background-color: #bdc3c7;
         cursor: not-allowed;
       }
-      #trialSection,
-      #triggerRunSection {
-        background-color: #ecf0f1;
-        padding: 20px;
-        border-radius: 5px;
+      .disabled {
+        opacity: 0.5;
+        pointer-events: none;
       }
-      #trialSection h2,
-      #triggerRunSection h2 {
-        margin-top: 0;
+      .saving {
+        font-size: 0.8em;
+        color: #3498db;
+        margin-top: 10px;
       }
-      #trialOutput,
-      #realRunOutput {
-        background-color: #2c3e50;
-        color: #ecf0f1;
-        font-family: monospace;
+      .saved {
+        font-size: 0.8em;
+        color: #2ecc71;
+        margin-top: 10px;
+        opacity: 1;
+        transition: opacity 1s ease-out;
+      }
+      .settings-group {
+        border: 1px solid #ddd;
         padding: 15px;
         border-radius: 5px;
-        white-space: pre;
-        word-wrap: break-word;
         margin-top: 20px;
-        overflow: auto;
-        max-height: 500px;
       }
-      .loader {
-        border: 4px solid #f3f3f3;
-        border-top: 4px solid #3498db;
-        border-radius: 50%;
-        width: 20px;
-        height: 20px;
-        animation: spin 1s linear infinite;
-        display: inline-block;
-        margin-left: 10px;
-        vertical-align: middle;
+      .settings-group h3 {
+        margin-top: 0;
       }
-      @keyframes spin {
-        0% {
-          transform: rotate(0deg);
-        }
-        100% {
-          transform: rotate(360deg);
-        }
+      .settings-group label {
+        display: block;
+        margin-bottom: 10px;
+      }
+      .settings-group input[type="checkbox"] {
+        margin-right: 10px;
+      }
+      .description {
+        display: block;
+        margin-left: 30px;
+        color: darkgrey;
       }
     </style>
   </head>
   <body>
-    <h1>Calendar Automation</h1>
-    <p class="subtitle">by @tmellor</p>
+    <div id="app">
+      <h1>📅 Calendar Automation ⚡️</h1>
+      <p class="subtitle">by @tmellor</p>
 
-    <div class="section">
-      <h2>Features</h2>
-      <ul class="feature-list">
-        <li class="feature">
-          <span class="emoji">⏳</span> Start all 1:1 meetings at 5 minutes past
-          the hour automatically; this is the best setting for frequent
-          meetings.
-        </li>
-        <li class="feature">
-          <span class="emoji">🚨</span> Automatically detect if someone is OOO
-          for 1:1s, even if they RSVP'd yes. Flagged in the meeting title. Takes
-          into account all day OOO and specific time range OOO (e.g. 1-2pm).
-        </li>
-        <li class="feature">
-          <span class="emoji">⚔️</span> Detects when someone has RSVPd to an
-          another event at the same time as a 1:1, and flags in the meeting
-          title. Avoids last minute "I'm double booked" DMs!
-        </li>
-        <li class="feature">
-          <span class="emoji">👻</span> Detect if someone in a 1:1 is no longer
-          an employee
-        </li>
-        <li class="feature">
-          <span class="emoji">🔁</span> Runs automatically, daily and whenever
-          your calendar changes
-        </li>
-      </ul>
-    </div>
-
-    <div class="section">
-      <h2>⚠️ Warning</h2>
-      <p>
-        This tool automatically modifies your calendar. That comes with certain
-        risks. I've taken many precautions to mitigate the risk, but please be
-        aware that this is not a bulletproof tool and there's a chance it could
-        mess up some of your calendar. Mitigations are listed below
-      </p>
-      <ul class="feature-list">
-        <li class="feature">
-          <span class="emoji">🛡️</span> Unit tests run against real world data
-          from my calendar
-        </li>
-        <li class="feature">
-          <span class="emoji">🛑</span> The tool only operates on the meetings
-          occuring this week and the next complete week. Meaning that it will
-          never modify meetings further than 2 weeks out.
-        </li>
-        <li class="feature">
-          <span class="emoji">👮‍♂️</span> There's a hard cap on the number of
-          meetings it can modify in one run (30), to prevent any kind of runaway
-          issue.
-        </li>
-      </ul>
-    </div>
-
-    <div class="section">
-      <h2>Installation Status</h2>
-      <div class="registration-status">
-        <span id="statusIcon" class="status-icon"></span>
-        <span id="statusText"></span>
+      <div class="section">
+        <p class="warning">
+          ⚠️ This tool will modify your calendar. It is tested, but proceed at
+          your own risk.
+        </p>
+        <h2>Settings ⚙️</h2>
+        <div class="settings-group">
+          <h3>Global Settings</h3>
+          <label>
+            <input
+              type="checkbox"
+              v-model="settings.enabled"
+              @change="onSettingsChanged"
+            />
+            Enable Calendar Automation (disabling this disable all features)
+          </label>
+        </div>
+        <div class="settings-group" :class="{ disabled: !settings.enabled }">
+          <h3>1-on-1-only feature settings</h3>
+          <label>
+            <input
+              type="checkbox"
+              v-model="settings.checks.plusFiveMinutes"
+              @change="onSettingsChanged"
+              :disabled="!settings.enabled"
+            />
+            Start meetings +5m
+            <br />
+            <span class="description"
+              >Start meetings 5m after the hour or half hour.</span
+            >
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              v-model="settings.checks.outOfOffice"
+              @change="onSettingsChanged"
+              :disabled="!settings.enabled"
+            />
+            Attendee Out of Office indicator
+            <br />
+            <span class="description"
+              >Add a 🚨 to meeting titles where an attendee is out of
+              office.</span
+            >
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              v-model="settings.checks.conflict"
+              @change="onSettingsChanged"
+              :disabled="!settings.enabled"
+            />
+            Conflict
+            <br />
+            <span class="description"
+              >Add a ⚔️ to the meeting title if an attendee is RSVPd to an other
+              event at the same time.</span
+            >
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              v-model="settings.checks.quit"
+              @change="onSettingsChanged"
+              :disabled="!settings.enabled"
+            />
+            Quit
+            <br />
+            <span class="description"
+              >Add a 👻 to the meeting title if an attendee is no longer an
+              employee.</span
+            >
+          </label>
+        </div>
+        <div v-if="saving" class="saving">Saving{{ ellipsis }}</div>
+        <div v-if="saved" class="saved">Saved &#x2705;</div>
       </div>
-      <div id="installationButtons"></div>
-    </div>
-
-    <div id="trialSection" class="section" style="display: none">
-      <h2>Try a trial run! 👨‍🔬</h2>
-      <p>
-        Click the button below to do a dry run 🌵 of the tool for your calendar
-        for the next 2 weeks. The output is the console log from the dry run.
-        Scroll to bottom to see the changes it would make. (Note: this may take
-        about a minute to process)
-      </p>
-      <button id="trialButton" onclick="runTrial()">Start Trial Run</button>
-      <div id="trialOutput" style="display: none"></div>
-    </div>
-    <div id="triggerRunSection" class="section" style="display: none">
-      <h2>Trigger a real run now! 🚀</h2>
-      <p>
-        Automatically triggered runs to update your calendar happen every day at
-        8am Pacific and also whenever your calendar is modified (to update any
-        changed events quickly). You can trigger a run now to see changes
-        earlier; console logs will be sent directly here for visibility --
-        scroll to the bottom to see what changes were made.
-      </p>
-      <button id="triggerRunButton" onclick="triggerRealRun()">
-        Start Real Run
-      </button>
-      <div id="realRunOutput" style="display: none"></div>
     </div>
 
     <script>
-      // // Set the installation status based on the passed variables
-      let installed = <?= installed ?> === 'true';
-      let userEmail = "<?= email ?>";
-      function updateInstallationStatus() {
-        const statusIcon = document.getElementById("statusIcon");
-        const statusText = document.getElementById("statusText");
-        const installationButtons = document.getElementById(
-          "installationButtons"
-        );
-        const trialSection = document.getElementById("trialSection");
-        const triggerRunSection = document.getElementById("triggerRunSection");
-
-        if (installed) {
-          statusIcon.innerHTML = "✅";
-          statusText.innerHTML = `Installed (${userEmail})`;
-          installationButtons.innerHTML =
-            '<button onclick="uninstall()">Uninstall</button>';
-          trialSection.style.display = "none";
-          triggerRunSection.style.display = "block";
-        } else {
-          statusIcon.innerHTML = "❌";
-          statusText.innerHTML = `Not installed (${userEmail})`;
-          installationButtons.innerHTML =
-            '<button onclick="install()">Install Now</button>';
-          trialSection.style.display = "block";
-          triggerRunSection.style.display = "none";
+      new Vue({
+        el: "#app",
+        data: {
+          settings: {},
+          saving: false,
+          saved: false,
+          ellipsis: ""
+        },
+        created() {
+          const userSettingsString = <?= userSettings ?>;
+          console.log("User settings string:", userSettingsString);
+          const parsedSettings = JSON.parse(userSettingsString);
+          console.log("Received user settings:", parsedSettings);
+          this.settings = parsedSettings;
+        },
+        methods: {
+          onSettingsChanged() {
+            if (this.saving) return;
+            this.saving = true;
+            this.saved = false;
+            this.animateEllipsis();
+            google.script.run
+              .withSuccessHandler(() => {
+                console.log("Settings updated successfully");
+                this.saving = false;
+                this.saved = true;
+                setTimeout(() => {
+                  this.saved = false;
+                }, 2000);
+              })
+              .withFailureHandler((error) => {
+                console.error("Error updating settings:", error);
+                this.saving = false;
+              })
+              .onSettingsChanged(this.settings);
+          },
+          animateEllipsis() {
+            let count = 0;
+            const interval = setInterval(() => {
+              if (!this.saving) {
+                clearInterval(interval);
+                this.ellipsis = "";
+                return;
+              }
+              count = (count + 1) % 4;
+              this.ellipsis = ".".repeat(count);
+            }, 500);
+          }
         }
-      }
-
-      // Call the function to update the installation status on page load
-      updateInstallationStatus();
-
-      function install() {
-        const button = document.querySelector("#installationButtons button");
-        button.disabled = true;
-        button.innerHTML = 'Installing... <span class="loader"></span>';
-        google.script.run
-          .withSuccessHandler(function (success) {
-            if (success) {
-              installed = true;
-              updateInstallationStatus();
-            } else {
-              alert("Installation failed. Please try again.");
-            }
-            button.disabled = false;
-            button.innerHTML = "Install Now";
-          })
-          .withFailureHandler(function (error) {
-            alert("Installation failed: " + error);
-            button.disabled = false;
-            button.innerHTML = "Install Now";
-          })
-          .installForUser();
-      }
-
-      function uninstall() {
-        const button = document.querySelector("#installationButtons button");
-        button.disabled = true;
-        button.innerHTML = 'Uninstalling... <span class="loader"></span>';
-        google.script.run
-          .withSuccessHandler(function (success) {
-            if (success) {
-              installed = false;
-              updateInstallationStatus();
-            } else {
-              alert("Uninstallation failed. Please try again.");
-            }
-            button.disabled = false;
-            button.innerHTML = "Uninstall";
-          })
-          .withFailureHandler(function (error) {
-            alert("Uninstallation failed: " + error);
-            button.disabled = false;
-            button.innerHTML = "Uninstall";
-          })
-          .uninstallForUser();
-      }
-
-      function runTrial() {
-        const trialButton = document.getElementById("trialButton");
-        const trialOutput = document.getElementById("trialOutput");
-        trialButton.disabled = true;
-        trialButton.style.backgroundColor = "#bdc3c7";
-        trialButton.innerHTML = 'Running Trial... <span class="loader"></span>';
-        trialOutput.style.display = "block";
-        trialOutput.innerHTML =
-          "Running trial... This may take about a minute.";
-
-        google.script.run
-          .withSuccessHandler(function (result) {
-            trialOutput.innerHTML = result;
-            trialButton.disabled = false;
-            trialButton.style.backgroundColor = "";
-            trialButton.innerHTML = "Start Trial Run";
-          })
-          .withFailureHandler(function (error) {
-            trialOutput.innerHTML = "Trial run failed: " + error;
-            trialButton.disabled = false;
-            trialButton.style.backgroundColor = "";
-            trialButton.innerHTML = "Start Trial Run";
-          })
-          .runTrialAutomation();
-      }
-      function triggerRealRun() {
-        const triggerRunButton = document.getElementById("triggerRunButton");
-        const realRunOutput = document.getElementById("realRunOutput");
-        triggerRunButton.disabled = true;
-        triggerRunButton.style.backgroundColor = "#bdc3c7";
-        triggerRunButton.innerHTML =
-          'Running Real Run... <span class="loader"></span>';
-        realRunOutput.style.display = "block";
-        realRunOutput.innerHTML =
-          "Running real run... This may take about a minute.";
-
-        google.script.run
-          .withSuccessHandler(function (result) {
-            realRunOutput.innerHTML = result;
-            triggerRunButton.disabled = false;
-            triggerRunButton.style.backgroundColor = "";
-            triggerRunButton.innerHTML = "Start Real Run";
-          })
-          .withFailureHandler(function (error) {
-            realRunOutput.innerHTML = "Real run failed: " + error;
-            triggerRunButton.disabled = false;
-            triggerRunButton.style.backgroundColor = "";
-            triggerRunButton.innerHTML = "Start Real Run";
-          })
-          .runRealAutomation();
-      }
+      });
     </script>
   </body>
 </html>

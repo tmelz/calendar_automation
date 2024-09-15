@@ -20,18 +20,11 @@ export namespace Orchestrator {
     event: GoogleAppsScript.Calendar.Schema.Event
   ) => boolean;
 
-  export const CalendarChecks: { [key: string]: CheckTypes.CalendarCheck } = {
-    OutOfOffice: CheckOOO.OutOfOfficeCheck,
-    PlusFiveMinutes: CheckPlus5m.PlusFiveMinutesCheck,
-    Quit: CheckQuit.QuitCheck,
-    Conflict: CheckConflict.ConflictCheck,
-  };
-
   export const allChecks: CheckTypes.CalendarCheck[] = [
-    CalendarChecks.OutOfOffice,
-    CalendarChecks.PlusFiveMinutes,
-    CalendarChecks.Quit,
-    CalendarChecks.Conflict,
+    CheckOOO.OutOfOfficeCheck,
+    CheckPlus5m.PlusFiveMinutesCheck,
+    CheckQuit.QuitCheck,
+    CheckConflict.ConflictCheck,
   ];
 
   // Only look at events that have recently changed

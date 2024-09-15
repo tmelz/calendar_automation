@@ -1,4 +1,8 @@
 import { Orchestrator } from "../orchestrator";
+import { CheckConflict } from "./check-conflict";
+import { CheckOOO } from "./check-ooo";
+import { CheckPlus5m } from "./check-plus-5m";
+import { CheckQuit } from "./check-quit";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace UserSettings {
@@ -24,13 +28,13 @@ export namespace UserSettings {
     }
 
     switch (checkId) {
-      case Orchestrator.CalendarChecks.OutOfOffice.id:
+      case CheckOOO.OutOfOfficeCheck.id:
         return settings.checks.outOfOffice;
-      case Orchestrator.CalendarChecks.PlusFiveMinutes.id:
+      case CheckPlus5m.PlusFiveMinutesCheck.id:
         return settings.checks.plusFiveMinutes;
-      case Orchestrator.CalendarChecks.Quit.id:
+      case CheckQuit.QuitCheck.id:
         return settings.checks.quit;
-      case Orchestrator.CalendarChecks.Conflict.id:
+      case CheckConflict.ConflictCheck.id:
         return settings.checks.conflict;
       default:
         throw new Error(`Unknown check id: ${checkId}`);
