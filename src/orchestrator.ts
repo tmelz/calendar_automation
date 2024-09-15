@@ -115,11 +115,6 @@ export namespace Orchestrator {
     events.forEach((event) => {
       Log.log(`📆 Running for event "${event.summary}"`);
       LogLevel.DEBUG && Log.log(`\\Raw details: "${event}"`);
-      if (!EventUtil.isOneOnOneWithMe(event)) {
-        LogLevel.DEBUG &&
-          Log.log(`👎 skipping, doesn't appear to be a 1:1 with me, ${event}`);
-        return;
-      }
 
       if (event.description?.includes(Orchestrator.OPT_OUT)) {
         Log.log(`👎 skipping, has opt out`);

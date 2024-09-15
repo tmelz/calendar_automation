@@ -28,6 +28,11 @@ export namespace CheckPlus5m {
   export function checkShouldModifyEvent(
     event: GoogleAppsScript.Calendar.Schema.Event
   ): CheckTypes.ModificationType | undefined {
+    if (!EventUtil.isOneOnOneWithMe(event)) {
+      Log.log(`👎 skipping, doesn't appear to be a 1:1 with me, ${event}`);
+      return undefined;
+    }
+
     const meetingStartMinute = EventUtil.getMeetingStartMinuteOfDay(event);
     const meetingDuration = EventUtil.getMeetingDurationMinutes(event);
 

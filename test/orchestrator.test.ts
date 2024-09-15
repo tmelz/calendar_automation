@@ -74,20 +74,21 @@ describe("checkEvents", () => {
     (mockCalendarCheck.modifyEventLocally as jest.Mock).mockReturnValue([]);
   });
 
-  it("should skip events that are not one-on-one with me", () => {
-    (EventUtil.isOneOnOneWithMe as jest.Mock).mockReturnValue(false);
+  // TODO inline to checks
+  // it("should skip events that are not one-on-one with me", () => {
+  //   (EventUtil.isOneOnOneWithMe as jest.Mock).mockReturnValue(false);
 
-    Orchestrator.checkEvents(
-      [mockCalendarCheck],
-      [normalEvent, normalEvent],
-      mockUserSettings,
-      true,
-      mockSaveEventChanges
-    );
+  //   Orchestrator.checkEvents(
+  //     [mockCalendarCheck],
+  //     [normalEvent, normalEvent],
+  //     mockUserSettings,
+  //     true,
+  //     mockSaveEventChanges
+  //   );
 
-    expect(EventUtil.isOneOnOneWithMe).toHaveBeenCalledTimes(2);
-    expect(mockCalendarCheck.shouldModifyEvent).not.toHaveBeenCalled();
-  });
+  //   expect(EventUtil.isOneOnOneWithMe).toHaveBeenCalledTimes(2);
+  //   expect(mockCalendarCheck.shouldModifyEvent).not.toHaveBeenCalled();
+  // });
 
   it("should skip events with opt-out description", () => {
     (EventUtil.isOneOnOneWithMe as jest.Mock).mockReturnValue(true);

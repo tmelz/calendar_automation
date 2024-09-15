@@ -22,6 +22,11 @@ export namespace CheckConflict {
     event: GoogleAppsScript.Calendar.Schema.Event,
     getEvents: GetEvents.EventFetcherWithError = GetEvents.getEventsForDateRangeCustomCalendarWithErrorCatch
   ): CheckTypes.ModificationType | undefined {
+    if (!EventUtil.isOneOnOneWithMe(event)) {
+      Log.log(`👎 skipping, doesn't appear to be a 1:1 with me, ${event}`);
+      return undefined;
+    }
+
     if (
       event.start?.dateTime === undefined ||
       event.end?.dateTime === undefined

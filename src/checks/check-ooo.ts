@@ -30,6 +30,11 @@ export namespace CheckOOO {
     getEvents: GetEvents.EventFetcherWithError = GetEvents.getEventsForDateRangeCustomCalendarWithErrorCatch,
     checkIsOOOAndOverlaps: CompareEvents = checkIfEventIsOOOAndOverlaps
   ): CheckTypes.ModificationType | undefined {
+    if (!EventUtil.isOneOnOneWithMe(event)) {
+      Log.log(`👎 skipping, doesn't appear to be a 1:1 with me, ${event}`);
+      return undefined;
+    }
+
     const theirEmail = EventUtil.getEmailForOtherAttendee(event);
     Log.log(
       `Checking OOO for event "${event.summary}", theirEmail = ${theirEmail}`

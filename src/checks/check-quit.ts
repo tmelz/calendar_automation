@@ -3,6 +3,7 @@ import { CheckTypes } from "./check-types";
 import { GetEvents } from "./get-events";
 import { ModifyEvent } from "./modify-event";
 import { Analytics } from "../analytics";
+import { Log } from "./log";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace CheckQuit {
@@ -21,6 +22,11 @@ export namespace CheckQuit {
     event: GoogleAppsScript.Calendar.Schema.Event,
     getEvents: GetEvents.EventFetcherWithError = GetEvents.getEventsForDateRangeCustomCalendarWithErrorCatch
   ): CheckTypes.ModificationType | undefined {
+    if (!EventUtil.isOneOnOneWithMe(event)) {
+      Log.log(`👎 skipping, doesn't appear to be a 1:1 with me, ${event}`);
+      return undefined;
+    }
+
     if (!EventUtil.doAllAttendeesHaveSameBusinessEmailDomain(event.attendees)) {
       return undefined;
     }

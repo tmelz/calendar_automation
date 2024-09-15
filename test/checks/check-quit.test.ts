@@ -9,7 +9,7 @@ describe("CheckQuit.checkShouldModifyEvent", () => {
     const event = {
       ...myOneOnOneEvent,
       attendees: [
-        { email: "test@block.xyz" },
+        { email: "test@block.xyz", self: true },
         { email: "another@squareup.com" },
       ],
     };
@@ -26,7 +26,7 @@ describe("CheckQuit.checkShouldModifyEvent", () => {
     const event = {
       ...myOneOnOneEvent,
       attendees: [
-        { email: "test@block.xyz" },
+        { email: "test@block.xyz", self: true },
         { email: "another@squareup.com" },
       ],
     };
@@ -43,7 +43,7 @@ describe("CheckQuit.checkShouldModifyEvent", () => {
     const event = {
       ...myOneOnOneEvent,
       attendees: [
-        { email: "test@block.xyz" },
+        { email: "test@block.xyz", self: true },
         { email: "another@example.com" },
       ],
     };
@@ -61,7 +61,7 @@ describe("CheckQuit.checkShouldModifyEvent", () => {
       summary: CheckQuit.QUIT_TITLE_PREFIX_NOTICE + "Meeting",
       description: CheckQuit.QUIT_DESCRIPTION_BLURB,
       attendees: [
-        { email: "test@block.xyz" },
+        { email: "test@block.xyz", self: true },
         { email: "another@squareup.com" },
       ],
     };
