@@ -3,6 +3,7 @@ export namespace CheckTypes {
   export enum ModificationType {
     YES_ADD_LABEL,
     YES_REMOVE_LABEL,
+    YES_CHANGE_COLOR,
   }
 
   export type Changelog = string[];
