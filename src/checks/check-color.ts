@@ -1,5 +1,7 @@
 import { CheckTypes } from "./check-types";
 import { EventUtil } from "./event-util";
+import { Log } from "./log";
+import { UserSettings } from "./user-settings";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace CheckColor {
@@ -24,7 +26,9 @@ export namespace CheckColor {
   }
 
   // Copy paste from Clockwise
-  enum Color {
+  // apps script types have something similar but doesn't seem particularly useful
+  // e.g. CalendarApp.EventColor.BLUE;
+  export enum Color {
     NoOp = "No-op",
     Lavender = "Lavender",
     Sage = "Sage",
@@ -90,13 +94,18 @@ export namespace CheckColor {
 
   export function checkShouldModifyEvent(
     event: GoogleAppsScript.Calendar.Schema.Event,
-    colorSettings: Settings
+    colorSettings: Settings = UserSettings.loadSettings().checkSettings
+      .eventColors
   ): CheckTypes.ModificationType | undefined {
     const category = getCategoryForEvent(event);
+    if (category === undefined) {
+      Log.log(`👎 not modifying event color, no category found`);
+      return undefined;
+    }
     const color = mapColorIdToColor(event.colorId);
 
     const desiredColor = colorSettings[category];
-    if (color !== desiredColor) {
+    if (desiredColor !== CheckColor.Color.NoOp && color !== desiredColor) {
       return CheckTypes.ModificationType.YES_CHANGE_COLOR;
     }
 
@@ -106,20 +115,24 @@ export namespace CheckColor {
   export function modifyEventLocally(
     event: GoogleAppsScript.Calendar.Schema.Event,
     modificationType: CheckTypes.ModificationType,
-    colorSettings: Settings
+    colorSettings: Settings = UserSettings.loadSettings().checkSettings
+      .eventColors
   ): CheckTypes.Changelog {
     if (modificationType !== CheckTypes.ModificationType.YES_CHANGE_COLOR) {
       return [];
     }
 
     const category = getCategoryForEvent(event);
+    if (category === undefined) {
+      Log.log(`🚨 error, no category found for event, bailing`);
+      return [];
+    }
     // get color id
     const colorId = mapColorToColorId(colorSettings[category]);
-
     const oldColorId = event.colorId;
     event.colorId = colorId;
 
-    const logMessage = `Changed color from ${oldColorId} to ${colorId}`;
+    const logMessage = `Changed color from ${oldColorId} (${mapColorIdToColor(oldColorId)}) to ${colorId} (${mapColorIdToColor(colorId)})`;
     return [logMessage];
   }
 
@@ -138,8 +151,9 @@ export namespace CheckColor {
 
   export function getCategoryForEvent(
     event: GoogleAppsScript.Calendar.Schema.Event
-  ): Category {
+  ): Category | undefined {
     // TODO consider if shared calendar and opt out
+    // but I can't actually repro that issue anymore
 
     if (EventUtil.isOneOnOneWithMe(event)) {
       return Category.OneOnOne;

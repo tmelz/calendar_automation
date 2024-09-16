@@ -3,9 +3,10 @@ import { CheckConflict } from "./check-conflict";
 import { CheckOOO } from "./check-ooo";
 import { CheckPlus5m } from "./check-plus-5m";
 import { CheckQuit } from "./check-quit";
-
+import { CheckColor } from "./check-color";
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace UserSettings {
+  export let settings: Settings | undefined = undefined;
   export const KEY = "userSettings";
 
   export type Settings = {
@@ -16,7 +17,11 @@ export namespace UserSettings {
       quit: boolean;
       conflict: boolean;
     };
-    // checkSettings: {};
+    checkSettings: {
+      eventColors: {
+        [key in CheckColor.Category]: CheckColor.Color;
+      };
+    };
   };
 
   export function isCheckEnabled(
@@ -47,9 +52,14 @@ export namespace UserSettings {
       UserSettings.KEY,
       JSON.stringify(settings)
     );
+    UserSettings.settings = settings;
   }
 
   export function loadSettings(): UserSettings.Settings {
+    if (UserSettings.settings !== undefined) {
+      return UserSettings.settings;
+    }
+
     const settingsString = PropertiesService.getUserProperties().getProperty(
       UserSettings.KEY
     );
@@ -72,6 +82,9 @@ export namespace UserSettings {
         plusFiveMinutes: false,
         quit: false,
         conflict: false,
+      },
+      checkSettings: {
+        eventColors: CheckColor.createDefaultSettings(),
       },
     };
   }
