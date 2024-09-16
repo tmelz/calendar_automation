@@ -7,7 +7,7 @@ import { CheckColor } from "./check-color";
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace UserSettings {
   export let settings: Settings | undefined = undefined;
-  export const KEY = "userSettings";
+  export const KEY = "userSettings_v1";
 
   export type Settings = {
     enabled: boolean;
@@ -16,6 +16,7 @@ export namespace UserSettings {
       plusFiveMinutes: boolean;
       quit: boolean;
       conflict: boolean;
+      eventColor: boolean;
     };
     checkSettings: {
       eventColors: {
@@ -82,6 +83,7 @@ export namespace UserSettings {
         plusFiveMinutes: false,
         quit: false,
         conflict: false,
+        eventColor: false,
       },
       checkSettings: {
         eventColors: CheckColor.createDefaultSettings(),

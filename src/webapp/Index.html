@@ -88,6 +88,72 @@
         margin-left: 30px;
         color: darkgrey;
       }
+      .color-row {
+        display: flex;
+        align-items: center;
+        margin-top: 10px;
+        margin-left: 30px;
+      }
+      .color-label {
+        flex: 1;
+      }
+      .color-options {
+        display: flex;
+        gap: 5px;
+      }
+      .color-button {
+        width: 20px;
+        height: 20px;
+        border: 1px solid #ddd;
+        border-radius: 50%;
+        cursor: pointer;
+        position: relative;
+      }
+      .color-button.no-op {
+        background-color: transparent;
+      }
+      .color-button.lavender {
+        background-color: #e6e6fa;
+      }
+      .color-button.sage {
+        background-color: #bcb88a;
+      }
+      .color-button.grape {
+        background-color: #6f2da8;
+      }
+      .color-button.flamingo {
+        background-color: #fc8eac;
+      }
+      .color-button.banana {
+        background-color: #ffe135;
+      }
+      .color-button.tangerine {
+        background-color: #f28500;
+      }
+      .color-button.peacock {
+        background-color: #33a1c9;
+      }
+      .color-button.graphite {
+        background-color: #474a51;
+      }
+      .color-button.blueberry {
+        background-color: #4f86f7;
+      }
+      .color-button.basil {
+        background-color: #8c9a5b;
+      }
+      .color-button.tomato {
+        background-color: #ff6347;
+      }
+      .color-button.selected::after {
+        content: "✔";
+        color: white;
+        font-size: 14px;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
     </style>
   </head>
   <body>
@@ -109,7 +175,7 @@
               v-model="settings.enabled"
               @change="onSettingsChanged"
             />
-            Enable Calendar Automation (disabling this disable all features)
+            Enable Calendar Automation (disabling this disables all features)
           </label>
         </div>
         <div class="settings-group" :class="{ disabled: !settings.enabled }">
@@ -170,6 +236,41 @@
             >
           </label>
         </div>
+        <div class="settings-group" :class="{ disabled: !settings.enabled }">
+          <h3>Features for all events</h3>
+          <label>
+            <input
+              type="checkbox"
+              v-model="settings.checks.eventColor"
+              @change="onSettingsChanged"
+              :disabled="!settings.enabled"
+            />
+            Event Color
+            <br />
+            <span class="description"
+              >Enable event color coding based on categories.</span
+            >
+          </label>
+          <div :class="{ disabled: !settings.checks.eventColor }">
+            <div
+              v-for="category in orderedCategories"
+              :key="category"
+              class="color-row"
+            >
+              <label class="color-label">{{ category }}</label>
+              <div class="color-options">
+                <div
+                  v-for="colorOption in colorOptions"
+                  :key="colorOption"
+                  class="color-button"
+                  :class="[colorOption.toLowerCase().replace(' ', '-'), { selected: settings.checkSettings.eventColors[category] === colorOption }]"
+                  :title="colorOption"
+                  @click="settings.checkSettings.eventColors[category] = colorOption; onSettingsChanged()"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
         <div v-if="saving" class="saving">Saving{{ ellipsis }}</div>
         <div v-if="saved" class="saved">Saved &#x2705;</div>
       </div>
@@ -182,7 +283,31 @@
           settings: {},
           saving: false,
           saved: false,
-          ellipsis: ""
+          ellipsis: "",
+          colorOptions: [
+            "No-op",
+            "Lavender",
+            "Sage",
+            "Grape",
+            "Flamingo",
+            "Banana",
+            "Tangerine",
+            "Peacock",
+            "Graphite",
+            "Blueberry",
+            "Basil",
+            "Tomato"
+          ],
+          orderedCategories: [
+            "External attendees",
+            "One-on-one",
+            "Focus Time",
+            "Hold",
+            "Team sync",
+            "Ad-hoc",
+            "Out of office",
+            "Other"
+          ]
         },
         created() {
           const userSettingsString = <?= userSettings ?>;
@@ -203,7 +328,7 @@
                 this.saving = false;
                 this.saved = true;
                 setTimeout(() => {
-                  this.saved = false;
+                  this.fadeOutSavedMessage();
                 }, 2000);
               })
               .withFailureHandler((error) => {
@@ -223,6 +348,15 @@
               count = (count + 1) % 4;
               this.ellipsis = ".".repeat(count);
             }, 500);
+          },
+          fadeOutSavedMessage() {
+            const savedElement = this.$el.querySelector('.saved');
+            savedElement.style.transition = 'opacity 1s ease-out';
+            savedElement.style.opacity = 0;
+            setTimeout(() => {
+              this.saved = false;
+              savedElement.style.opacity = 1; // Reset opacity for next time
+            }, 1000);
           }
         }
       });
