@@ -5,6 +5,7 @@ import { EventUtil } from "./checks/event-util";
 import { CalendarAlg } from "./defrag/calendar-alg";
 import { GreedyDefrag } from "./defrag/greedy-defrag";
 import { WorkingHours } from "./defrag/working-hours";
+import { ModifyEvent } from "./checks/modify-event";
 
 // export function debugEstimateWorkingHours(email: string) {
 //   const events = GetEvents.getEventsForRestOfWeek();
@@ -17,36 +18,146 @@ import { WorkingHours } from "./defrag/working-hours";
 // Calendar.Events?.remove("primary", event.id!, {
 //   sendUpdates: "all",
 // });
+export function debug() {
+  const now = new Date();
+  const oneHourInFuture = new Date(now.getTime() + 60 * 60 * 1000);
+  const calendarId = "tmellor@block.xyz";
+  // const calendarId = "c_dbf46adba7f1d6fc383bbeaaf7d50723e6bea3901446fb11b02f9d5751219f6f@group.calendar.google.com";
 
-export function debug(): void {
-  // test
-  // SimulatedAnnealing.main();
-  // console.log(
-  //   JSON.stringify(WorkingHours.estimateWorkingHours("tmellor@block.xyz"))
-  // );
-  const inputs = CalendarAlg.getInputs(new Date("2024-10-06"));
-  GreedyDefrag.solve(inputs);
+  const events = Calendar.Events?.list(calendarId, {
+    timeMin: now.toISOString(),
+    timeMax: oneHourInFuture.toISOString(),
+    singleEvents: true,
+    orderBy: "startTime",
+    maxResults: 10,
+  });
+  events?.items?.forEach((event) => {
+    console.log(
+      `${event.summary}, ${event.id}, ${event.colorId}, ${event.start?.dateTime}`
+    );
+    console.log(`${JSON.stringify(event)}`);
+    if (event.id === "2ca5nsak4reg77ejfvhov1epfe") {
+      console.log("modifying event");
+      const eventStart = new Date(event.start!.dateTime!);
+      // add 15 minutes to start
+      eventStart.setMinutes(eventStart.getMinutes() + 3);
+      console.log(event.start!.dateTime);
+      console.log(event.end!.dateTime);
+      event.start!.dateTime = eventStart.toISOString();
+      console.log(event.start!.dateTime);
+      console.log(event.end!.dateTime);
 
-  // const events = GetEvents.getEventsForDateRange(
-  //   new Date("2024-10-06"),
-  //   new Date("2024-10-13")
-  // );
-  // events.forEach((event) => {
-  //   console.log(`${event.summary}`);
-  //   console.log(`${event}`);
+      saveEvent(event);
+
+      console.log("modifying event locally with manual sequence increment");
+      // console.log("current sequence: " + event.sequence);
+      // event.sequence = event.sequence! + 1;
+      // console.log("bumped sequence: " + event.sequence);
+      event.colorId = "9";
+      saveEvent(event, true);
+    }
+  });
+
+  // events = Calendar.Events?.list(calendarId, {
+  //   timeMin: now.toISOString(),
+  //   timeMax: oneHourInFuture.toISOString(),
+  //   singleEvents: true,
+  //   orderBy: "startTime",
+  //   maxResults: 10,
   // });
-
-  // const results = [
-  //   Calendar.Events?.get("primary", "tpqn2or4otb8sqb6l187gt3u0b"),
-  //   Calendar.Events?.get("primary", "i34h2a19gu3u0fb9iphb1h6mdg"),
-  //   Calendar.Events?.get("primary", "oi69i0nf3ii39qmi3olqj4ct9j"),
-  //   Calendar.Events?.get("primary", "63jqc0ooqge8l0lrduc9ecplb8"),
-  // ];
-  // results.forEach((result) => {
-  //   console.log(`${result?.summary}`);
-  //   console.log(`${result?.recurrence}`);
+  // events?.items?.forEach((event) => {
+  //   console.log(
+  //     `${event.summary}, ${event.id}, ${event.colorId}, ${event.start?.dateTime}`
+  //   );
+  //   console.log(`${JSON.stringify(event)}`);
+  //   if (event.id === "2ca5nsak4reg77ejfvhov1epfe") {
+  //     console.log("modifying event");
+  //     event.colorId = "5";
+  //     saveEvent(event, true);
+  //   }
   // });
 }
+
+export function saveEvent(
+  event: GoogleAppsScript.Calendar.Schema.Event,
+  changeMyCalendarOnly: boolean = false
+): boolean {
+  Log.log(`💾 Saving event, "${event.summary}"`);
+  // My event, I can modify
+  if (changeMyCalendarOnly || EventUtil.amITheOrganizer(event)) {
+    const organizer = "tmellor@block.xyz";
+    if (changeMyCalendarOnly) {
+      Log.log(
+        `Forcing applying changes locally to my calendar only "${organizer}"`
+      );
+    } else {
+      Log.log(
+        `👋 I am organizer, saving changes using calendar "${organizer}"`
+      );
+    }
+    Calendar.Events?.update(event, organizer, event.id!, {
+      sendUpdates: "none",
+    });
+    return true;
+
+    // Not my event, but I should be able to modify it directly on the organizers calendar
+    // THIS REQUIRES their calendar is visible to you, at least with free/busy, otherwise the
+    // API call will fail, even if you have modify access :( it's a weird API bug
+    // https://issuetracker.google.com/issues/204791550
+  } else if (event.guestsCanModify === true) {
+    Log.log(
+      `👎 I am not organizer, attempting to save changes on calendar, "${event.organizer!.email!}"`
+    );
+    try {
+      Calendar.Events?.update(event, event.organizer!.email!, event.id!, {
+        sendUpdates: "none",
+      });
+      return true;
+    } catch (error: any) {
+      // GoogleJsonResponseException: API call to calendar.events.update failed with error: Not Found
+      Log.log(
+        `🚨 Error saving to calendar, "${event.organizer!.email!}, most likely we don't have visibility of their calendar and get a not found error. error: ${error.message}"`
+      );
+      return false;
+    }
+    // Not my event, and can't modify it on the organizers calendar, SOL
+  } else {
+    Log.log(
+      `🚨  I am not organizer and don't have modification rights, cannot save "${event.organizer!.email!}"`
+    );
+    return false;
+  }
+}
+
+// export function debug(): void {
+//   // test
+//   // SimulatedAnnealing.main();
+//   // console.log(
+//   //   JSON.stringify(WorkingHours.estimateWorkingHours("tmellor@block.xyz"))
+//   // );
+//   const inputs = CalendarAlg.getInputs(new Date("2024-10-06"));
+//   GreedyDefrag.solve(inputs);
+
+//   // const events = GetEvents.getEventsForDateRange(
+//   //   new Date("2024-10-06"),
+//   //   new Date("2024-10-13")
+//   // );
+//   // events.forEach((event) => {
+//   //   console.log(`${event.summary}`);
+//   //   console.log(`${event}`);
+//   // });
+
+//   // const results = [
+//   //   Calendar.Events?.get("primary", "tpqn2or4otb8sqb6l187gt3u0b"),
+//   //   Calendar.Events?.get("primary", "i34h2a19gu3u0fb9iphb1h6mdg"),
+//   //   Calendar.Events?.get("primary", "oi69i0nf3ii39qmi3olqj4ct9j"),
+//   //   Calendar.Events?.get("primary", "63jqc0ooqge8l0lrduc9ecplb8"),
+//   // ];
+//   // results.forEach((result) => {
+//   //   console.log(`${result?.summary}`);
+//   //   console.log(`${result?.recurrence}`);
+//   // });
+// }
 
 // export function debug() {
 //   const today: Date = new Date();

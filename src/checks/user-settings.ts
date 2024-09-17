@@ -72,7 +72,7 @@ export namespace UserSettings {
 
   export function createDefaultSettings(): UserSettings.Settings {
     const checksSettings: { [key: string]: boolean } = {};
-    Orchestrator.allChecks.forEach((check) => {
+    Orchestrator.applyToSourceEventChecks.forEach((check) => {
       checksSettings[check.id] = false;
     });
 

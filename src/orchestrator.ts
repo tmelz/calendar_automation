@@ -10,6 +10,7 @@ import { Cache } from "./cache";
 import { LogLevel, Log } from "./checks/log";
 import { Analytics } from "./analytics";
 import { UserSettings } from "./checks/user-settings";
+import { CheckColor } from "./checks/check-color";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace Orchestrator {
@@ -17,14 +18,19 @@ export namespace Orchestrator {
   export const OPT_OUT: string = "[opt_out_automation]";
 
   export type SaveEventChanges = (
-    event: GoogleAppsScript.Calendar.Schema.Event
+    event: GoogleAppsScript.Calendar.Schema.Event,
+    changeMyCalendarOnly: boolean
   ) => boolean;
 
-  export const allChecks: CheckTypes.CalendarCheck[] = [
+  export const applyToSourceEventChecks: CheckTypes.CalendarCheck[] = [
     CheckOOO.OutOfOfficeCheck,
     CheckPlus5m.PlusFiveMinutesCheck,
     CheckQuit.QuitCheck,
     CheckConflict.ConflictCheck,
+  ];
+
+  export const applyToPersonalEventOnlyChecks: CheckTypes.CalendarCheck[] = [
+    CheckColor.ColorCheck,
   ];
 
   // Only look at events that have recently changed
@@ -48,12 +54,23 @@ export namespace Orchestrator {
       shouldCacheRun = false;
     }
 
-    const withinModificationLimit = Orchestrator.checkEvents(
-      Orchestrator.allChecks,
+    let withinModificationLimit = Orchestrator.checkEvents(
+      Orchestrator.applyToSourceEventChecks,
       events,
       UserSettings.loadSettings(),
       isDryRun,
       Orchestrator.saveEvent
+    );
+
+    shouldCacheRun = shouldCacheRun && withinModificationLimit;
+
+    withinModificationLimit = Orchestrator.checkEvents(
+      Orchestrator.applyToPersonalEventOnlyChecks,
+      events,
+      UserSettings.loadSettings(),
+      isDryRun,
+      Orchestrator.saveEvent,
+      true // apply to personal calendar only
     );
 
     shouldCacheRun = shouldCacheRun && withinModificationLimit;
@@ -79,11 +96,20 @@ export namespace Orchestrator {
     );
 
     Orchestrator.checkEvents(
-      Orchestrator.allChecks,
+      Orchestrator.applyToSourceEventChecks,
       events,
       UserSettings.loadSettings(),
       isDryRun,
       Orchestrator.saveEvent
+    );
+
+    Orchestrator.checkEvents(
+      Orchestrator.applyToPersonalEventOnlyChecks,
+      events,
+      UserSettings.loadSettings(),
+      isDryRun,
+      Orchestrator.saveEvent,
+      true // apply to personal calendar only
     );
   }
 
@@ -94,7 +120,8 @@ export namespace Orchestrator {
     events: GoogleAppsScript.Calendar.Schema.Event[],
     userSettings: UserSettings.Settings,
     isDryRun: boolean = true,
-    saveEventChanges: Orchestrator.SaveEventChanges
+    saveEventChanges: Orchestrator.SaveEventChanges,
+    changeMyCalendarOnly: boolean = false
   ): boolean {
     const locallyModifiedEventIds: Set<string> = new Set();
     const eventMap: Map<string, GoogleAppsScript.Calendar.Schema.Event> =
@@ -164,7 +191,7 @@ export namespace Orchestrator {
           return;
         }
 
-        saveEventChanges(event);
+        saveEventChanges(event, changeMyCalendarOnly);
       });
 
     if (
@@ -178,15 +205,23 @@ export namespace Orchestrator {
   }
 
   export function saveEvent(
-    event: GoogleAppsScript.Calendar.Schema.Event
+    event: GoogleAppsScript.Calendar.Schema.Event,
+    changeMyCalendarOnly: boolean = false
   ): boolean {
     Log.log(`💾 Saving event, "${event.summary}"`);
     // My event, I can modify
-    if (EventUtil.amITheOrganizer(event)) {
-      Log.log(
-        `👋 I am organizer, saving changes using calendar "${event.organizer!.email!}"`
-      );
-      Calendar.Events?.update(event, event.organizer!.email!, event.id!, {
+    if (changeMyCalendarOnly || EventUtil.amITheOrganizer(event)) {
+      const calendarId = changeMyCalendarOnly
+        ? "primary"
+        : event.organizer!.email!;
+      if (changeMyCalendarOnly) {
+        Log.log(`Forcing applying changes locally to my calendar only`);
+      } else {
+        Log.log(
+          `👋 I am organizer, saving changes using calendar "${event.organizer!.email!}"`
+        );
+      }
+      Calendar.Events?.update(event, calendarId, event.id!, {
         sendUpdates: "none",
       });
       return true;

@@ -6,7 +6,8 @@ import { UserSettings } from "./user-settings";
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace CheckColor {
   export const ID = "Color";
-  export const ConflictCheck: CheckTypes.CalendarCheck = {
+
+  export const ColorCheck: CheckTypes.CalendarCheck = {
     id: CheckColor.ID,
     shouldModifyEvent: checkShouldModifyEvent,
     modifyEventLocally: modifyEventLocally,
@@ -127,7 +128,6 @@ export namespace CheckColor {
       Log.log(`🚨 error, no category found for event, bailing`);
       return [];
     }
-    // get color id
     const colorId = mapColorToColorId(colorSettings[category]);
     const oldColorId = event.colorId;
     event.colorId = colorId;
@@ -152,9 +152,6 @@ export namespace CheckColor {
   export function getCategoryForEvent(
     event: GoogleAppsScript.Calendar.Schema.Event
   ): Category | undefined {
-    // TODO consider if shared calendar and opt out
-    // but I can't actually repro that issue anymore
-
     if (EventUtil.isOneOnOneWithMe(event)) {
       return Category.OneOnOne;
     }
@@ -167,7 +164,6 @@ export namespace CheckColor {
       return Category.FocusTime;
     }
 
-    // TODO I think attendees empty
     if (event.attendees === undefined || event.attendees.length === 0) {
       return Category.Hold;
     }
