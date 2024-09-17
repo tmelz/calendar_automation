@@ -40,7 +40,10 @@ export namespace CheckQuit {
         eventResult = getEvents(
           now,
           nowPlus5m,
-          EventUtil.getEmailForOtherAttendee(event)!
+          EventUtil.getEmailForOtherAttendee(event)!,
+          undefined,
+          undefined,
+          undefined
         );
         if (eventResult !== undefined) {
           break;

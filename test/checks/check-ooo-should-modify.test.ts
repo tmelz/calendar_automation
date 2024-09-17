@@ -45,7 +45,10 @@ describe("checkShouldModifyEvent", () => {
     expect(getEventMock).toHaveBeenCalledWith(
       new Date("2024-07-30T21:35:00.000Z"),
       new Date("2024-07-31T22:00:00.000Z"),
-      "them@example.com"
+      "them@example.com",
+      undefined,
+      undefined,
+      undefined
     );
   });
 

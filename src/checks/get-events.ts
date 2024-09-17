@@ -16,7 +16,10 @@ export namespace GetEvents {
   export type EventFetcherWithError = (
     timeMin: Date,
     timeMax: Date,
-    calendarId: string
+    calendarId: string,
+    updatedMin: Date | undefined,
+    maxResultsInput: number | undefined,
+    suppressEventListLogInput: boolean | undefined
   ) => GoogleAppsScript.Calendar.Schema.Event[] | undefined;
 
   export function getEvents(

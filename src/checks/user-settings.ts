@@ -1,4 +1,3 @@
-import { Orchestrator } from "../orchestrator";
 import { CheckConflict } from "./check-conflict";
 import { CheckOOO } from "./check-ooo";
 import { CheckPlus5m } from "./check-plus-5m";
@@ -71,11 +70,6 @@ export namespace UserSettings {
   }
 
   export function createDefaultSettings(): UserSettings.Settings {
-    const checksSettings: { [key: string]: boolean } = {};
-    Orchestrator.applyToSourceEventChecks.forEach((check) => {
-      checksSettings[check.id] = false;
-    });
-
     return {
       enabled: false,
       checks: {

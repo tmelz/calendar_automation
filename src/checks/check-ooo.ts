@@ -48,7 +48,14 @@ export namespace CheckOOO {
     // Handle bug where single day Workday-OOO events are for some reason excluded when making queries within that day
     start.setDate(start.getDate() - 1);
     const end = new Date(event.end!.dateTime!);
-    const theirEventsDuringMeeting = getEvents(start, end, theirEmail);
+    const theirEventsDuringMeeting = getEvents(
+      start,
+      end,
+      theirEmail,
+      undefined,
+      undefined,
+      undefined
+    );
     if (theirEventsDuringMeeting === undefined) {
       Log.log("👮‍♂️ Error fetching their calendar");
       return undefined;

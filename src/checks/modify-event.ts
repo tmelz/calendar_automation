@@ -71,6 +71,9 @@ export namespace ModifyEvent {
     deprecatedLabels: string[] = []
   ): string {
     switch (modificationType) {
+      case CheckTypes.ModificationType.YES_CHANGE_COLOR: {
+        throw new Error("Color modification type not expected here");
+      }
       case CheckTypes.ModificationType.YES_REMOVE_LABEL: {
         const oldTitle = event.summary;
         if (label !== undefined) {
@@ -140,6 +143,9 @@ export namespace ModifyEvent {
     deprecatedBlurbs: string[] = []
   ): string {
     switch (modificationType) {
+      case CheckTypes.ModificationType.YES_CHANGE_COLOR: {
+        throw new Error("Color modification type not expected here");
+      }
       case CheckTypes.ModificationType.YES_REMOVE_LABEL: {
         const oldDescription = event.description;
         event.description = (event.description ?? "").replace(blurb, "");

@@ -219,6 +219,10 @@ export namespace EventUtil {
   export function doAllAttendeesHaveSameBusinessEmailDomain(
     attendees: GoogleAppsScript.Calendar.Schema.EventAttendee[] | undefined
   ): boolean {
+    if (attendees === undefined || attendees?.length === 1) {
+      return true;
+    }
+
     const emailDomains: Set<string> = new Set(
       attendees
         ?.filter((attendee) => {

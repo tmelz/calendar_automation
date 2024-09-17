@@ -36,7 +36,10 @@ describe("checkShouldModifyEvent", () => {
     expect(getEventMock).toHaveBeenCalledWith(
       expect.any(Date),
       expect.any(Date),
-      "them@example.com"
+      "them@example.com",
+      undefined,
+      undefined,
+      undefined
     );
   });
 
@@ -108,7 +111,10 @@ describe("checkShouldModifyEvent", () => {
       // event start/end +/- 3 hours
       new Date("2024-08-02T08:35:00-07:00"),
       new Date("2024-08-02T15:00:00-07:00"),
-      "them@example.com"
+      "them@example.com",
+      undefined,
+      undefined,
+      undefined
     );
   });
 

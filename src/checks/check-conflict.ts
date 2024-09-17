@@ -43,7 +43,10 @@ export namespace CheckConflict {
     const nearbyEvents = getEvents(
       relevantStartWindow,
       relevantEndWindow,
-      EventUtil.getEmailForOtherAttendee(event)!
+      EventUtil.getEmailForOtherAttendee(event)!,
+      undefined,
+      undefined,
+      undefined
     );
 
     const eventConflict = nearbyEvents

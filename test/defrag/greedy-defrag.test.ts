@@ -7,14 +7,14 @@ import consoleSpy from "../jest.setup";
 
 describe("GreedyDefrag.main", () => {
   // We have logging mocked out for tests, but allow it in this case
-  beforeEach(() => {
-    consoleSpy.mockRestore();
-    global.console = require("console");
-  });
+  // beforeEach(() => {
+  //   consoleSpy.mockRestore();
+  //   global.console = require("console");
+  // });
 
-  afterEach(() => {
-    consoleSpy.mockImplementation(jest.fn());
-  });
+  // afterEach(() => {
+  //   consoleSpy.mockImplementation(jest.fn());
+  // });
 
   it("TODO", () => {
     const events: GoogleAppsScript.Calendar.Schema.Event[] = [

@@ -141,7 +141,7 @@ describe("CalendarAlg.getAlternateStartTimeOptions", () => {
       events[0],
       new Map([["1", EventRecurrence.RecurrenceType.WEEKLY]])
     );
-    options.forEach((date) => console.log(date.toISOString()));
+    // options.forEach((date) => console.log(date.toISOString()));
     expect(options).toEqual([
       //// Monday
       new Date("2024-08-19T09:00:00-07:00"),

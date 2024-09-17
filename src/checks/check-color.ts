@@ -152,20 +152,29 @@ export namespace CheckColor {
   export function getCategoryForEvent(
     event: GoogleAppsScript.Calendar.Schema.Event
   ): Category | undefined {
-    if (EventUtil.isOneOnOneWithMe(event)) {
-      return Category.OneOnOne;
+    // Ordering of these if checks is very deliberate
+    if (event.eventType === "focusTime") {
+      return Category.FocusTime;
+    }
+
+    if (event.eventType === "outOfOffice") {
+      return Category.OutOfOffice;
+    }
+
+    if (event.attendees === undefined || event.attendees.length === 0) {
+      return Category.Hold;
     }
 
     if (!EventUtil.doAllAttendeesHaveSameBusinessEmailDomain(event.attendees)) {
       return Category.ExternalAttendees;
     }
 
-    if (event.eventType === "focusTime") {
-      return Category.FocusTime;
+    if (event.recurringEventId === undefined) {
+      return Category.AdHoc;
     }
 
-    if (event.attendees === undefined || event.attendees.length === 0) {
-      return Category.Hold;
+    if (EventUtil.isOneOnOneWithMe(event)) {
+      return Category.OneOnOne;
     }
 
     if (
@@ -173,14 +182,6 @@ export namespace CheckColor {
       EventUtil.isAnAttendeeLikelyAnEmailList(event)
     ) {
       return Category.TeamSync;
-    }
-
-    if (event.recurringEventId === undefined) {
-      return Category.AdHoc;
-    }
-
-    if (event.eventType === "outOfOffice") {
-      return Category.OutOfOffice;
     }
 
     return Category.Other;

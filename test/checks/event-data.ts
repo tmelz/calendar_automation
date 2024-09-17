@@ -27,6 +27,7 @@ export const myOneOnOneEvent: GoogleAppsScript.Calendar.Schema.Event = {
       },
     ],
   },
+  recurringEventId: "7c8qvngnhel8t5lr9mmabinnjoasdf",
   attendees: [
     {
       responseStatus: "accepted",
@@ -915,4 +916,232 @@ export const lunchEvent: GoogleAppsScript.Calendar.Schema.Event = {
   },
   id: "b3c9jviid923vobs8dk9vemeak_20240822T190000Z",
   colorId: "8",
+};
+
+export const focusTimeEvent: GoogleAppsScript.Calendar.Schema.Event = {
+  originalStartTime: {
+    dateTime: "2024-09-26T15:00:00-07:00",
+    timeZone: "America/Los_Angeles",
+  },
+  creator: {
+    displayName: "It me",
+    email: "me@example.com",
+    self: true,
+  },
+  iCalUID: "aoqa8r1gp3ocousdq1lvqntqt4_R20240805T220000@google.com",
+  created: "2023-01-10T01:34:20.000Z",
+  status: "confirmed",
+  sequence: 1,
+  htmlLink:
+    "https://www.google.com/calendar/event?eid=YW9xYThyMWdwM29jb3VzZHExbHZxbnRxdDRfMjAyNDA5MjZUMjIwMDAwWiB0bWVsbG9yQGJsb2NrLnh5eg",
+  eventType: "focusTime",
+  start: {
+    timeZone: "America/Los_Angeles",
+    dateTime: "2024-09-26T15:00:00-07:00",
+  },
+  summary:
+    "🎧 Focus time [ok to book over if necessary, especially AU folks🦘]",
+  visibility: "public",
+  updated: "2024-09-17T05:27:29.249Z",
+  kind: "calendar#event",
+  etag: '"3453101698498000"',
+  // focusTimeProperties: {
+  //   autoDeclineMode: "declineNone",
+  //   declineMessage: "Declined because I’m in focus time",
+  // },
+  id: "aoqa8r1gp3ocousdq1lvqntqt4_20240926T220000Z",
+  recurringEventId: "aoqa8r1gp3ocousdq1lvqntqt4_R20240805T220000",
+  end: {
+    dateTime: "2024-09-26T17:00:00-07:00",
+    timeZone: "America/Los_Angeles",
+  },
+  reminders: { useDefault: true },
+  organizer: {
+    email: "me@example.com",
+    displayName: "It me",
+    self: true,
+  },
+};
+
+export const holdEvent: GoogleAppsScript.Calendar.Schema.Event = {
+  end: {
+    timeZone: "America/Los_Angeles",
+    dateTime: "2024-09-17T10:15:00-07:00",
+  },
+  creator: { email: "me@example.com", self: true },
+  id: "3e5h3aquub6c7tv9hrste3g235",
+  sequence: 0,
+  etag: '"3453105589352000"',
+  summary: "hold hold hold",
+  organizer: { email: "me@example.com", self: true },
+  colorId: "8",
+  htmlLink:
+    "https://www.google.com/calendar/event?eid=M2U1aDNhcXV1YjZjN3R2OWhyc3RlM2cyMzUgdG1lbGxvckBibG9jay54eXo",
+  guestsCanModify: true,
+  created: "2024-09-17T01:08:44.000Z",
+  kind: "calendar#event",
+  iCalUID: "3e5h3aquub6c7tv9hrste3g235@google.com",
+  status: "confirmed",
+  eventType: "default",
+  updated: "2024-09-17T05:59:54.676Z",
+  reminders: { useDefault: true },
+  start: {
+    dateTime: "2024-09-17T09:45:00-07:00",
+    timeZone: "America/Los_Angeles",
+  },
+};
+
+export const teamEvent: GoogleAppsScript.Calendar.Schema.Event = {
+  recurringEventId: "77b6l264juo6lkk572l3kd2h0g",
+  kind: "calendar#event",
+  summary: "Team meeting 👩‍💻",
+  status: "confirmed",
+  conferenceData: {
+    conferenceSolution: {
+      name: "Google Meet",
+      iconUri:
+        "https://fonts.gstatic.com/s/i/productlogos/meet_2020q4/v6/web-512dp/logo_meet_2020q4_color_2x_web_512dp.png",
+      key: { type: "hangoutsMeet" },
+    },
+    conferenceId: "vhs-bzve-eic",
+    entryPoints: [
+      {
+        label: "meet.google.com/vhs-bzve-eic",
+        entryPointType: "video",
+        uri: "https://meet.google.com/vhs-bzve-eic",
+      },
+      {
+        pin: "6045211066027",
+        uri: "https://tel.meet/vhs-bzve-eic?pin=6045211066027",
+        entryPointType: "more",
+      },
+      {
+        label: "+1 904-900-0534",
+        pin: "480839291",
+        entryPointType: "phone",
+        uri: "tel:+1-904-900-0534",
+        regionCode: "US",
+      },
+    ],
+  },
+  updated: "2024-09-17T05:05:01.999Z",
+  organizer: {
+    displayName: "Some Team",
+    email:
+      "c_ae6f08804802c0642135e8e3280a2293ea73eb3e8b434424006afb947e767cfc@group.calendar.google.com",
+  },
+  end: {
+    dateTime: "2024-09-16T10:30:00-07:00",
+    timeZone: "America/Los_Angeles",
+  },
+  sequence: 0,
+  attachments: [
+    {
+      fileUrl:
+        "https://drive.google.com/open?id=1RUa5TiCINYGul3aca00d6hoktwh0utsk1AyQMdxjJ_k",
+      fileId: "1RUa5TiCINYGul3aca00d6hoktwh0utsk1AyQMdxjJ_k",
+      iconLink:
+        "https://drive-thirdparty.googleusercontent.com/32/type/application/vnd.google-apps.document",
+      mimeType: "application/vnd.google-apps.document",
+      title: "Notes - team sync 📝",
+    },
+  ],
+  iCalUID: "77b6l264juo6lkk572l3kd2h0g@google.com",
+  id: "77b6l264juo6lkk572l3kd2h0g_20240916T170000Z",
+  htmlLink:
+    "https://www.google.com/calendar/event?eid=NzdiNmwyNjRqdW82bGtrNTcybDNrZDJoMGdfMjAyNDA5MTZUMTcwMDAwWiB0bWVsbG9yQGJsb2NrLnh5eg",
+  reminders: { useDefault: true },
+  creator: { email: "me@example.com", self: true },
+  hangoutLink: "https://meet.google.com/vhs-bzve-eic",
+  start: {
+    timeZone: "America/Los_Angeles",
+    dateTime: "2024-09-16T10:00:00-07:00",
+  },
+  etag: '"3453099003998000"',
+  originalStartTime: {
+    timeZone: "America/Los_Angeles",
+    dateTime: "2024-09-16T10:00:00-07:00",
+  },
+  eventType: "default",
+  guestsCanModify: true,
+  attendees: [
+    {
+      email: "me@example.com",
+      self: true,
+      responseStatus: "accepted",
+    },
+    {
+      email: "some-team@example.com",
+      responseStatus: "needsAction",
+      displayName: "some-team",
+    },
+  ],
+  created: "2024-07-18T19:08:11.000Z",
+  description: "team meeting",
+};
+
+export const adhocEvent: GoogleAppsScript.Calendar.Schema.Event = {
+  organizer: { email: "me@example.com", self: true },
+  iCalUID: "5qs1nuutbanoautoo0bm68nnkg@google.com",
+  conferenceData: {
+    entryPoints: [
+      {
+        label: "meet.google.com/fgt-wbyo-jrq",
+        entryPointType: "video",
+        uri: "https://meet.google.com/fgt-wbyo-jrq",
+      },
+      {
+        uri: "https://tel.meet/fgt-wbyo-jrq?pin=1901517395579",
+        pin: "1901517395579",
+        entryPointType: "more",
+      },
+      {
+        label: "+1 515-207-6602",
+        entryPointType: "phone",
+        regionCode: "US",
+        pin: "720974466",
+        uri: "tel:+1-515-207-6602",
+      },
+    ],
+    conferenceId: "fgt-wbyo-jrq",
+    conferenceSolution: {
+      iconUri:
+        "https://fonts.gstatic.com/s/i/productlogos/meet_2020q4/v6/web-512dp/logo_meet_2020q4_color_2x_web_512dp.png",
+      name: "Google Meet",
+      key: { type: "hangoutsMeet" },
+    },
+  },
+  updated: "2024-09-17T05:05:01.261Z",
+  summary: "1:1 adhoc",
+  reminders: { useDefault: true },
+  description: "",
+  start: {
+    dateTime: "2024-09-16T09:35:00-07:00",
+    timeZone: "America/Los_Angeles",
+  },
+  sequence: 3,
+  creator: { self: true, email: "me@example.com" },
+  etag: '"3453099002522000"',
+  attendees: [
+    { email: "them@example.com", responseStatus: "accepted" },
+    {
+      self: true,
+      responseStatus: "accepted",
+      organizer: true,
+      email: "me@example.com",
+    },
+  ],
+  htmlLink:
+    "https://www.google.com/calendar/event?eid=NXFzMW51dXRiYW5vYXV0b28wYm02OG5ua2cgdG1lbGxvckBibG9jay54eXo",
+  guestsCanModify: true,
+  created: "2024-09-16T15:51:28.000Z",
+  kind: "calendar#event",
+  status: "confirmed",
+  eventType: "default",
+  end: {
+    dateTime: "2024-09-16T10:00:00-07:00",
+    timeZone: "America/Los_Angeles",
+  },
+  id: "5qs1nuutbanoautoo0bm68nnkg",
+  hangoutLink: "https://meet.google.com/fgt-wbyo-jrq",
 };

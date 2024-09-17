@@ -2,6 +2,7 @@ import { Orchestrator } from "../src/orchestrator";
 import { EventUtil } from "../src/checks/event-util";
 import { CheckTypes } from "../src/checks/check-types";
 import { UserSettings } from "../src/checks/user-settings";
+import { CheckColor } from "../src/checks/check-color";
 // Mock dependencies
 jest.mock("../src/checks/event-util", () => ({
   EventUtil: {
@@ -64,6 +65,10 @@ describe("checkEvents", () => {
       plusFiveMinutes: true,
       quit: true,
       conflict: true,
+      eventColor: true,
+    },
+    checkSettings: {
+      eventColors: CheckColor.createDefaultSettings(),
     },
   };
 

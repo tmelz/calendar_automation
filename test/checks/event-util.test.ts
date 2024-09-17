@@ -248,9 +248,9 @@ describe("CheckQuit.doAllAttendeesHaveSameBusinessEmailDomain", () => {
     );
   });
 
-  test("should return false for undefined attendees", () => {
+  test("should return true for undefined attendees", () => {
     expect(EventUtil.doAllAttendeesHaveSameBusinessEmailDomain(undefined)).toBe(
-      false
+      true
     );
   });
 
