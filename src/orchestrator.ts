@@ -49,7 +49,7 @@ export namespace Orchestrator {
       Time.oneHourAgo()
     );
     Log.logPhase("Fetching events to analyze 🛜");
-    const events = GetEvents.getEvents(timeRange, updatedMin);
+    let events = GetEvents.getEvents(timeRange, updatedMin);
     if (events.length === GetEvents.MAX_EVENTS_ALLOWED_TO_FETCH) {
       shouldCacheRun = false;
     }
@@ -64,6 +64,14 @@ export namespace Orchestrator {
 
     shouldCacheRun = shouldCacheRun && withinModificationLimit;
 
+    // Need to re-fetch events if we're going to do further modifications
+    // personal-calendar-only checks may go to a different calendar than
+    // the previous modifications, which will cause an invalid seq error
+    // without a re-fetch
+    events = GetEvents.getEvents(timeRange, updatedMin, true); // suppress re-listing events
+    if (events.length === GetEvents.MAX_EVENTS_ALLOWED_TO_FETCH) {
+      shouldCacheRun = false;
+    }
     withinModificationLimit = Orchestrator.checkEvents(
       Orchestrator.applyToPersonalEventOnlyChecks,
       events,
@@ -90,11 +98,12 @@ export namespace Orchestrator {
     }
     Log.logPhase("Fetching events to analyze 🛜");
 
-    const events = GetEvents.getEvents(
+    let events = GetEvents.getEvents(
       Time.todayThroughEndOfNextWeek(),
       undefined
     );
 
+    Log.logPhase("Running checks that apply to event on organizer's calendar");
     Orchestrator.checkEvents(
       Orchestrator.applyToSourceEventChecks,
       events,
@@ -103,6 +112,18 @@ export namespace Orchestrator {
       Orchestrator.saveEvent
     );
 
+    Log.logPhase(
+      "Running checks that apply to personal calendar only, requires event re-fetch"
+    );
+    // Need to re-fetch events if we're going to do further modifications
+    // personal-calendar-only checks may go to a different calendar than
+    // the previous modifications, which will cause an invalid seq error
+    // without a re-fetch
+    events = GetEvents.getEvents(
+      Time.todayThroughEndOfNextWeek(),
+      undefined,
+      true // suppress re-listing events
+    );
     Orchestrator.checkEvents(
       Orchestrator.applyToPersonalEventOnlyChecks,
       events,

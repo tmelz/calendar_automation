@@ -24,7 +24,7 @@ export function debug() {
   const calendarId = "tmellor@block.xyz";
   // const calendarId = "c_dbf46adba7f1d6fc383bbeaaf7d50723e6bea3901446fb11b02f9d5751219f6f@group.calendar.google.com";
 
-  const events = Calendar.Events?.list(calendarId, {
+  let events = Calendar.Events?.list(calendarId, {
     timeMin: now.toISOString(),
     timeMax: oneHourInFuture.toISOString(),
     singleEvents: true,
@@ -36,7 +36,7 @@ export function debug() {
       `${event.summary}, ${event.id}, ${event.colorId}, ${event.start?.dateTime}`
     );
     console.log(`${JSON.stringify(event)}`);
-    if (event.id === "2ca5nsak4reg77ejfvhov1epfe") {
+    if (event.id === "4tj61a1r9puiipoc0899l52gno") {
       console.log("modifying event");
       const eventStart = new Date(event.start!.dateTime!);
       // add 15 minutes to start
@@ -47,13 +47,35 @@ export function debug() {
       console.log(event.start!.dateTime);
       console.log(event.end!.dateTime);
 
-      saveEvent(event);
+      // saveEvent(event);
 
+      // console.log("modifying event locally with manual sequence increment");
+      // // console.log("current sequence: " + event.sequence);
+      // // event.sequence = event.sequence! + 1;
+      // // console.log("bumped sequence: " + event.sequence);
+      // event.colorId = "9";
+      // saveEvent(event, true);
+    }
+  });
+
+  events = Calendar.Events?.list(calendarId, {
+    timeMin: now.toISOString(),
+    timeMax: oneHourInFuture.toISOString(),
+    singleEvents: true,
+    orderBy: "startTime",
+    maxResults: 10,
+  });
+  events?.items?.forEach((event) => {
+    console.log(
+      `${event.summary}, ${event.id}, ${event.colorId}, ${event.start?.dateTime}`
+    );
+    console.log(`${JSON.stringify(event)}`);
+    if (event.id === "4tj61a1r9puiipoc0899l52gno") {
       console.log("modifying event locally with manual sequence increment");
       // console.log("current sequence: " + event.sequence);
       // event.sequence = event.sequence! + 1;
       // console.log("bumped sequence: " + event.sequence);
-      event.colorId = "9";
+      event.colorId = "11";
       saveEvent(event, true);
     }
   });

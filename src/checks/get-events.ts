@@ -21,13 +21,16 @@ export namespace GetEvents {
 
   export function getEvents(
     timeRange: Time.Range,
-    updatedMin: Date | undefined
+    updatedMin: Date | undefined,
+    suppressEventListLog: boolean | undefined = undefined
   ): GoogleAppsScript.Calendar.Schema.Event[] {
     return getEventsForDateRangeCustomCalendar(
       timeRange.timeMin,
       timeRange.timeMax,
       CALENDAR_ID,
-      updatedMin
+      updatedMin,
+      undefined,
+      suppressEventListLog
     );
   }
 
@@ -91,7 +94,7 @@ export namespace GetEvents {
     calendarId: string,
     updatedMin: Date | undefined = undefined,
     maxResults: number | undefined = undefined,
-    suppressEventListLog: boolean = false
+    suppressEventListLog: boolean | undefined = undefined
   ): GoogleAppsScript.Calendar.Schema.Event[] {
     const result: GoogleAppsScript.Calendar.Schema.Event[] | undefined =
       getEventsForDateRangeCustomCalendarWithErrorCatch(
@@ -115,23 +118,43 @@ export namespace GetEvents {
     timeMax: Date,
     calendarId: string,
     updatedMin: Date | undefined = undefined,
-    maxResults: number | undefined = GetEvents.MAX_EVENTS_ALLOWED_TO_FETCH,
-    suppressEventListLog: boolean = false
+    maxResultsInput: number | undefined = GetEvents.MAX_EVENTS_ALLOWED_TO_FETCH,
+    suppressEventListLogInput: boolean | undefined
   ): GoogleAppsScript.Calendar.Schema.Event[] | undefined {
+    const suppressEventListLog =
+      suppressEventListLogInput === undefined
+        ? false
+        : suppressEventListLogInput;
+    const maxResults =
+      maxResultsInput === undefined
+        ? GetEvents.MAX_EVENTS_ALLOWED_TO_FETCH
+        : maxResultsInput;
     try {
       Log.log(
         `🕵️ Fetching events for calendarId="${calendarId}": "${timeMin.toLocaleString()}" till "${timeMax.toLocaleString()}" with updatedMin:${updatedMin?.toLocaleString()}`
       );
 
+      const args: {
+        timeMin: string;
+        timeMax: string;
+        singleEvents: boolean;
+        orderBy: string;
+        maxResults: number;
+        updatedMin?: string;
+      } = {
+        timeMin: timeMin.toISOString(),
+        timeMax: timeMax.toISOString(),
+        singleEvents: true,
+        orderBy: "startTime",
+        maxResults: maxResults,
+      };
+
+      if (updatedMin !== undefined) {
+        args.updatedMin = updatedMin.toISOString();
+      }
+
       const events: GoogleAppsScript.Calendar.Schema.Event[] =
-        Calendar.Events?.list(calendarId, {
-          timeMin: timeMin.toISOString(),
-          timeMax: timeMax.toISOString(),
-          singleEvents: true,
-          orderBy: "startTime",
-          maxResults: maxResults,
-          // updatedMin: updatedMin?.toISOString(),
-        })?.items ?? [];
+        Calendar.Events?.list(calendarId, args)?.items ?? [];
 
       if (events.length === 0) {
         Log.log("No events found.");
