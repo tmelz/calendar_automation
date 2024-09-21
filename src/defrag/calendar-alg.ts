@@ -8,10 +8,10 @@ import { EventRecurrence } from "./event-recurrence";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace CalendarAlg {
-  export const INPUTS_CACHE_KEY = "calendarAlgInputs_v6";
-  export const THEIR_EVENTS_CACHE_KEY_1 = "calendarAlgTheirEvents_v6_1";
-  export const THEIR_EVENTS_CACHE_KEY_2 = "calendarAlgTheirEvents_v6_2";
-  export const THEIR_EVENTS_CACHE_KEY_3 = "calendarAlgTheirEvents_v6_3";
+  export const INPUTS_CACHE_KEY = "calendarAlgInputs_v7";
+  export const THEIR_EVENTS_CACHE_KEY_1 = "calendarAlgTheirEvents_v7_1";
+  export const THEIR_EVENTS_CACHE_KEY_2 = "calendarAlgTheirEvents_v7_2";
+  export const THEIR_EVENTS_CACHE_KEY_3 = "calendarAlgTheirEvents_v7_3";
 
   export type Inputs = {
     // id ==> event
@@ -229,94 +229,94 @@ export namespace CalendarAlg {
   }
 
   export function getInputs(refDate: Date): CalendarAlg.Inputs {
-    const cache = CacheService.getScriptCache();
-    const cachedInputs = cache.get(CalendarAlg.INPUTS_CACHE_KEY);
-    const cachedTheirEvents1 = cache.get(CalendarAlg.THEIR_EVENTS_CACHE_KEY_1);
-    const cachedTheirEvents2 = cache.get(CalendarAlg.THEIR_EVENTS_CACHE_KEY_2);
-    const cachedTheirEvents3 = cache.get(CalendarAlg.THEIR_EVENTS_CACHE_KEY_3);
+    // const cache = CacheService.getScriptCache();
+    // const cachedInputs = cache.get(CalendarAlg.INPUTS_CACHE_KEY);
+    // const cachedTheirEvents1 = cache.get(CalendarAlg.THEIR_EVENTS_CACHE_KEY_1);
+    // const cachedTheirEvents2 = cache.get(CalendarAlg.THEIR_EVENTS_CACHE_KEY_2);
+    // const cachedTheirEvents3 = cache.get(CalendarAlg.THEIR_EVENTS_CACHE_KEY_3);
 
-    if (
-      cachedInputs &&
-      cachedTheirEvents1 &&
-      cachedTheirEvents2 &&
-      cachedTheirEvents3
-    ) {
-      Log.log("Using cached inputs.");
-      const inputsWithoutTheirEvents = deserializeInputs(
-        JSON.parse(
-          Utilities.ungzip(
-            Utilities.newBlob(
-              Utilities.base64Decode(cachedInputs),
-              "application/x-gzip"
-            )
-          ).getDataAsString()
-        )
-      ) as CalendarAlg.Inputs;
+    // if (
+    //   cachedInputs &&
+    //   cachedTheirEvents1 &&
+    //   cachedTheirEvents2 &&
+    //   cachedTheirEvents3
+    // ) {
+    //   Log.log("Using cached inputs.");
+    //   const inputsWithoutTheirEvents = deserializeInputs(
+    //     JSON.parse(
+    //       Utilities.ungzip(
+    //         Utilities.newBlob(
+    //           Utilities.base64Decode(cachedInputs),
+    //           "application/x-gzip"
+    //         )
+    //       ).getDataAsString()
+    //     )
+    //   ) as CalendarAlg.Inputs;
 
-      const theirEventsPart1 = new Map(
-        JSON.parse(
-          Utilities.ungzip(
-            Utilities.newBlob(
-              Utilities.base64Decode(cachedTheirEvents1),
-              "application/x-gzip"
-            )
-          ).getDataAsString()
-        )
-      );
+    //   const theirEventsPart1 = new Map(
+    //     JSON.parse(
+    //       Utilities.ungzip(
+    //         Utilities.newBlob(
+    //           Utilities.base64Decode(cachedTheirEvents1),
+    //           "application/x-gzip"
+    //         )
+    //       ).getDataAsString()
+    //     )
+    //   );
 
-      const theirEventsPart2 = new Map(
-        JSON.parse(
-          Utilities.ungzip(
-            Utilities.newBlob(
-              Utilities.base64Decode(cachedTheirEvents2),
-              "application/x-gzip"
-            )
-          ).getDataAsString()
-        )
-      );
+    //   const theirEventsPart2 = new Map(
+    //     JSON.parse(
+    //       Utilities.ungzip(
+    //         Utilities.newBlob(
+    //           Utilities.base64Decode(cachedTheirEvents2),
+    //           "application/x-gzip"
+    //         )
+    //       ).getDataAsString()
+    //     )
+    //   );
 
-      const theirEventsPart3 = new Map(
-        JSON.parse(
-          Utilities.ungzip(
-            Utilities.newBlob(
-              Utilities.base64Decode(cachedTheirEvents3),
-              "application/x-gzip"
-            )
-          ).getDataAsString()
-        )
-      );
+    //   const theirEventsPart3 = new Map(
+    //     JSON.parse(
+    //       Utilities.ungzip(
+    //         Utilities.newBlob(
+    //           Utilities.base64Decode(cachedTheirEvents3),
+    //           "application/x-gzip"
+    //         )
+    //       ).getDataAsString()
+    //     )
+    //   );
 
-      const combinedTheirEvents = new Map<
-        string,
-        GoogleAppsScript.Calendar.Schema.Event[]
-      >();
+    //   const combinedTheirEvents = new Map<
+    //     string,
+    //     GoogleAppsScript.Calendar.Schema.Event[]
+    //   >();
 
-      theirEventsPart1.forEach((value, key) => {
-        combinedTheirEvents.set(
-          key as string,
-          value as GoogleAppsScript.Calendar.Schema.Event[]
-        );
-      });
+    //   theirEventsPart1.forEach((value, key) => {
+    //     combinedTheirEvents.set(
+    //       key as string,
+    //       value as GoogleAppsScript.Calendar.Schema.Event[]
+    //     );
+    //   });
 
-      theirEventsPart2.forEach((value, key) => {
-        combinedTheirEvents.set(
-          key as string,
-          value as GoogleAppsScript.Calendar.Schema.Event[]
-        );
-      });
+    //   theirEventsPart2.forEach((value, key) => {
+    //     combinedTheirEvents.set(
+    //       key as string,
+    //       value as GoogleAppsScript.Calendar.Schema.Event[]
+    //     );
+    //   });
 
-      theirEventsPart3.forEach((value, key) => {
-        combinedTheirEvents.set(
-          key as string,
-          value as GoogleAppsScript.Calendar.Schema.Event[]
-        );
-      });
+    //   theirEventsPart3.forEach((value, key) => {
+    //     combinedTheirEvents.set(
+    //       key as string,
+    //       value as GoogleAppsScript.Calendar.Schema.Event[]
+    //     );
+    //   });
 
-      return {
-        ...inputsWithoutTheirEvents,
-        theirEvents: combinedTheirEvents,
-      } as CalendarAlg.Inputs;
-    }
+    //   return {
+    //     ...inputsWithoutTheirEvents,
+    //     theirEvents: combinedTheirEvents,
+    //   } as CalendarAlg.Inputs;
+    // }
 
     const startDate = new Date(refDate);
     startDate.setHours(24, 0, 0, 0);
@@ -426,73 +426,73 @@ export namespace CalendarAlg {
       recurrenceSchedule,
     };
 
-    const serializedInputs = JSON.stringify(serializeInputs(inputs));
-    const compressedBlob = Utilities.gzip(
-      Utilities.newBlob(serializedInputs, "application/json")
-    );
+    // const serializedInputs = JSON.stringify(serializeInputs(inputs));
+    // const compressedBlob = Utilities.gzip(
+    //   Utilities.newBlob(serializedInputs, "application/json")
+    // );
 
-    const compressedInputs = Utilities.base64Encode(compressedBlob.getBytes());
+    // const compressedInputs = Utilities.base64Encode(compressedBlob.getBytes());
 
-    cache.put(CalendarAlg.INPUTS_CACHE_KEY, compressedInputs, 30 * 60); // Cache for 30 minutes
+    // cache.put(CalendarAlg.INPUTS_CACHE_KEY, compressedInputs, 30 * 60); // Cache for 30 minutes
 
-    const theirEventsArray = Array.from(theirEvents.entries());
-    const partitionSize = Math.ceil(theirEventsArray.length / 3);
-    const theirEventsPart1 = new Map(theirEventsArray.slice(0, partitionSize));
-    const theirEventsPart2 = new Map(
-      theirEventsArray.slice(partitionSize, partitionSize * 2)
-    );
-    const theirEventsPart3 = new Map(theirEventsArray.slice(partitionSize * 2));
+    // const theirEventsArray = Array.from(theirEvents.entries());
+    // const partitionSize = Math.ceil(theirEventsArray.length / 3);
+    // const theirEventsPart1 = new Map(theirEventsArray.slice(0, partitionSize));
+    // const theirEventsPart2 = new Map(
+    //   theirEventsArray.slice(partitionSize, partitionSize * 2)
+    // );
+    // const theirEventsPart3 = new Map(theirEventsArray.slice(partitionSize * 2));
 
-    const serializedTheirEvents1 = JSON.stringify(
-      Array.from(theirEventsPart1.entries())
-    );
-    const compressedBlobTheirEvents1 = Utilities.gzip(
-      Utilities.newBlob(serializedTheirEvents1, "application/json")
-    );
+    // const serializedTheirEvents1 = JSON.stringify(
+    //   Array.from(theirEventsPart1.entries())
+    // );
+    // const compressedBlobTheirEvents1 = Utilities.gzip(
+    //   Utilities.newBlob(serializedTheirEvents1, "application/json")
+    // );
 
-    const compressedTheirEvents1 = Utilities.base64Encode(
-      compressedBlobTheirEvents1.getBytes()
-    );
+    // const compressedTheirEvents1 = Utilities.base64Encode(
+    //   compressedBlobTheirEvents1.getBytes()
+    // );
 
-    cache.put(
-      CalendarAlg.THEIR_EVENTS_CACHE_KEY_1,
-      compressedTheirEvents1,
-      120 * 60
-    );
+    // cache.put(
+    //   CalendarAlg.THEIR_EVENTS_CACHE_KEY_1,
+    //   compressedTheirEvents1,
+    //   120 * 60
+    // );
 
-    const serializedTheirEvents2 = JSON.stringify(
-      Array.from(theirEventsPart2.entries())
-    );
-    const compressedBlobTheirEvents2 = Utilities.gzip(
-      Utilities.newBlob(serializedTheirEvents2, "application/json")
-    );
+    // const serializedTheirEvents2 = JSON.stringify(
+    //   Array.from(theirEventsPart2.entries())
+    // );
+    // const compressedBlobTheirEvents2 = Utilities.gzip(
+    //   Utilities.newBlob(serializedTheirEvents2, "application/json")
+    // );
 
-    const compressedTheirEvents2 = Utilities.base64Encode(
-      compressedBlobTheirEvents2.getBytes()
-    );
+    // const compressedTheirEvents2 = Utilities.base64Encode(
+    //   compressedBlobTheirEvents2.getBytes()
+    // );
 
-    cache.put(
-      CalendarAlg.THEIR_EVENTS_CACHE_KEY_2,
-      compressedTheirEvents2,
-      120 * 60
-    );
+    // cache.put(
+    //   CalendarAlg.THEIR_EVENTS_CACHE_KEY_2,
+    //   compressedTheirEvents2,
+    //   120 * 60
+    // );
 
-    const serializedTheirEvents3 = JSON.stringify(
-      Array.from(theirEventsPart3.entries())
-    );
-    const compressedBlobTheirEvents3 = Utilities.gzip(
-      Utilities.newBlob(serializedTheirEvents3, "application/json")
-    );
+    // const serializedTheirEvents3 = JSON.stringify(
+    //   Array.from(theirEventsPart3.entries())
+    // );
+    // const compressedBlobTheirEvents3 = Utilities.gzip(
+    //   Utilities.newBlob(serializedTheirEvents3, "application/json")
+    // );
 
-    const compressedTheirEvents3 = Utilities.base64Encode(
-      compressedBlobTheirEvents3.getBytes()
-    );
+    // const compressedTheirEvents3 = Utilities.base64Encode(
+    //   compressedBlobTheirEvents3.getBytes()
+    // );
 
-    cache.put(
-      CalendarAlg.THEIR_EVENTS_CACHE_KEY_3,
-      compressedTheirEvents3,
-      120 * 60
-    );
+    // cache.put(
+    //   CalendarAlg.THEIR_EVENTS_CACHE_KEY_3,
+    //   compressedTheirEvents3,
+    //   120 * 60
+    // );
 
     // TODO I would never want to cache this long
     Log.log("Inputs cached in four parts for 120 minutes.");
