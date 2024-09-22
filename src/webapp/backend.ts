@@ -6,9 +6,15 @@ import { GreedyDefrag } from "../defrag/greedy-defrag";
 import { UserSettings } from "../checks/user-settings";
 import { GetEvents } from "../checks/get-events";
 import { EventUtil } from "../checks/event-util";
+import { get } from "lodash";
+import { CalendarCost } from "../defrag/calendar-cost";
 
-// Interfaces for Defrag Results and Pending Session
 interface DefragResult {
+  startingEvents: GoogleAppsScript.Calendar.Schema.Event[];
+  solution: GreedyDefrag.Solution;
+}
+
+interface UIDefragResult {
   startingEvents: GoogleAppsScript.Calendar.Schema.Event[];
   solutionEvents: GoogleAppsScript.Calendar.Schema.Event[];
   moveableMeetingIds: string[];
@@ -16,8 +22,9 @@ interface DefragResult {
   consoleLog: string;
 }
 
-interface PendingSession {
-  date: string;
+interface DefragPendingCommit {
+  updatedDate: string;
+  weekDate: string;
   selectedMeetingIds: string[];
   defragResult: DefragResult;
 }
@@ -27,20 +34,81 @@ function getCache(): GoogleAppsScript.Cache.Cache {
   return CacheService.getUserCache();
 }
 
-function setPendingSession(session: PendingSession): void {
+function setPendingSession(session: DefragPendingCommit): void {
   const cache = getCache();
-  cache.put("pendingSession", JSON.stringify(session), 1500); // Cache for 25 minutes
+
+  // Clone the session and convert Map and Set to arrays
+  const sessionClone = {
+    ...session,
+    defragResult: {
+      ...session.defragResult,
+      solution: {
+        ...session.defragResult.solution,
+        timings: Array.from(session.defragResult.solution.timings.entries()), // Convert Map to Array
+        unplaceableEventIds: Array.from(
+          session.defragResult.solution.unplaceableEventIds
+        ), // Convert Set to Array
+      },
+    },
+  };
+
+  const serializedSession = JSON.stringify(sessionClone);
+  const compressedSession = Utilities.gzip(
+    Utilities.newBlob(serializedSession, "application/json")
+  ).getBytes();
+  const encodedSession = Utilities.base64Encode(compressedSession);
+
+  cache.put("pendingSession_v2", encodedSession, 900); // 15 minutes
 }
 
-function getPendingSession(): PendingSession | null {
+function getPendingSession(): DefragPendingCommit | undefined {
   const cache = getCache();
-  const session = cache.get("pendingSession");
-  return session ? JSON.parse(session) : null;
-}
+  const session = cache.get("pendingSession_v2");
+  if (session === undefined || session === null || session.trim() === "") {
+    return undefined;
+  }
 
+  let jsonData;
+  try {
+    const decompressedData = Utilities.ungzip(
+      Utilities.newBlob(
+        Utilities.base64Decode(session as string),
+        "application/x-gzip"
+      )
+    ).getDataAsString();
+    jsonData = JSON.parse(decompressedData);
+  } catch (error) {
+    console.error("Failed to parse cached session:", error);
+    return undefined;
+  }
+
+  // Log the deserialized timings to verify format
+  console.log("Deserialized timings:", jsonData.defragResult.solution.timings);
+
+  // Reconstruct Map and Set
+  const timingsArray: [string, any][] = jsonData.defragResult.solution.timings;
+  const timingsMap = new Map<string, CalendarCost.EventTiming>(timingsArray);
+
+  const unplaceableEventIdsArray: string[] =
+    jsonData.defragResult.solution.unplaceableEventIds;
+  const unplaceableEventIdsSet = new Set<string>(unplaceableEventIdsArray);
+
+  return {
+    updatedDate: jsonData.updatedDate,
+    weekDate: jsonData.weekDate,
+    selectedMeetingIds: jsonData.selectedMeetingIds,
+    defragResult: {
+      startingEvents: jsonData.defragResult.startingEvents,
+      solution: {
+        timings: timingsMap,
+        unplaceableEventIds: unplaceableEventIdsSet,
+      },
+    },
+  };
+}
 function clearPendingSession(): void {
   const cache = getCache();
-  cache.remove("pendingSession");
+  cache.remove("pendingSession_v2"); // Use the correct key
 }
 
 // Handle GET requests
@@ -113,39 +181,86 @@ function getEventsForWeek(date: string): {
           (attendee) => attendee.email === "azra@block.xyz"
         )
     )
+    .filter((event) => {
+      if (event.start?.dateTime === undefined) {
+        return false;
+      }
+
+      const startDate = new Date(event.start.dateTime);
+      const now = new Date();
+      return startDate > now;
+    })
     .map((event) => event.id!);
 
   return { events, moveableMeetingIds };
 }
 
 // Defragment the calendar based on selected meetings
-function defrag(date: string, selectedMeetingIds: string[]): DefragResult {
-  const inputs = CalendarAlg.getInputs(new Date(date));
+function defrag(date: string, selectedMeetingIds: string[]): UIDefragResult {
+  let events: GoogleAppsScript.Calendar.Schema.Event[] = [];
+  let unplaceablEventIds: Set<string> = new Set();
+  let moveableMeetingIds: Set<string> = new Set();
+  let solutionTimings: Map<string, CalendarCost.EventTiming> = new Map();
+  let logMessages: string[] = [];
 
-  // make inputs.moveableEvents the intersection of existing moveable events and selected meetings
-  inputs.moveableEvents = new Set(
-    selectedMeetingIds.filter((id) => inputs.moveableEvents.has(id))
-  );
+  const session = getPendingSession();
+  if (
+    session !== undefined &&
+    session.weekDate === date &&
+    new Date(session.updatedDate).getTime() - new Date().getTime() <
+      1000 * 60 * 15
+  ) {
+    Log.log("Using cached defrag result");
+    events = session.defragResult.startingEvents;
+    unplaceablEventIds = session.defragResult.solution.unplaceableEventIds;
+    moveableMeetingIds = new Set(session.selectedMeetingIds);
+    solutionTimings = session.defragResult.solution.timings;
+    logMessages = [];
+  } else {
+    Log.log("Calculating defrag result");
+    const inputs = CalendarAlg.getInputs(new Date(date));
 
-  const logMessages: string[] = [];
-  Log.hook = (entry: string) => {
-    logMessages.push(entry);
-  };
-  const solution = GreedyDefrag.solve(inputs);
-  Log.hook = undefined;
+    // make inputs.moveableEvents the intersection of existing moveable events and selected meetings
+    inputs.moveableEvents = new Set(
+      selectedMeetingIds.filter((id) => inputs.moveableEvents.has(id))
+    );
+
+    const logMessagesTemp: string[] = [];
+    Log.hook = (entry: string) => {
+      logMessagesTemp.push(entry);
+    };
+    const solution = GreedyDefrag.solve(inputs);
+    Log.hook = undefined;
+
+    // Store pending session
+    const pendingSession: DefragPendingCommit = {
+      updatedDate: new Date().toISOString(),
+      weekDate: date,
+      selectedMeetingIds,
+      defragResult: {
+        startingEvents: inputs.myEventsList,
+        solution: {
+          timings: solution.timings,
+          unplaceableEventIds: solution.unplaceableEventIds,
+        },
+      },
+    };
+    setPendingSession(pendingSession);
+
+    events = inputs.myEventsList;
+    unplaceablEventIds = solution.unplaceableEventIds;
+    moveableMeetingIds = inputs.moveableEvents;
+    solutionTimings = solution.timings;
+    logMessages = logMessagesTemp;
+  }
 
   const eventsDeepClone = JSON.parse(
-    JSON.stringify(
-      inputs.myEventsList.filter(
-        (event) => !solution.unplaceableEventIds.has(event.id!)
-      )
-    )
+    JSON.stringify(events.filter((event) => !unplaceablEventIds.has(event.id!)))
   ) as GoogleAppsScript.Calendar.Schema.Event[];
-
   eventsDeepClone.forEach((event: GoogleAppsScript.Calendar.Schema.Event) => {
     const id = event.id!;
-    if (solution.timings.has(id)) {
-      const timing = solution.timings.get(id)!;
+    if (solutionTimings.has(id)) {
+      const timing = solutionTimings.get(id)!;
       const startDate = new Date(event.start!.dateTime!);
       const endDate = new Date(event.end!.dateTime!);
       event.start!.dateTime = CalendarAlg.convertSecondsTimingToDate(
@@ -161,76 +276,49 @@ function defrag(date: string, selectedMeetingIds: string[]): DefragResult {
     }
   });
 
-  const defragResult: DefragResult = {
-    startingEvents: inputs.myEventsList,
+  return {
+    startingEvents: events,
     solutionEvents: eventsDeepClone,
-    moveableMeetingIds: Array.from(inputs.moveableEvents),
-    unplaceableMeetingIds: Array.from(solution.unplaceableEventIds),
+    moveableMeetingIds: Array.from(moveableMeetingIds),
+    unplaceableMeetingIds: Array.from(unplaceablEventIds),
     consoleLog: logMessages.join("\n"),
   };
-
-  // Store pending session
-  const pendingSession: PendingSession = {
-    date,
-    selectedMeetingIds,
-    defragResult,
-  };
-  // setPendingSession(pendingSession);
-
-  return defragResult;
 }
 
 // Commit the defragmented changes with a message
-function commitDefrag(
-  message: string,
-  defragResult: DefragResult
-): { success: boolean; message: string } {
-  if (!defragResult) {
-    return { success: false, message: "No defragmentation data found." };
+function commitDefrag(message: string): { success: boolean; message: string } {
+  const session = getPendingSession();
+  if (session === undefined) {
+    return { success: false, message: "No saved defrag data found!" };
   }
 
-  // TODO get pending defrag result from cache
-  // foreach event thats different call saveEvent. thats it
+  session.defragResult.startingEvents.forEach(
+    (event: GoogleAppsScript.Calendar.Schema.Event) => {
+      const id = event.id!;
+      if (session.defragResult.solution.timings.has(id)) {
+        const timing = session.defragResult.solution.timings.get(id)!;
+        const startDate = new Date(event.start!.dateTime!);
+        const endDate = new Date(event.end!.dateTime!);
+        event.start!.dateTime = CalendarAlg.convertSecondsTimingToDate(
+          timing.startTimeOfDaySeconds,
+          timing.dayOfWeek,
+          startDate
+        ).toISOString();
+        event.end!.dateTime = CalendarAlg.convertSecondsTimingToDate(
+          timing.endTimeOfDaySeconds,
+          timing.dayOfWeek,
+          endDate
+        ).toISOString();
 
-  // TODO
-  // const calendar = CalendarApp.getDefaultCalendar();
-  // const logMessages: string[] = [];
-
-  // defragResult.solutionEvents.forEach((event) => {
-  //   const originalEvent = defragResult.startingEvents.find(
-  //     (e) => e.id === event.id
-  //   );
-  //   if (originalEvent) {
-  //     const calendarEvent = calendar.getEventById(originalEvent.id!);
-  //     if (calendarEvent) {
-  //       calendarEvent.setTime(
-  //         new Date(event.start!.dateTime!),
-  //         new Date(event.end!.dateTime!)
-  //       );
-  //       calendarEvent.setDescription(message);
-  //       logMessages.push(`Updated event: ${event.summary}`);
-  //     }
-  //   }
-  // });
-
-  // defragResult.unplaceableMeetingIds.forEach((id) => {
-  //   const event = defragResult.startingEvents.find((e) => e.id === id);
-  //   if (event) {
-  //     const calendarEvent = calendar.getEventById(event.id!);
-  //     if (calendarEvent) {
-  //       calendarEvent.setColor(CalendarApp.EventColor.GRAY);
-  //       logMessages.push(`Marked event as unplaceable: ${event.summary}`);
-  //     }
-  //   }
-  // });
-
-  // // Log the commit message
-  // Log.log(`Commit Message: ${message}`);
-  // Log.log(logMessages.join("\n"));
-
-  // Clear pending session after commit
+        Log.log(`Saving event changes for ${event.summary}`);
+        Log.log(`Old start time: ${startDate.toISOString()}`);
+        Log.log(`New start time: ${event.start!.dateTime}`);
+        // TODO cant send custom message :( but change that call to at least send updates
+        // Orchestrator.saveEventChanges(event);
+      }
+    }
+  );
   clearPendingSession();
-
   return { success: true, message: "Changes committed successfully." };
 }
 

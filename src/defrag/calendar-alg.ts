@@ -319,10 +319,10 @@ export namespace CalendarAlg {
     // }
 
     const startDate = new Date(refDate);
-    startDate.setHours(24, 0, 0, 0);
+    startDate.setHours(0, 0, 0, 0);
     const endDate = new Date(refDate);
     endDate.setDate(endDate.getDate() + 7);
-    endDate.setHours(24, 0, 0, 0);
+    endDate.setHours(0, 0, 0, 0);
 
     Log.log("Getting next week's events");
     const myEventsList = GetEvents.getEventsForDateRange(
