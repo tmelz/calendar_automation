@@ -174,22 +174,7 @@ function getEventsForWeek(date: string): {
   // Determine moveable meetings based on your criteria
   // For example, meetings created by the user and not marked as non-moveable
   const moveableMeetingIds = events
-    .filter((event) => EventUtil.isOneOnOneWithMe(event))
-    .filter(
-      (event) =>
-        !event.attendees?.some(
-          (attendee) => attendee.email === "azra@block.xyz"
-        )
-    )
-    .filter((event) => {
-      if (event.start?.dateTime === undefined) {
-        return false;
-      }
-
-      const startDate = new Date(event.start.dateTime);
-      const now = new Date();
-      return startDate > now;
-    })
+    .filter((event) => CalendarAlg.isEventEligibleForDefragSelection(event))
     .map((event) => event.id!);
 
   return { events, moveableMeetingIds };
@@ -202,6 +187,9 @@ function defrag(date: string, selectedMeetingIds: string[]): UIDefragResult {
   let moveableMeetingIds: Set<string> = new Set();
   let solutionTimings: Map<string, CalendarCost.EventTiming> = new Map();
   let logMessages: string[] = [];
+
+  // TODO decide if i want to keep this
+  clearPendingSession();
 
   const session = getPendingSession();
   if (

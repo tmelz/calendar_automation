@@ -87,9 +87,15 @@ export namespace EventUtil {
   ): boolean {
     return (
       event.attendees?.some((attendee) =>
-        attendee.email?.startsWith(`${attendee.displayName}@`)
+        isAttendeeLikelyAnEmailList(attendee)
       ) ?? false
     );
+  }
+
+  export function isAttendeeLikelyAnEmailList(
+    attendee: GoogleAppsScript.Calendar.Schema.EventAttendee
+  ): boolean {
+    return attendee.email?.startsWith(`${attendee.displayName}@`) ?? false;
   }
 
   export function amITheOrganizer(
@@ -106,6 +112,16 @@ export namespace EventUtil {
     event: GoogleAppsScript.Calendar.Schema.Event
   ): string | undefined {
     return event?.attendees?.find((attendee) => attendee.self !== true)?.email;
+  }
+
+  export function getEmailsForAllOtherAttendees(
+    event: GoogleAppsScript.Calendar.Schema.Event
+  ): string[] | undefined {
+    return (
+      event?.attendees
+        ?.filter((attendee) => attendee.self !== true)
+        .map((attendee) => attendee.email!) ?? undefined
+    );
   }
 
   export function didRSVPYes(

@@ -11,7 +11,7 @@ export namespace WorkingHours {
 
   export function estimateWorkingHours(email: string): WorkingHours.TimeRange {
     const cache = CacheService.getUserCache();
-    const cacheKey = `workingHours_${email}_v7`;
+    const cacheKey = `workingHours_${email}_v8`;
     const cachedValue = cache.get(cacheKey);
 
     if (cachedValue) {
@@ -39,16 +39,18 @@ export namespace WorkingHours {
     // where they RSVP'd yes, and all attendees have the same business email domain.
     // This should focus on meetings they actually go to, and also personal meetings on work calendar.
     let relevantEvents = events.filter((event) => {
-      Log.log(JSON.stringify(event));
+      // Log.log(JSON.stringify(event));
       return (
-        // event.eventType === "focusTime" ||
-        // (event.eventType === "default" &&
-        //   event.summary?.includes("Focus Time (via Clockwise)")) ||
-        event.eventType === "default" &&
-        EventUtil.didRSVPYes(event, email) &&
-        EventUtil.doAllAttendeesHaveSameBusinessEmailDomain(event.attendees) &&
-        event.start?.dateTime !== undefined &&
-        event.end?.dateTime !== undefined
+        event.eventType === "focusTime" ||
+        (event.eventType === "default" &&
+          event.summary?.includes("Focus Time (via Clockwise)")) ||
+        (event.eventType === "default" &&
+          EventUtil.didRSVPYes(event, email) &&
+          EventUtil.doAllAttendeesHaveSameBusinessEmailDomain(
+            event.attendees
+          ) &&
+          event.start?.dateTime !== undefined &&
+          event.end?.dateTime !== undefined)
       );
     });
 

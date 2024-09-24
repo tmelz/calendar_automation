@@ -46,6 +46,24 @@ export namespace GreedyDefrag {
       (a, b) => a.timeOptions.length - b.timeOptions.length
     );
 
+    // TODO remove these logs
+    // log debug info for the first 10 events in the list
+    for (
+      let i = 0;
+      i < Math.min(5, unplacedEventsWithTimeOptionsCount.length);
+      i++
+    ) {
+      Log.log(
+        `Event: ${unplacedEventsWithTimeOptionsCount[i].event.summary} has ${unplacedEventsWithTimeOptionsCount[i].timeOptions.length} time options`
+      );
+      // log each time option with \t
+      unplacedEventsWithTimeOptionsCount[i].timeOptions.forEach(
+        (timeOption) => {
+          Log.log(`\t${timeOption}`);
+        }
+      );
+    }
+
     return unplacedEventsWithTimeOptionsCount[0];
   }
 
@@ -70,6 +88,24 @@ export namespace GreedyDefrag {
       finalizedEvents.length + unplaceableMeetings.length <
       inputs.myEventsList.length
     ) {
+      // if some of their events are moveable, only factor them into allowed
+      // timings if they have been finalized
+      const filteredTheirEvents: Map<
+        string,
+        GoogleAppsScript.Calendar.Schema.Event[]
+      > = new Map();
+      for (const [email, events] of inputs.theirEvents) {
+        filteredTheirEvents.set(
+          email,
+          events.filter((event) => {
+            if (inputs.moveableEvents.has(event.id!)) {
+              return finalizedEvents.includes(event);
+            }
+            return true;
+          })
+        );
+      }
+
       const { event, timeOptions } = getEventWithLeastTimeOptions(
         moveableEvents.filter(
           (event) =>
@@ -78,7 +114,7 @@ export namespace GreedyDefrag {
         ),
         finalizedEvents,
         inputs.myWorkingHours,
-        inputs.theirEvents,
+        filteredTheirEvents,
         inputs.theirWorkingHours,
         finalizedTimings,
         inputs.recurrenceSchedule

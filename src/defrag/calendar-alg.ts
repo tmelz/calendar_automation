@@ -82,13 +82,9 @@ export namespace CalendarAlg {
     event: GoogleAppsScript.Calendar.Schema.Event,
     recurrenceSchedule: Map<string, EventRecurrence.RecurrenceType>
   ): Date[] {
-    const theirEmail = EventUtil.getEmailForOtherAttendee(event);
-    if (theirEmail === undefined) {
-      return [];
-    }
-
-    const theirWorkingHours = theirWorkingHoursMap.get(theirEmail);
-    if (!theirWorkingHours) {
+    Log.log("Getting alternate start time options for " + event.summary);
+    const theirEmails = EventUtil.getEmailsForAllOtherAttendees(event);
+    if (theirEmails === undefined || theirEmails.length === 0) {
       return [];
     }
 
@@ -140,21 +136,35 @@ export namespace CalendarAlg {
           currentStartTime + offsetMinutes * 60 * 1000
         );
         const proposedEnd = new Date(proposedStart.getTime() + eventDuration);
+        Log.log("\tProposed start time: " + proposedStart.toISOString());
 
         const proposedStartSeconds =
           WorkingHours.getTimeOfDaySeconds(proposedStart);
         const proposedEndSeconds =
           WorkingHours.getTimeOfDaySeconds(proposedEnd);
 
+        // for each of theirEmails, get theirWorkingHoursMap and take the min of endTimeSeconds
+        const theirWorkingHoursMaxEnd = Math.min(
+          ...theirEmails.map(
+            (email) => theirWorkingHoursMap.get(email)?.endTimeSeconds ?? 0
+          )
+        );
         const theirWorkingHoursEndSeconds =
           newDate.getDay() === 5
-            ? theirWorkingHours.endTimeSeconds - 3600
-            : theirWorkingHours.endTimeSeconds;
+            ? theirWorkingHoursMaxEnd - 3600
+            : theirWorkingHoursMaxEnd;
+
+        // for each of theirEmails, get theirWorkingHoursMap and take the max of startTimeSeconds
+        const theirWorkingHoursMinStart = Math.max(
+          ...theirEmails.map(
+            (email) => theirWorkingHoursMap.get(email)?.startTimeSeconds ?? 0
+          )
+        );
 
         if (
           proposedStartSeconds >= myWorkingHours.startTimeSeconds &&
           proposedEndSeconds <= myWorkingHours.endTimeSeconds &&
-          proposedStartSeconds >= theirWorkingHours.startTimeSeconds &&
+          proposedStartSeconds >= theirWorkingHoursMinStart &&
           proposedEndSeconds <= theirWorkingHoursEndSeconds
         ) {
           const hasConflict = (
@@ -202,25 +212,46 @@ export namespace CalendarAlg {
                     new Date(otherEvent.end!.date!).getTime() +
                     24 * 60 * 60 * 1000;
 
-                  return (
+                  const conflict =
                     proposedStart.getTime() < oooEnd &&
-                    proposedEnd.getTime() > oooStart
-                  );
+                    proposedEnd.getTime() > oooStart;
+                  if (conflict) {
+                    Log.log(
+                      "\t\tConflict with OOO event: " + otherEvent.summary
+                    );
+                  }
+
+                  return conflict;
                 }
               }
 
-              return (
+              const conflict =
                 proposedStart.getTime() < otherEnd &&
-                proposedEnd.getTime() > otherStart
-              );
+                proposedEnd.getTime() > otherStart;
+              if (conflict) {
+                Log.log("\t\tConflict with event: " + otherEvent.summary);
+              }
+
+              return conflict;
             });
 
-          if (
-            !hasConflict(myEventsList, currentSolution) &&
-            !hasConflict(theirEvents.get(theirEmail)!, currentSolution)
-          ) {
-            newStartTimeOptions.push(proposedStart);
+          if (hasConflict(myEventsList, currentSolution)) {
+            continue;
           }
+
+          // for each of theirEmails, check if there is a conflict with theirEvents
+          const hasConflictWithAnyOfThem = theirEmails.some((theirEmail) => {
+            const events = theirEvents.get(theirEmail) ?? [];
+            if (hasConflict(events, currentSolution)) {
+              return true;
+            }
+          });
+
+          if (hasConflictWithAnyOfThem) {
+            continue;
+          }
+
+          newStartTimeOptions.push(proposedStart);
         }
       }
     }
@@ -229,95 +260,6 @@ export namespace CalendarAlg {
   }
 
   export function getInputs(refDate: Date): CalendarAlg.Inputs {
-    // const cache = CacheService.getScriptCache();
-    // const cachedInputs = cache.get(CalendarAlg.INPUTS_CACHE_KEY);
-    // const cachedTheirEvents1 = cache.get(CalendarAlg.THEIR_EVENTS_CACHE_KEY_1);
-    // const cachedTheirEvents2 = cache.get(CalendarAlg.THEIR_EVENTS_CACHE_KEY_2);
-    // const cachedTheirEvents3 = cache.get(CalendarAlg.THEIR_EVENTS_CACHE_KEY_3);
-
-    // if (
-    //   cachedInputs &&
-    //   cachedTheirEvents1 &&
-    //   cachedTheirEvents2 &&
-    //   cachedTheirEvents3
-    // ) {
-    //   Log.log("Using cached inputs.");
-    //   const inputsWithoutTheirEvents = deserializeInputs(
-    //     JSON.parse(
-    //       Utilities.ungzip(
-    //         Utilities.newBlob(
-    //           Utilities.base64Decode(cachedInputs),
-    //           "application/x-gzip"
-    //         )
-    //       ).getDataAsString()
-    //     )
-    //   ) as CalendarAlg.Inputs;
-
-    //   const theirEventsPart1 = new Map(
-    //     JSON.parse(
-    //       Utilities.ungzip(
-    //         Utilities.newBlob(
-    //           Utilities.base64Decode(cachedTheirEvents1),
-    //           "application/x-gzip"
-    //         )
-    //       ).getDataAsString()
-    //     )
-    //   );
-
-    //   const theirEventsPart2 = new Map(
-    //     JSON.parse(
-    //       Utilities.ungzip(
-    //         Utilities.newBlob(
-    //           Utilities.base64Decode(cachedTheirEvents2),
-    //           "application/x-gzip"
-    //         )
-    //       ).getDataAsString()
-    //     )
-    //   );
-
-    //   const theirEventsPart3 = new Map(
-    //     JSON.parse(
-    //       Utilities.ungzip(
-    //         Utilities.newBlob(
-    //           Utilities.base64Decode(cachedTheirEvents3),
-    //           "application/x-gzip"
-    //         )
-    //       ).getDataAsString()
-    //     )
-    //   );
-
-    //   const combinedTheirEvents = new Map<
-    //     string,
-    //     GoogleAppsScript.Calendar.Schema.Event[]
-    //   >();
-
-    //   theirEventsPart1.forEach((value, key) => {
-    //     combinedTheirEvents.set(
-    //       key as string,
-    //       value as GoogleAppsScript.Calendar.Schema.Event[]
-    //     );
-    //   });
-
-    //   theirEventsPart2.forEach((value, key) => {
-    //     combinedTheirEvents.set(
-    //       key as string,
-    //       value as GoogleAppsScript.Calendar.Schema.Event[]
-    //     );
-    //   });
-
-    //   theirEventsPart3.forEach((value, key) => {
-    //     combinedTheirEvents.set(
-    //       key as string,
-    //       value as GoogleAppsScript.Calendar.Schema.Event[]
-    //     );
-    //   });
-
-    //   return {
-    //     ...inputsWithoutTheirEvents,
-    //     theirEvents: combinedTheirEvents,
-    //   } as CalendarAlg.Inputs;
-    // }
-
     const startDate = new Date(refDate);
     startDate.setHours(0, 0, 0, 0);
     const endDate = new Date(refDate);
@@ -337,8 +279,7 @@ export namespace CalendarAlg {
     });
 
     Log.log("Getting my working hours");
-    const myWorkingHours =
-      WorkingHours.estimateWorkingHours("tmellor@block.xyz");
+    const myWorkingHours = WorkingHours.estimateWorkingHours("primary");
 
     const theirEvents = new Map<
       string,
@@ -348,24 +289,42 @@ export namespace CalendarAlg {
 
     const otherPeople = new Set<string>();
     myEventsList
-      .filter((event) => EventUtil.isOneOnOneWithMe(event))
-      .map((event) => EventUtil.getEmailForOtherAttendee(event))
+      .map((event) => event.attendees)
+      .filter((attendees) => attendees !== undefined)
+      .flatMap((attendees) => attendees!)
+      .filter((attendee) => !EventUtil.isAttendeeLikelyAnEmailList(attendee))
+      .map((attendee) => attendee.email)
       .filter((email) => email !== undefined)
       .forEach((email) => {
         Log.log("Getting their events next week");
-        theirEvents.set(
-          email!,
-          GetEvents.getEventsForDateRangeCustomCalendar(
+        const events =
+          GetEvents.getEventsForDateRangeCustomCalendarWithErrorCatch(
             startDate,
             endDate,
             email!,
             undefined,
             undefined,
             true
-          ).filter(
+          );
+        if (events === undefined) {
+          Log.log(
+            "Error fetching events for " +
+              email +
+              ", perhaps they're not an employee anymore? Skipping them"
+          );
+          return;
+        }
+        theirEvents.set(
+          email!,
+          events.filter(
             (event) =>
-              !EventUtil.didRSVPNo(event, email) &&
-              event.eventType !== "focusTime"
+              // TODO does this include out of office?
+              (event.eventType === "default" &&
+                event.attendees === undefined &&
+                !event.summary?.toLowerCase().includes("focus time")) ||
+              (event.eventType === "default" &&
+                EventUtil.didRSVPYes(event, email)) ||
+              event.eventType === "outOfOffice"
           )
         );
         otherPeople.add(email);
@@ -379,13 +338,7 @@ export namespace CalendarAlg {
 
     const moveableEvents = new Set(
       Array.from(myEvents.values())
-        .filter((event) => EventUtil.isOneOnOneWithMe(event))
-        .filter(
-          (event) =>
-            !event.attendees?.some(
-              (attendee) => attendee.email === "azra@block.xyz"
-            )
-        )
+        .filter((event) => isEventEligibleForDefragSelection(event))
         .map((event) => event.id!)
     );
     const moveableEventTimings = new Map<string, CalendarCost.EventTiming>();
@@ -426,104 +379,9 @@ export namespace CalendarAlg {
       recurrenceSchedule,
     };
 
-    // const serializedInputs = JSON.stringify(serializeInputs(inputs));
-    // const compressedBlob = Utilities.gzip(
-    //   Utilities.newBlob(serializedInputs, "application/json")
-    // );
-
-    // const compressedInputs = Utilities.base64Encode(compressedBlob.getBytes());
-
-    // cache.put(CalendarAlg.INPUTS_CACHE_KEY, compressedInputs, 30 * 60); // Cache for 30 minutes
-
-    // const theirEventsArray = Array.from(theirEvents.entries());
-    // const partitionSize = Math.ceil(theirEventsArray.length / 3);
-    // const theirEventsPart1 = new Map(theirEventsArray.slice(0, partitionSize));
-    // const theirEventsPart2 = new Map(
-    //   theirEventsArray.slice(partitionSize, partitionSize * 2)
-    // );
-    // const theirEventsPart3 = new Map(theirEventsArray.slice(partitionSize * 2));
-
-    // const serializedTheirEvents1 = JSON.stringify(
-    //   Array.from(theirEventsPart1.entries())
-    // );
-    // const compressedBlobTheirEvents1 = Utilities.gzip(
-    //   Utilities.newBlob(serializedTheirEvents1, "application/json")
-    // );
-
-    // const compressedTheirEvents1 = Utilities.base64Encode(
-    //   compressedBlobTheirEvents1.getBytes()
-    // );
-
-    // cache.put(
-    //   CalendarAlg.THEIR_EVENTS_CACHE_KEY_1,
-    //   compressedTheirEvents1,
-    //   120 * 60
-    // );
-
-    // const serializedTheirEvents2 = JSON.stringify(
-    //   Array.from(theirEventsPart2.entries())
-    // );
-    // const compressedBlobTheirEvents2 = Utilities.gzip(
-    //   Utilities.newBlob(serializedTheirEvents2, "application/json")
-    // );
-
-    // const compressedTheirEvents2 = Utilities.base64Encode(
-    //   compressedBlobTheirEvents2.getBytes()
-    // );
-
-    // cache.put(
-    //   CalendarAlg.THEIR_EVENTS_CACHE_KEY_2,
-    //   compressedTheirEvents2,
-    //   120 * 60
-    // );
-
-    // const serializedTheirEvents3 = JSON.stringify(
-    //   Array.from(theirEventsPart3.entries())
-    // );
-    // const compressedBlobTheirEvents3 = Utilities.gzip(
-    //   Utilities.newBlob(serializedTheirEvents3, "application/json")
-    // );
-
-    // const compressedTheirEvents3 = Utilities.base64Encode(
-    //   compressedBlobTheirEvents3.getBytes()
-    // );
-
-    // cache.put(
-    //   CalendarAlg.THEIR_EVENTS_CACHE_KEY_3,
-    //   compressedTheirEvents3,
-    //   120 * 60
-    // );
-
-    // TODO I would never want to cache this long
-    Log.log("Inputs cached in four parts for 120 minutes.");
-
     return {
       ...inputs,
       theirEvents,
-    };
-  }
-
-  function serializeInputs(inputs: CalendarAlg.Inputs) {
-    return {
-      ...inputs,
-      myEvents: Array.from(inputs.myEvents.entries()),
-      theirEvents: Array.from(inputs.theirEvents.entries()),
-      theirWorkingHours: Array.from(inputs.theirWorkingHours.entries()),
-      moveableEvents: Array.from(inputs.moveableEvents),
-      moveableEventTimings: Array.from(inputs.moveableEventTimings.entries()),
-      recurrenceSchedule: Array.from(inputs.recurrenceSchedule.entries()),
-    };
-  }
-
-  function deserializeInputs(data: any): CalendarAlg.Inputs {
-    return {
-      ...data,
-      myEvents: new Map(data.myEvents),
-      theirEvents: new Map(data.theirEvents),
-      theirWorkingHours: new Map(data.theirWorkingHours),
-      moveableEvents: new Set(data.moveableEvents),
-      moveableEventTimings: new Map(data.moveableEventTimings),
-      recurrenceSchedule: new Map(data.recurrenceSchedule),
     };
   }
 
@@ -556,6 +414,46 @@ export namespace CalendarAlg {
     date.setSeconds(secondsTiming);
 
     return date;
+  }
+
+  export function isEventEligibleForDefragSelection(
+    event: GoogleAppsScript.Calendar.Schema.Event,
+    allowPastEvents: boolean = false
+  ): boolean {
+    if (
+      event.start?.dateTime === undefined ||
+      event.end?.dateTime === undefined
+    ) {
+      return false;
+    }
+
+    if (!allowPastEvents) {
+      if (new Date(event.start!.dateTime!).getTime() < new Date().getTime()) {
+        return false;
+      }
+    }
+
+    if (
+      event.attendees?.some((attendee) => attendee.email === "azra@block.xyz")
+    ) {
+      return false;
+    }
+
+    if (EventUtil.isOneOnOneWithMe(event)) {
+      return true;
+    }
+
+    if (
+      event.eventType === "default" &&
+      event.attendees !== undefined &&
+      event.attendees.length > 1 &&
+      event.attendees.length < 10 &&
+      !EventUtil.isAnAttendeeLikelyAnEmailList(event)
+    ) {
+      return true;
+    }
+
+    return false;
   }
 
   export function formatToPacificTime(
