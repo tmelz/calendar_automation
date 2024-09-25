@@ -120,6 +120,10 @@ function doGet(e: GoogleAppsScript.Events.DoGet) {
     templateFile = "src/webapp/defrag";
   }
 
+  if (page === "download") {
+    templateFile = "src/webapp/download";
+  }
+
   const template = HtmlService.createTemplateFromFile(templateFile);
   const userSettings = UserSettings.loadSettings();
   template.userSettings = JSON.stringify(userSettings);
@@ -127,6 +131,37 @@ function doGet(e: GoogleAppsScript.Events.DoGet) {
     .evaluate()
     .setTitle("Calendar Automation")
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function serializeInputs(inputs) {
+  return {
+    myEvents: mapToObject(inputs.myEvents),
+    myEventsList: inputs.myEventsList, // Assuming this is already serializable
+    myWorkingHours: inputs.myWorkingHours, // Ensure this is serializable
+    theirEvents: mapToObject(inputs.theirEvents),
+    theirWorkingHours: mapToObject(inputs.theirWorkingHours),
+    moveableEvents: setToArray(inputs.moveableEvents),
+    moveableEventTimings: mapToObject(inputs.moveableEventTimings),
+    recurrenceSchedule: mapToObject(inputs.recurrenceSchedule),
+  };
+}
+
+function getDefragInputsForDownload() {
+  const inputs = CalendarAlg.getInputs(new Date("2024-09-30"));
+  const serializedInputs = serializeInputs(inputs);
+  return serializedInputs;
+}
+
+function mapToObject(map) {
+  const obj = {};
+  map.forEach((value, key) => {
+    obj[key] = value;
+  });
+  return obj;
+}
+
+function setToArray(set) {
+  return Array.from(set);
 }
 
 // Update user settings

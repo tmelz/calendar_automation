@@ -3,7 +3,12 @@ import { GreedyDefrag } from "../../src/defrag/greedy-defrag";
 import { WorkingHours } from "../../src/defrag/working-hours";
 import { myOneOnOneEvent } from "../checks/event-data";
 
+import * as fs from "fs";
+import * as path from "path";
+
 import consoleSpy from "../jest.setup";
+import { CalendarCost } from "../../src/defrag/calendar-cost";
+import { EventRecurrence } from "../../src/defrag/event-recurrence";
 
 describe("GreedyDefrag.main", () => {
   // We have logging mocked out for tests, but allow it in this case
@@ -16,7 +21,7 @@ describe("GreedyDefrag.main", () => {
   //   consoleSpy.mockImplementation(jest.fn());
   // });
 
-  it("TODO", () => {
+  it("it functionally works", () => {
     const events: GoogleAppsScript.Calendar.Schema.Event[] = [
       {
         ...myOneOnOneEvent,
@@ -152,4 +157,40 @@ describe("GreedyDefrag.main", () => {
     const solution = GreedyDefrag.solve(inputs);
     // CalendarAlg.describeSolution(inputs, solution);
   });
+
+  // it("stress test", () => {
+  //   const jsonPath = path.resolve(
+  //     "/Users/tmellor/Downloads/largeDefragInputs.json"
+  //   );
+  //   // Load the file synchronously (for simplicity)
+  //   const jsonData = fs.readFileSync(jsonPath, "utf8");
+  //   // Parse the JSON data
+  //   const inputs = deserializeInputs(JSON.parse(jsonData));
+  //   const solution = GreedyDefrag.solve(inputs);
+  //   // CalendarAlg.describeSolution(inputs, solution);
+  // });
+
+  // function deserializeInputs(parsedData: any): CalendarAlg.Inputs {
+  //   return {
+  //     myEvents: new Map<string, GoogleAppsScript.Calendar.Schema.Event>(
+  //       Object.entries(parsedData.myEvents)
+  //     ),
+  //     myEventsList:
+  //       parsedData.myEventsList as GoogleAppsScript.Calendar.Schema.Event[],
+  //     myWorkingHours: parsedData.myWorkingHours as WorkingHours.TimeRange,
+  //     theirEvents: new Map<string, GoogleAppsScript.Calendar.Schema.Event[]>(
+  //       Object.entries(parsedData.theirEvents)
+  //     ),
+  //     theirWorkingHours: new Map<string, WorkingHours.TimeRange>(
+  //       Object.entries(parsedData.theirWorkingHours)
+  //     ),
+  //     moveableEvents: new Set<string>(parsedData.moveableEvents),
+  //     moveableEventTimings: new Map<string, CalendarCost.EventTiming>(
+  //       Object.entries(parsedData.moveableEventTimings)
+  //     ),
+  //     recurrenceSchedule: new Map<string, EventRecurrence.RecurrenceType>(
+  //       Object.entries(parsedData.recurrenceSchedule)
+  //     ),
+  //   };
+  // }
 });

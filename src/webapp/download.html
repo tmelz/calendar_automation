@@ -1,0 +1,93 @@
+<!-- Index.html -->
+
+<!doctype html>
+<html>
+  <head>
+    <base target="_top" />
+    <title>Download JSON</title>
+    <script>
+      /**
+       * Initializes the page by setting up event listeners.
+       */
+      function init() {
+        document
+          .getElementById("downloadBtn")
+          .addEventListener("click", fetchAndDownloadJSON);
+      }
+
+      /**
+       * Fetches JSON data from the server and initiates the download.
+       */
+      function fetchAndDownloadJSON() {
+        // Provide user feedback
+        document.getElementById("status").innerText = "Fetching JSON data...";
+
+        // Call the server-side function
+        google.script.run
+          .withSuccessHandler(downloadJSON)
+          .withFailureHandler(handleError)
+          .getDefragInputsForDownload();
+      }
+
+      /**
+       * Handles the successful retrieval of JSON data.
+       *
+       * @param {Object} data - The JSON data returned from the server.
+       */
+      function downloadJSON(data) {
+        try {
+          // Convert the data to a JSON string
+          const jsonString = JSON.stringify(data, null, 2);
+
+          // Create a blob from the JSON string
+          const blob = new Blob([jsonString], { type: "application/json" });
+
+          // Create a temporary link element
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "defrag_inputs.json"; // Filename for the downloaded file
+
+          // Append the link to the body
+          document.body.appendChild(a);
+
+          // Programmatically click the link to trigger the download
+          a.click();
+
+          // Clean up by removing the link and revoking the object URL
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+
+          // Update user feedback
+          document.getElementById("status").innerText =
+            "JSON file has been downloaded successfully.";
+        } catch (e) {
+          console.error("Error during download:", e);
+          alert("An error occurred while downloading the JSON file.");
+          document.getElementById("status").innerText =
+            "Error during download.";
+        }
+      }
+
+      /**
+       * Handles any errors that occur during the server call.
+       *
+       * @param {Object} error - The error object.
+       */
+      function handleError(error) {
+        console.error("Server Error:", error);
+        alert("Failed to retrieve JSON data from the server.");
+        document.getElementById("status").innerText =
+          "Failed to retrieve JSON data.";
+      }
+
+      // Initialize the page once the DOM is fully loaded
+      window.addEventListener("DOMContentLoaded", init);
+    </script>
+  </head>
+  <body>
+    <h1>Download JSON</h1>
+    <button id="downloadBtn">Download JSON</button>
+    <p id="status">Click the button to download the JSON file.</p>
+  </body>
+</html>
