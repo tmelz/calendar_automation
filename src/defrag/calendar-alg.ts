@@ -1,7 +1,6 @@
 import { EventUtil } from "../checks/event-util";
 import { GetEvents } from "../checks/get-events";
 import { Log } from "../checks/log";
-import { Time } from "../checks/time";
 import { CalendarCost } from "./calendar-cost";
 import { WorkingHours } from "./working-hours";
 import { EventRecurrence } from "./event-recurrence";

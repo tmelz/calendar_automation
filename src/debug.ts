@@ -6,6 +6,7 @@ import { CalendarAlg } from "./defrag/calendar-alg";
 import { GreedyDefrag } from "./defrag/greedy-defrag";
 import { WorkingHours } from "./defrag/working-hours";
 import { ModifyEvent } from "./checks/modify-event";
+import { TeamCalendarOOO } from "./team_calendar/team-calendar-ooo";
 
 // export function debugEstimateWorkingHours(email: string) {
 //   const events = GetEvents.getEventsForRestOfWeek();
@@ -20,85 +21,118 @@ import { ModifyEvent } from "./checks/modify-event";
 // });
 export function debug() {
   const now = new Date();
-  const oneHourInFuture = new Date(now.getTime() + 60 * 60 * 1000);
-  const calendarId = "tmellor@block.xyz";
-  // const calendarId = "c_dbf46adba7f1d6fc383bbeaaf7d50723e6bea3901446fb11b02f9d5751219f6f@group.calendar.google.com";
-
-  let events = Calendar.Events?.list(calendarId, {
-    timeMin: now.toISOString(),
-    timeMax: oneHourInFuture.toISOString(),
-    singleEvents: true,
-    orderBy: "startTime",
-    maxResults: 10,
-  });
-  events?.items?.forEach((event) => {
-    console.log(
-      `${event.summary}, ${event.id}, ${event.colorId}, ${event.start?.dateTime}`
-    );
-    console.log(`${JSON.stringify(event)}`);
-    if (event.id === "4tj61a1r9puiipoc0899l52gno") {
-      console.log("modifying event");
-      const eventStart = new Date(event.start!.dateTime!);
-      // add 15 minutes to start
-      eventStart.setMinutes(eventStart.getMinutes() + 3);
-      console.log(event.start!.dateTime);
-      console.log(event.end!.dateTime);
-      event.start!.dateTime = eventStart.toISOString();
-      console.log(event.start!.dateTime);
-      console.log(event.end!.dateTime);
-
-      // saveEvent(event);
-
-      // console.log("modifying event locally with manual sequence increment");
-      // // console.log("current sequence: " + event.sequence);
-      // // event.sequence = event.sequence! + 1;
-      // // console.log("bumped sequence: " + event.sequence);
-      // event.colorId = "9";
-      // saveEvent(event, true);
-    }
-  });
-
-  events = Calendar.Events?.list(calendarId, {
-    timeMin: now.toISOString(),
-    timeMax: oneHourInFuture.toISOString(),
-    singleEvents: true,
-    orderBy: "startTime",
-    maxResults: 10,
-  });
-  events?.items?.forEach((event) => {
-    console.log(
-      `${event.summary}, ${event.id}, ${event.colorId}, ${event.start?.dateTime}`
-    );
-    console.log(`${JSON.stringify(event)}`);
-    if (event.id === "4tj61a1r9puiipoc0899l52gno") {
-      console.log("modifying event locally with manual sequence increment");
-      // console.log("current sequence: " + event.sequence);
-      // event.sequence = event.sequence! + 1;
-      // console.log("bumped sequence: " + event.sequence);
-      event.colorId = "11";
-      saveEvent(event, true);
-    }
-  });
-
-  // events = Calendar.Events?.list(calendarId, {
-  //   timeMin: now.toISOString(),
-  //   timeMax: oneHourInFuture.toISOString(),
-  //   singleEvents: true,
-  //   orderBy: "startTime",
-  //   maxResults: 10,
-  // });
-  // events?.items?.forEach((event) => {
-  //   console.log(
-  //     `${event.summary}, ${event.id}, ${event.colorId}, ${event.start?.dateTime}`
-  //   );
-  //   console.log(`${JSON.stringify(event)}`);
-  //   if (event.id === "2ca5nsak4reg77ejfvhov1epfe") {
-  //     console.log("modifying event");
-  //     event.colorId = "5";
-  //     saveEvent(event, true);
-  //   }
-  // });
+  const nowYesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  TeamCalendarOOO.syncCalendarOOO(
+    nowYesterday,
+    oneWeekFromNow,
+    "c_dbf46adba7f1d6fc383bbeaaf7d50723e6bea3901446fb11b02f9d5751219f6f@group.calendar.google.com",
+    "mdx-android@squareup.com"
+  );
 }
+
+export function debugListCalEvents() {
+  const now = new Date();
+  const nowYesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  const events = Calendar.Events?.list(
+    "c_dbf46adba7f1d6fc383bbeaaf7d50723e6bea3901446fb11b02f9d5751219f6f@group.calendar.google.com",
+    {
+      timeMin: nowYesterday.toISOString(),
+      timeMax: oneWeekFromNow.toISOString(),
+      singleEvents: true,
+      orderBy: "startTime",
+      maxResults: 10,
+    }
+  );
+  events?.items?.forEach((event) => {
+    console.log(
+      `${event.summary}, ${event.id}, ${JSON.stringify(event.start)}, ${JSON.stringify(event.end)}`
+    );
+  });
+}
+
+// const now = new Date();
+// const oneHourInFuture = new Date(now.getTime() + 60 * 60 * 1000);
+// const calendarId = "tmellor@block.xyz";
+// // const calendarId = "c_dbf46adba7f1d6fc383bbeaaf7d50723e6bea3901446fb11b02f9d5751219f6f@group.calendar.google.com";
+
+// let events = Calendar.Events?.list(calendarId, {
+//   timeMin: now.toISOString(),
+//   timeMax: oneHourInFuture.toISOString(),
+//   singleEvents: true,
+//   orderBy: "startTime",
+//   maxResults: 10,
+// });
+// events?.items?.forEach((event) => {
+//   console.log(
+//     `${event.summary}, ${event.id}, ${event.colorId}, ${event.start?.dateTime}`
+//   );
+//   console.log(`${JSON.stringify(event)}`);
+//   if (event.id === "4tj61a1r9puiipoc0899l52gno") {
+//     console.log("modifying event");
+//     const eventStart = new Date(event.start!.dateTime!);
+//     // add 15 minutes to start
+//     eventStart.setMinutes(eventStart.getMinutes() + 3);
+//     console.log(event.start!.dateTime);
+//     console.log(event.end!.dateTime);
+//     event.start!.dateTime = eventStart.toISOString();
+//     console.log(event.start!.dateTime);
+//     console.log(event.end!.dateTime);
+
+// saveEvent(event);
+
+// console.log("modifying event locally with manual sequence increment");
+// // console.log("current sequence: " + event.sequence);
+// // event.sequence = event.sequence! + 1;
+// // console.log("bumped sequence: " + event.sequence);
+// event.colorId = "9";
+// saveEvent(event, true);
+//   }
+// });
+
+// events = Calendar.Events?.list(calendarId, {
+//   timeMin: now.toISOString(),
+//   timeMax: oneHourInFuture.toISOString(),
+//   singleEvents: true,
+//   orderBy: "startTime",
+//   maxResults: 10,
+// });
+// events?.items?.forEach((event) => {
+//   console.log(
+//     `${event.summary}, ${event.id}, ${event.colorId}, ${event.start?.dateTime}`
+//   );
+//   console.log(`${JSON.stringify(event)}`);
+//   if (event.id === "4tj61a1r9puiipoc0899l52gno") {
+//     console.log("modifying event locally with manual sequence increment");
+//     // console.log("current sequence: " + event.sequence);
+//     // event.sequence = event.sequence! + 1;
+//     // console.log("bumped sequence: " + event.sequence);
+//     event.colorId = "11";
+//     saveEvent(event, true);
+//   }
+// });
+
+// events = Calendar.Events?.list(calendarId, {
+//   timeMin: now.toISOString(),
+//   timeMax: oneHourInFuture.toISOString(),
+//   singleEvents: true,
+//   orderBy: "startTime",
+//   maxResults: 10,
+// });
+// events?.items?.forEach((event) => {
+//   console.log(
+//     `${event.summary}, ${event.id}, ${event.colorId}, ${event.start?.dateTime}`
+//   );
+//   console.log(`${JSON.stringify(event)}`);
+//   if (event.id === "2ca5nsak4reg77ejfvhov1epfe") {
+//     console.log("modifying event");
+//     event.colorId = "5";
+//     saveEvent(event, true);
+//   }
+// });
+// }
 
 export function saveEvent(
   event: GoogleAppsScript.Calendar.Schema.Event,
