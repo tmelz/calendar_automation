@@ -154,18 +154,8 @@ export namespace TeamCalendarOOO {
 
     Log.log(`Creating new all day events:`);
     changes.newAllDayEvents.forEach((event) => {
-      const startDate = new Date(event.start);
-      const endDate = new Date(event.end);
-      // gcal API is that end date is exclusive for all day events
-      if (event.start === event.end) {
-        endDate.setDate(endDate.getDate() + 1);
-      }
-
-      // barf
-      startDate.setMinutes(
-        startDate.getMinutes() + startDate.getTimezoneOffset() + 5 // idk
-      );
-      endDate.setMinutes(endDate.getMinutes() + endDate.getTimezoneOffset());
+      const startDate = getAllDayDate(event.start);
+      const endDate = getAllDayDate(event.end);
 
       Log.log(
         `Creating new all day event: ${event.title} from ${startDate} to ${endDate}`
@@ -174,13 +164,13 @@ export namespace TeamCalendarOOO {
       if (event.start === event.end) {
         CalendarApp.getCalendarById(calendarId).createAllDayEvent(
           event.title,
-          new Date(event.start)
+          startDate
         );
       } else {
         CalendarApp.getCalendarById(calendarId).createAllDayEvent(
           event.title,
-          new Date(event.start),
-          new Date(event.end)
+          startDate,
+          endDate
         );
       }
     });
@@ -234,11 +224,22 @@ export namespace TeamCalendarOOO {
         `Examing team calendar OOO event: ${teamCalendarOOOEvent.summary} ${JSON.stringify(teamCalendarOOOEvent.start)} to ${JSON.stringify(teamCalendarOOOEvent.end)}`
       );
       const matchingEvent = eventsMayNeedToCreate.find((event) => {
+        // Pretty gross logic. Sometimes single day events have start==end. Sometimes
+        // they have end==start +1. Idk.
         if (
           isAllDayEvent(event) &&
           isAllDayEvent(teamCalendarOOOEvent) &&
+          // Check if start === start
           event.start!.date! === teamCalendarOOOEvent.start!.date! &&
-          event.end!.date! === teamCalendarOOOEvent.end!.date!
+          // check if end == end OR (if one of them is a start==end event AND the other is the proper end=start+1)
+          (event.end!.date! === teamCalendarOOOEvent.end!.date! ||
+            ((event.start!.date! === event.end!.date! ||
+              teamCalendarOOOEvent.start!.date! ===
+                teamCalendarOOOEvent.end!.date!) &&
+              Math.abs(
+                new Date(event.end!.date!).getDate() -
+                  new Date(teamCalendarOOOEvent.end!.date!).getDate()
+              ) <= 1))
         ) {
           return true;
         }
@@ -372,5 +373,14 @@ export namespace TeamCalendarOOO {
 
     // Return the email if found, otherwise return null
     return match ? match[1] : undefined;
+  }
+
+  function getAllDayDate(date: string): Date {
+    // so many weird timezone issues with just passing new Date(date)
+    // into the gcal API, this workaround seems to work, too lazy to
+    // fully debug why. the error for that is that it creates for the day before
+    // seems safe we can assume the format is YYYY-MM-DD
+    const [year, month, day] = date.split("-").map(Number);
+    return new Date(year, month - 1, day);
   }
 }
