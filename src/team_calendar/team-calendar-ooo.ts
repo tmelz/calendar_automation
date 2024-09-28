@@ -347,6 +347,7 @@ export namespace TeamCalendarOOO {
   }
 
   export function getNameByEmail(email: string): string | undefined {
+    // TODO fallback with squareup.com if block.xyz returns undefined. so silly...
     // Search the contact by their email address
     const contacts = ContactsApp.getContactsByEmailAddress(email);
 
