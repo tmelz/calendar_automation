@@ -154,6 +154,59 @@
         left: 50%;
         transform: translate(-50%, -50%);
       }
+      /* New Styles for Team Calendar Settings */
+      .team-calendar-settings {
+        margin-left: 30px;
+        margin-top: 15px;
+      }
+      .team-calendar-entry {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 15px;
+      }
+      .team-calendar-entry input {
+        flex: 1;
+        padding: 8px;
+        margin-right: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      .team-calendar-entry .error {
+        color: red;
+        font-size: 0.8em;
+        margin-top: 5px;
+      }
+      .add-entry-button {
+        background-color: #2ecc71;
+        margin-top: 10px;
+      }
+      .add-entry-button:hover {
+        background-color: #27ae60;
+      }
+      .remove-entry-button {
+        background-color: lightgrey;
+        border: none;
+        color: white;
+        border-radius: 10%;
+        width: 30px;
+        height: 30px;
+        font-size: 16px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 0.3s;
+      }
+      .remove-entry-button:hover {
+        background-color: #c0392b;
+      }
+      .remove-entry-button:disabled {
+        background-color: #bdc3c7;
+        cursor: not-allowed;
+      }
+      .invalid {
+        border-color: red;
+      }
     </style>
   </head>
   <body>
@@ -217,7 +270,7 @@
             Conflict
             <br />
             <span class="description"
-              >Add a ⚔️ to the meeting title if an attendee is RSVPd to an other
+              >Add a ⚔️ to the meeting title if an attendee is RSVPd to another
               event at the same time.</span
             >
           </label>
@@ -271,16 +324,127 @@
             </div>
           </div>
         </div>
+
+        <!-- New Settings Group: Features for team calendars -->
+        <div class="settings-group" :class="{ disabled: !settings.enabled }">
+          <h3>Features for team calendars</h3>
+          <label>
+            <input
+              type="checkbox"
+              v-model="settings.teamCalendar.outOfOffice"
+              @change="onSettingsChanged"
+              :disabled="!settings.enabled"
+            />
+            Enable Out of Office for Team Calendars
+          </label>
+          <span class="description"
+            >Add team member's OOO events onto the team calendar.</span
+          >
+          <div
+            v-if="settings.teamCalendar.outOfOffice"
+            class="team-calendar-settings"
+          >
+            <div
+              v-for="(entry, index) in settings.teamCalendarSettings.outOfOffice"
+              :key="index"
+              class="team-calendar-entry"
+            >
+              <div style="flex: 1">
+                <label>Calendar ID</label>
+                <input
+                  type="text"
+                  v-model="entry.calendarId"
+                  @input="validateCalendarId(index)"
+                  :class="{ invalid: validationErrors[index] && validationErrors[index].calendarId }"
+                  placeholder="your-calendar@group.calendar.google.com"
+                />
+                <span
+                  class="error"
+                  v-if="validationErrors[index] && validationErrors[index].calendarId"
+                >
+                  Calendar ID must end with @group.calendar.google.com
+                </span>
+              </div>
+              <div style="flex: 1">
+                <label>Group Email</label>
+                <input
+                  type="email"
+                  v-model="entry.groupEmail"
+                  @input="validateGroupEmail(index)"
+                  :class="{ invalid: validationErrors[index] && validationErrors[index].groupEmail }"
+                  placeholder="group@example.com"
+                />
+                <span
+                  class="error"
+                  v-if="validationErrors[index] && validationErrors[index].groupEmail"
+                >
+                  Please enter a valid email address.
+                </span>
+              </div>
+              <button
+                type="button"
+                class="remove-entry-button"
+                @click="removeTeamCalendarEntry(index)"
+                :disabled="!settings.enabled"
+                title="Remove this entry"
+              >
+                ❌
+              </button>
+            </div>
+            <button
+              type="button"
+              class="add-entry-button"
+              @click="addTeamCalendarEntry"
+              :disabled="!settings.enabled"
+            >
+              ➕ Add Team Calendar
+            </button>
+          </div>
+        </div>
+
         <div v-if="saving" class="saving">Saving{{ ellipsis }}</div>
         <div v-if="saved" class="saved">Saved &#x2705;</div>
       </div>
     </div>
 
+    <!-- Embed the userSettings JSON directly into a JavaScript variable -->
+    <script>
+      const userSettings = <?!= JSON.stringify(userSettings) ?>;
+      console.log("User settings object:", userSettings);
+    </script>
+
     <script>
       new Vue({
         el: "#app",
         data: {
-          settings: {},
+          settings: {
+            enabled: false,
+            checks: {
+              outOfOffice: false,
+              plusFiveMinutes: false,
+              quit: false,
+              conflict: false,
+              eventColor: false,
+            },
+            checkSettings: {
+              eventColors: {
+                "External attendees": "No-op",
+                "One-on-one": "No-op",
+                "Focus Time": "No-op",
+                Hold: "No-op",
+                "Team sync": "No-op",
+                "Ad-hoc": "No-op",
+                "Out of office": "No-op",
+                Other: "No-op",
+              },
+            },
+            teamCalendar: {
+              outOfOffice: false,
+            },
+            teamCalendarSettings: {
+              outOfOffice: [],
+            },
+          },
           saving: false,
           saved: false,
           ellipsis: "",
@@ -296,7 +460,7 @@
             "Graphite",
             "Blueberry",
             "Basil",
-            "Tomato"
+            "Tomato",
           ],
           orderedCategories: [
             "External attendees",
@@ -306,19 +470,92 @@
             "Team sync",
             "Ad-hoc",
             "Out of office",
-            "Other"
-          ]
+            "Other",
+          ],
+          validationErrors: [], // Array to track validation errors per entry
         },
         created() {
-          const userSettingsString = <?= userSettings ?>;
-          console.log("User settings string:", userSettingsString);
-          const parsedSettings = JSON.parse(userSettingsString);
-          console.log("Received user settings:", parsedSettings);
-          this.settings = parsedSettings;
+          // Assign the embedded userSettings object directly
+          this.settings = userSettings;
+          console.log("Received user settings:", this.settings);
+
+          // Ensure teamCalendarSettings.outOfOffice is initialized
+          if (
+            this.settings.teamCalendarSettings &&
+            Array.isArray(this.settings.teamCalendarSettings.outOfOffice)
+          ) {
+            // Already assigned correctly
+          } else {
+            // Initialize as an empty array if not present
+            this.settings.teamCalendarSettings.outOfOffice = [];
+          }
+
+          // Initialize validationErrors array based on existing entries
+          this.validationErrors =
+            this.settings.teamCalendarSettings.outOfOffice.map(() => ({
+              calendarId: false,
+              groupEmail: false,
+            }));
         },
         methods: {
           onSettingsChanged() {
             if (this.saving) return;
+
+            // Validate all team calendar entries before saving
+            let hasErrors = false;
+            this.validationErrors =
+              this.settings.teamCalendarSettings.outOfOffice.map(
+                (entry, index) => {
+                  const errors = { calendarId: false, groupEmail: false };
+                  if (this.settings.teamCalendar.outOfOffice) {
+                    // Only validate if at least one field is filled
+                    if (
+                      entry.calendarId.trim() !== "" ||
+                      entry.groupEmail.trim() !== ""
+                    ) {
+                      if (
+                        !entry.calendarId ||
+                        !entry.calendarId.endsWith("@group.calendar.google.com")
+                      ) {
+                        errors.calendarId = true;
+                        hasErrors = true;
+                      }
+                      const emailPattern =
+                        /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
+                      if (
+                        !entry.groupEmail ||
+                        !emailPattern.test(entry.groupEmail)
+                      ) {
+                        errors.groupEmail = true;
+                        hasErrors = true;
+                      }
+                    }
+                  }
+                  return errors;
+                }
+              );
+
+            // Check for validation errors
+            if (hasErrors) {
+              alert(
+                "Please fix validation errors before saving your settings."
+              );
+              return;
+            }
+
+            // Filter out empty entries (both fields empty)
+            const filteredOutOfOfficeSettings =
+              this.settings.teamCalendarSettings.outOfOffice.filter(
+                (entry) =>
+                  entry.calendarId.trim() !== "" &&
+                  entry.groupEmail.trim() !== ""
+              );
+
+            // Prepare the settings object to save
+            const settingsToSave = { ...this.settings };
+            settingsToSave.teamCalendarSettings.outOfOffice =
+              filteredOutOfOfficeSettings;
+
             this.saving = true;
             this.saved = false;
             this.animateEllipsis();
@@ -335,7 +572,7 @@
                 console.error("Error updating settings:", error);
                 this.saving = false;
               })
-              .onSettingsChanged(this.settings);
+              .onSettingsChanged(settingsToSave);
           },
           animateEllipsis() {
             let count = 0;
@@ -350,15 +587,63 @@
             }, 500);
           },
           fadeOutSavedMessage() {
-            const savedElement = this.$el.querySelector('.saved');
-            savedElement.style.transition = 'opacity 1s ease-out';
+            const savedElement = this.$el.querySelector(".saved");
+            savedElement.style.transition = "opacity 1s ease-out";
             savedElement.style.opacity = 0;
             setTimeout(() => {
               this.saved = false;
               savedElement.style.opacity = 1; // Reset opacity for next time
             }, 1000);
-          }
-        }
+          },
+          addTeamCalendarEntry() {
+            this.settings.teamCalendarSettings.outOfOffice.push({
+              calendarId: "",
+              groupEmail: "",
+            });
+            this.validationErrors.push({
+              calendarId: false,
+              groupEmail: false,
+            });
+          },
+          removeTeamCalendarEntry(index) {
+            this.settings.teamCalendarSettings.outOfOffice.splice(index, 1);
+            this.validationErrors.splice(index, 1);
+            this.onSettingsChanged();
+          },
+          validateCalendarId(index) {
+            const entry = this.settings.teamCalendarSettings.outOfOffice[index];
+            if (
+              entry.calendarId &&
+              entry.calendarId.endsWith("@group.calendar.google.com")
+            ) {
+              this.validationErrors[index].calendarId = false;
+            } else if (
+              entry.calendarId.trim() === "" &&
+              entry.groupEmail.trim() === ""
+            ) {
+              // If both fields are empty, no error
+              this.validationErrors[index].calendarId = false;
+            } else {
+              this.validationErrors[index].calendarId = true;
+            }
+          },
+          validateGroupEmail(index) {
+            const entry = this.settings.teamCalendarSettings.outOfOffice[index];
+            const emailPattern =
+              /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
+            if (entry.groupEmail && emailPattern.test(entry.groupEmail)) {
+              this.validationErrors[index].groupEmail = false;
+            } else if (
+              entry.calendarId.trim() === "" &&
+              entry.groupEmail.trim() === ""
+            ) {
+              // If both fields are empty, no error
+              this.validationErrors[index].groupEmail = false;
+            } else {
+              this.validationErrors[index].groupEmail = true;
+            }
+          },
+        },
       });
     </script>
   </body>

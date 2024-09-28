@@ -126,7 +126,7 @@ function doGet(e: GoogleAppsScript.Events.DoGet) {
 
   const template = HtmlService.createTemplateFromFile(templateFile);
   const userSettings = UserSettings.loadSettings();
-  template.userSettings = JSON.stringify(userSettings);
+  template.userSettings = userSettings;
   return template
     .evaluate()
     .setTitle("Calendar Automation")

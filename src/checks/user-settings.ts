@@ -6,7 +6,7 @@ import { CheckColor } from "./check-color";
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace UserSettings {
   export let settings: Settings | undefined = undefined;
-  export const KEY = "userSettings_v1";
+  export const KEY = "userSettings_v2";
 
   export type Settings = {
     enabled: boolean;
@@ -21,6 +21,12 @@ export namespace UserSettings {
       eventColors: {
         [key in CheckColor.Category]: CheckColor.Color;
       };
+    };
+    teamCalendar: {
+      outOfOffice: boolean;
+    };
+    teamCalendarSettings: {
+      outOfOffice: { calendarId: string; groupEmail: string }[];
     };
   };
 
@@ -81,6 +87,12 @@ export namespace UserSettings {
       },
       checkSettings: {
         eventColors: CheckColor.createDefaultSettings(),
+      },
+      teamCalendar: {
+        outOfOffice: false,
+      },
+      teamCalendarSettings: {
+        outOfOffice: [],
       },
     };
   }
