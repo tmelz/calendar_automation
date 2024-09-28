@@ -24,15 +24,15 @@ export function debug() {
   // CalendarApp.getCalendarById(
   //   "c_dbf46adba7f1d6fc383bbeaaf7d50723e6bea3901446fb11b02f9d5751219f6f@group.calendar.google.com"
   // ).createAllDayEvent("test 1", date);
-  // const now = new Date();
-  // const nowYesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  // const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-  // TeamCalendarOOO.syncCalendarOOO(
-  //   nowYesterday,
-  //   oneWeekFromNow,
-  //   "c_dbf46adba7f1d6fc383bbeaaf7d50723e6bea3901446fb11b02f9d5751219f6f@group.calendar.google.com",
-  //   "mdx-android@squareup.com"
-  // );
+  const now = new Date();
+  const nowYesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const oneWeekFromNow = new Date(now.getTime() + 21 * 24 * 60 * 60 * 1000);
+  TeamCalendarOOO.syncCalendarOOO(
+    nowYesterday,
+    oneWeekFromNow,
+    "c_dbf46adba7f1d6fc383bbeaaf7d50723e6bea3901446fb11b02f9d5751219f6f@group.calendar.google.com",
+    "mdx-android@squareup.com"
+  );
 }
 
 export function debugListCalEvents() {

@@ -39,7 +39,7 @@ export namespace TeamCalendarOOO {
       .map((user) => {
         return {
           email: user.getEmail(),
-          name: getNameByEmail(user.getEmail()),
+          name: getNameByEmailAcrossBlockDomains(user.getEmail()),
         };
       });
     Log.log(`Group members: ${JSON.stringify(groupMembers)}}`);
@@ -231,15 +231,14 @@ export namespace TeamCalendarOOO {
           isAllDayEvent(teamCalendarOOOEvent) &&
           // Check if start === start
           event.start!.date! === teamCalendarOOOEvent.start!.date! &&
-          // check if end == end OR (if one of them is a start==end event AND the other is the proper end=start+1)
+          // check if end == end OR (if the event is a start==end event AND the team event is the proper end=start+1)
           (event.end!.date! === teamCalendarOOOEvent.end!.date! ||
-            ((event.start!.date! === event.end!.date! ||
-              teamCalendarOOOEvent.start!.date! ===
-                teamCalendarOOOEvent.end!.date!) &&
+            (event.start!.date! === event.end!.date! &&
               Math.abs(
-                new Date(event.end!.date!).getDate() -
-                  new Date(teamCalendarOOOEvent.end!.date!).getDate()
-              ) <= 1))
+                new Date(event.end!.date!).getTime() -
+                  new Date(teamCalendarOOOEvent.end!.date!).getTime()
+              ) <=
+                1000 * 60 * 60 * 24))
         ) {
           return true;
         }
@@ -289,7 +288,7 @@ export namespace TeamCalendarOOO {
           uniqueAllDayEvents.set(key, {
             start: event.start!.date!,
             end: event.end!.date!,
-            title: createEventTitle(person.name!, person.email),
+            title: createEventTitle(person.name, person.email),
           });
         }
       } else if (isSpecificTimeEvent(event)) {
@@ -298,7 +297,7 @@ export namespace TeamCalendarOOO {
           uniqueTimeRangeEvents.set(key, {
             startDateTime: event.start!.dateTime!,
             endDateTime: event.end!.dateTime!,
-            title: createEventTitle(person.name!, person.email),
+            title: createEventTitle(person.name, person.email),
           });
         }
       }
@@ -336,8 +335,15 @@ export namespace TeamCalendarOOO {
     );
   }
 
-  export function createEventTitle(personName: string, email: string): string {
-    return `[OOO] ${personName} (${email})`;
+  export function createEventTitle(
+    personName: string | undefined,
+    email: string
+  ): string {
+    if (personName === undefined) {
+      return `[OOO] ${email}`;
+    } else {
+      return `[OOO] ${personName} (${email})`;
+    }
   }
 
   export function isOOOEventOnTeamCalendar(
@@ -347,8 +353,7 @@ export namespace TeamCalendarOOO {
   }
 
   export function getNameByEmail(email: string): string | undefined {
-    // TODO fallback with squareup.com if block.xyz returns undefined. so silly...
-    // Search the contact by their email address
+    Log.log("Looking up name for email: " + email);
     const contacts = ContactsApp.getContactsByEmailAddress(email);
 
     if (contacts.length > 0) {
@@ -356,7 +361,7 @@ export namespace TeamCalendarOOO {
       const contact = contacts[0];
       const name = contact.getFullName();
 
-      Logger.log("Name: " + name);
+      Logger.log("Got name: " + (name ?? "undefined"));
       return name;
     } else {
       Logger.log("No contact found with email: " + email);
@@ -364,12 +369,45 @@ export namespace TeamCalendarOOO {
     }
   }
 
+  export function getNameByEmailAcrossBlockDomains(
+    email: string
+  ): string | undefined {
+    const cache = CacheService.getUserCache();
+    const cachedName = cache.get("getName_v2_" + email);
+
+    if (cachedName !== null && cachedName?.trim().length > 0) {
+      Logger.log(`Cache hit getting name for email: ${email}`);
+      return cachedName;
+    }
+
+    Logger.log(`Cache miss getting name for email: ${email}`);
+    let name = getNameByEmail(email);
+
+    if (
+      (name === undefined || name.trim().length === 0 || name.includes("@")) &&
+      email.endsWith("@block.xyz")
+    ) {
+      Log.log(
+        `No name found for ${email}, trying @squareup domain instead, that sometimes works`
+      );
+
+      const squareupEmail = email.replace("@block.xyz", "@squareup.com");
+      name = getNameByEmail(squareupEmail);
+    }
+
+    if (name !== undefined) {
+      cache.put("getName_v2_" + email, name, 60 * 60 * 24 * 30); // Cache for 30 days
+    }
+
+    return name;
+  }
+
   export function extractEmail(input: string | undefined): string | undefined {
     if (input === undefined) {
       return undefined;
     }
 
-    const emailRegex = /\(([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\)/;
+    const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/;
     const match = input.match(emailRegex);
 
     // Return the email if found, otherwise return null
