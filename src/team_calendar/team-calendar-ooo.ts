@@ -114,8 +114,6 @@ export namespace TeamCalendarOOO {
       title: string;
     }[] = [];
 
-    // get union of keys from memberEvents and memberEventsFromTeamCalendar
-    // TODO handle block vs squareup
     const allPeopleToConsider = new Set([
       ...memberEvents.keys(),
       ...teamCalendarOOOEvents.keys(),
