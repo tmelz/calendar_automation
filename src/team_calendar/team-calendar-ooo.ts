@@ -14,7 +14,7 @@ export namespace TeamCalendarOOO {
   };
 
   export type CalendarChanges = {
-    deleteEventsIds: string[];
+    deleteEvents: GoogleAppsScript.Calendar.Schema.Event[];
     newAllDayEvents: { start: string; end: string; title: string }[];
     newTimeRangeEvents: {
       startDateTime: string;
@@ -31,7 +31,7 @@ export namespace TeamCalendarOOO {
   ): void {
     Log.logPhase(`Running for calendar: ${calendarId}, group: ${groupEmail}`);
 
-    const eventIdsToDelete: string[] = [];
+    const eventsToDelete: GoogleAppsScript.Calendar.Schema.Event[] = [];
 
     // get all people for that group
     const groupMembers: GroupMember[] = GroupsApp.getGroupByEmail(groupEmail)
@@ -39,7 +39,7 @@ export namespace TeamCalendarOOO {
       .map((user) => {
         return {
           email: user.getEmail(),
-          name: getNameByEmailAcrossBlockDomains(user.getEmail()),
+          name: getNameByEmail(user.getEmail()),
         };
       });
     Log.log(`Group members: ${JSON.stringify(groupMembers)}}`);
@@ -81,7 +81,7 @@ export namespace TeamCalendarOOO {
         Log.log(
           `No email found in event: ${event.summary}, flagging for deletion`
         );
-        eventIdsToDelete.push(event.id!);
+        eventsToDelete.push(event);
         return;
       }
       if (!memberEventsFromTeamCalendar.has(email)) {
@@ -96,7 +96,7 @@ export namespace TeamCalendarOOO {
       memberEvents,
       memberEventsFromTeamCalendar
     );
-    changes.deleteEventsIds.push(...eventIdsToDelete);
+    changes.deleteEvents.push(...eventsToDelete);
 
     makeChanges(calendarId, changes);
   }
@@ -106,7 +106,7 @@ export namespace TeamCalendarOOO {
     memberEvents: Map<string, GoogleAppsScript.Calendar.Schema.Event[]>,
     teamCalendarOOOEvents: Map<string, GoogleAppsScript.Calendar.Schema.Event[]>
   ): CalendarChanges {
-    const deleteEventsIds: string[] = [];
+    const deleteEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
     const newAllDayEvents: { start: string; end: string; title: string }[] = [];
     const newTimeRangeEvents: {
       startDateTime: string;
@@ -127,13 +127,13 @@ export namespace TeamCalendarOOO {
         memberEvents.get(person) ?? []
       );
 
-      deleteEventsIds.push(...changes.deleteEventsIds);
+      deleteEvents.push(...changes.deleteEvents);
       newAllDayEvents.push(...changes.newAllDayEvents);
       newTimeRangeEvents.push(...changes.newTimeRangeEvents);
     });
 
     return {
-      deleteEventsIds,
+      deleteEvents: deleteEvents,
       newAllDayEvents,
       newTimeRangeEvents,
     };
@@ -143,12 +143,15 @@ export namespace TeamCalendarOOO {
     calendarId: string,
     changes: CalendarChanges
   ): void {
-    Log.log(`Making changes for calendar: ${calendarId}`);
-    Log.log(`Deleting events: ${changes.deleteEventsIds}`);
-    changes.deleteEventsIds.forEach((eventId) => {
-      Log.log(`Deleting event: ${eventId}`);
+    Log.logPhase(`Making changes for calendar: ${calendarId}`);
+    Log.log(`Deleting events: ${changes.deleteEvents}`);
+    changes.deleteEvents.forEach((event) => {
+      Log.log(`Deleting event: ${event}`);
+      if (!isOOOEventOnTeamCalendar(event.summary)) {
+        throw new Error("invariant violation: deleting non-OOO event");
+      }
       CalendarApp.getCalendarById(calendarId)
-        .getEventById(eventId)
+        .getEventById(event.id!)
         .deleteEvent();
     });
 
@@ -198,7 +201,7 @@ export namespace TeamCalendarOOO {
     teamCalendarOOOEvents: GoogleAppsScript.Calendar.Schema.Event[],
     oooEvents: GoogleAppsScript.Calendar.Schema.Event[]
   ): CalendarChanges {
-    const deleteEventsIds: string[] = [];
+    const deleteEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
 
     Log.log(
       `Determining team-calendar-OOO changes to make for ${person.email}`
@@ -268,7 +271,7 @@ export namespace TeamCalendarOOO {
         );
       } else {
         Log.log(`No matching, flagging for deletion`);
-        deleteEventsIds.push(teamCalendarOOOEvent.id!);
+        deleteEvents.push(teamCalendarOOOEvent);
       }
     });
 
@@ -315,7 +318,7 @@ export namespace TeamCalendarOOO {
     );
 
     return {
-      deleteEventsIds,
+      deleteEvents: deleteEvents,
       newAllDayEvents: filteredAllDayEvents,
       newTimeRangeEvents: Array.from(uniqueTimeRangeEvents.values()),
     };
@@ -354,52 +357,31 @@ export namespace TeamCalendarOOO {
 
   export function getNameByEmail(email: string): string | undefined {
     Log.log("Looking up name for email: " + email);
-    const contacts = ContactsApp.getContactsByEmailAddress(email);
-
-    if (contacts.length > 0) {
-      // Get the first contact (assuming there's only one with that email)
-      const contact = contacts[0];
-      const name = contact.getFullName();
-
-      Logger.log("Got name: " + (name ?? "undefined"));
-      return name;
-    } else {
-      Logger.log("No contact found with email: " + email);
-      return undefined;
-    }
-  }
-
-  export function getNameByEmailAcrossBlockDomains(
-    email: string
-  ): string | undefined {
     const cache = CacheService.getUserCache();
-    const cachedName = cache.get("getName_v2_" + email);
+    const cachedName = cache.get("getName_v3_" + email);
 
     if (cachedName !== null && cachedName?.trim().length > 0) {
       Logger.log(`Cache hit getting name for email: ${email}`);
       return cachedName;
     }
 
-    Logger.log(`Cache miss getting name for email: ${email}`);
-    let name = getNameByEmail(email);
+    const result = AdminDirectory.Users?.get(email, {
+      fields: "name",
+      viewType: "domain_public",
+    });
+    const fullname = result?.name?.fullName;
 
-    if (
-      (name === undefined || name.trim().length === 0 || name.includes("@")) &&
-      email.endsWith("@block.xyz")
-    ) {
-      Log.log(
-        `No name found for ${email}, trying @squareup domain instead, that sometimes works`
-      );
-
-      const squareupEmail = email.replace("@block.xyz", "@squareup.com");
-      name = getNameByEmail(squareupEmail);
+    if (fullname !== undefined) {
+      Logger.log("Got name: " + fullname);
+    } else {
+      Logger.log("No name found for email: " + email);
     }
 
-    if (name !== undefined) {
-      cache.put("getName_v2_" + email, name, 60 * 60 * 24 * 30); // Cache for 30 days
+    if (fullname !== undefined) {
+      cache.put("getName_v3_" + email, fullname, 60 * 60 * 24 * 30); // Cache for 30 days
     }
 
-    return name;
+    return fullname;
   }
 
   export function extractEmail(input: string | undefined): string | undefined {

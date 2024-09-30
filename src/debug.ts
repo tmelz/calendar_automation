@@ -20,10 +20,6 @@ import { TeamCalendarOOO } from "./team_calendar/team-calendar-ooo";
 //   sendUpdates: "all",
 // });
 export function debug() {
-  // const date = new Date("2024-10-01" + "T00:00:00Z");
-  // CalendarApp.getCalendarById(
-  //   "c_dbf46adba7f1d6fc383bbeaaf7d50723e6bea3901446fb11b02f9d5751219f6f@group.calendar.google.com"
-  // ).createAllDayEvent("test 1", date);
   const now = new Date();
   const nowYesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const oneWeekFromNow = new Date(now.getTime() + 21 * 24 * 60 * 60 * 1000);
