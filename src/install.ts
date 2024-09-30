@@ -1,5 +1,7 @@
 import { Orchestrator } from "./orchestrator";
 import { Analytics } from "./analytics";
+import { UserSettings } from "./checks/user-settings";
+import { Log } from "./checks/log";
 
 // README
 // To install, select setupTriggers function in IDE and click run
@@ -7,11 +9,29 @@ import { Analytics } from "./analytics";
 // All these top level functions are runnable from the apps script IDE;
 // namespaced functions are not selectable from the IDE
 export function runCalendarChangedChecks(): void {
+  if (!checkIfEnabled()) {
+    Log.log("Triggered, but disabled. Exiting.");
+    return;
+  }
   Orchestrator.runFastChecks(false /* isDryRun */);
 }
 
 export function runDailyChecks(): void {
+  if (!checkIfEnabled()) {
+    Log.log("Triggered, but disabled. Exiting.");
+    return;
+  }
+  globalTriggerHook();
   Orchestrator.runAllChecks(false /* isDryRun */);
+}
+
+export function runTeamCalendarFeatures(): void {
+  if (!checkIfEnabled()) {
+    Log.log("Triggered, but disabled. Exiting.");
+    return;
+  }
+  globalTriggerHook();
+  Orchestrator.runTeamCalendarFeatures();
 }
 
 export function runCalendarChangedChecksDryRun(): void {
@@ -28,6 +48,15 @@ export function removeAllTriggers(): void {
 
 export function setupTriggers(): void {
   Install.setupTriggers();
+}
+
+export function checkIfEnabled(): boolean {
+  return UserSettings.loadSettings().enabled;
+}
+
+export function globalTriggerHook(): void {
+  Log.log("Global trigger hook; ensuring triggers are setup to latest spec");
+  setupTriggers();
 }
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -54,6 +83,15 @@ export namespace Install {
     ScriptApp.newTrigger("runDailyChecks")
       .timeBased()
       .atHour(8)
+      .nearMinute(0)
+      .inTimezone("America/Los_Angeles")
+      .everyDays(1)
+      .create();
+
+    // Create a daily trigger at 8 AM Pacific Time
+    ScriptApp.newTrigger("runTeamCalendarFeatures")
+      .timeBased()
+      .atHour(9)
       .nearMinute(0)
       .inTimezone("America/Los_Angeles")
       .everyDays(1)

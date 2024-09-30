@@ -2,10 +2,6 @@ import { CheckOOO } from "../checks/check-ooo";
 import { GetEvents } from "../checks/get-events";
 import { Log } from "../checks/log";
 
-// TODO
-// itereate on way to fetch peoples names, why is it empty for so many when clearly they have names submitted
-// figure out more elegant solution to off by one error in all day events
-
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace TeamCalendarOOO {
   export type GroupMember = {
@@ -27,7 +23,8 @@ export namespace TeamCalendarOOO {
     timeMin: Date,
     timeMax: Date,
     calendarId: string,
-    groupEmail: string
+    groupEmail: string,
+    dryRun: boolean = false
   ): void {
     Log.logPhase(`Running for calendar: ${calendarId}, group: ${groupEmail}`);
 
@@ -98,7 +95,7 @@ export namespace TeamCalendarOOO {
     );
     changes.deleteEvents.push(...eventsToDelete);
 
-    makeChanges(calendarId, changes);
+    makeChanges(calendarId, changes, dryRun);
   }
 
   export function getCalendarChanges(
@@ -139,18 +136,25 @@ export namespace TeamCalendarOOO {
 
   export function makeChanges(
     calendarId: string,
-    changes: CalendarChanges
+    changes: CalendarChanges,
+    dryRun: boolean = false
   ): void {
-    Log.logPhase(`Making changes for calendar: ${calendarId}`);
+    Log.logPhase(
+      `Making changes for calendar: ${calendarId} (dry run: ${dryRun})`
+    );
     Log.log(`Deleting events: ${changes.deleteEvents}`);
     changes.deleteEvents.forEach((event) => {
-      Log.log(`Deleting event: ${event}`);
+      Log.log(`Deleting event: ${event.summary}, ${event.id}`);
       if (!isOOOEventOnTeamCalendar(event.summary)) {
         throw new Error("invariant violation: deleting non-OOO event");
       }
-      CalendarApp.getCalendarById(calendarId)
-        .getEventById(event.id!)
-        .deleteEvent();
+      if (dryRun) {
+        Log.log("Dry run, not deleting event");
+      } else {
+        CalendarApp.getCalendarById(calendarId)
+          .getEventById(event.id!)
+          .deleteEvent();
+      }
     });
 
     Log.log(`Creating new all day events:`);
@@ -162,17 +166,21 @@ export namespace TeamCalendarOOO {
         `Creating new all day event: ${event.title} from ${startDate} to ${endDate}`
       );
 
-      if (event.start === event.end) {
-        CalendarApp.getCalendarById(calendarId).createAllDayEvent(
-          event.title,
-          startDate
-        );
+      if (dryRun) {
+        Log.log("Dry run, not creating event");
       } else {
-        CalendarApp.getCalendarById(calendarId).createAllDayEvent(
-          event.title,
-          startDate,
-          endDate
-        );
+        if (event.start === event.end) {
+          CalendarApp.getCalendarById(calendarId).createAllDayEvent(
+            event.title,
+            startDate
+          );
+        } else {
+          CalendarApp.getCalendarById(calendarId).createAllDayEvent(
+            event.title,
+            startDate,
+            endDate
+          );
+        }
       }
     });
 
@@ -186,11 +194,15 @@ export namespace TeamCalendarOOO {
           " to " +
           event.endDateTime
       );
-      CalendarApp.getCalendarById(calendarId).createEvent(
-        event.title,
-        new Date(event.startDateTime),
-        new Date(event.endDateTime)
-      );
+      if (dryRun) {
+        Log.log("Dry run, not creating event");
+      } else {
+        CalendarApp.getCalendarById(calendarId).createEvent(
+          event.title,
+          new Date(event.startDateTime),
+          new Date(event.endDateTime)
+        );
+      }
     });
   }
 

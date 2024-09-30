@@ -11,6 +11,7 @@ import { LogLevel, Log } from "./checks/log";
 import { Analytics } from "./analytics";
 import { UserSettings } from "./checks/user-settings";
 import { CheckColor } from "./checks/check-color";
+import { TeamCalendarOOO } from "./team_calendar/team-calendar-ooo";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace Orchestrator {
@@ -32,6 +33,41 @@ export namespace Orchestrator {
   export const applyToPersonalEventOnlyChecks: CheckTypes.CalendarCheck[] = [
     CheckColor.ColorCheck,
   ];
+
+  export function runTeamCalendarFeatures(isDryRun: boolean = true): void {
+    Log.logPhase("🚀 Running team calendar features");
+
+    const settings = UserSettings.loadSettings();
+
+    if (!settings.enabled) {
+      Log.log("🚨 Disabled, exiting");
+      return;
+    }
+
+    if (!settings.teamCalendar.outOfOffice) {
+      Log.log("🚨 Team calendar OOO disabled, exiting");
+      return;
+    }
+
+    // time range
+    const timeRange = Time.todayThroughEndOfNextWeek();
+
+    settings.teamCalendarSettings.outOfOffice.forEach(
+      ({ calendarId, groupEmail }) => {
+        if (calendarId.trim().length == 0 || groupEmail.trim().length == 0) {
+          throw new Error("invariant violation");
+          return;
+        }
+        TeamCalendarOOO.syncCalendarOOO(
+          timeRange.timeMin,
+          timeRange.timeMax,
+          calendarId,
+          groupEmail,
+          isDryRun
+        );
+      }
+    );
+  }
 
   // Only look at events that have recently changed
   export function runFastChecks(isDryRun: boolean = true): void {
