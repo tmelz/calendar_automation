@@ -163,13 +163,20 @@
         display: flex;
         align-items: flex-start;
         margin-bottom: 15px;
+        width: 100%;
+      }
+      .team-calendar-entry div {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
       }
       .team-calendar-entry input {
-        flex: 1;
         padding: 8px;
-        margin-right: 10px;
+        margin-top: 5px;
         border: 1px solid #ccc;
         border-radius: 4px;
+        width: calc(100% - 5px);
+        margin-right: 5px;
       }
       .team-calendar-entry .error {
         color: red;
@@ -179,15 +186,24 @@
       .add-entry-button {
         background-color: #2ecc71;
         margin-top: 10px;
+        width: 100%;
       }
       .add-entry-button:hover {
         background-color: #27ae60;
       }
-      .remove-entry-button {
+      .action-buttons {
+        display: flex;
+        align-items: center;
+        margin-top: 5px;
+      }
+      .edit-button,
+      .delete-button,
+      .save-button,
+      .cancel-button {
         background-color: lightgrey;
         border: none;
         color: white;
-        border-radius: 10%;
+        border-radius: 5px;
         width: 30px;
         height: 30px;
         font-size: 16px;
@@ -196,16 +212,50 @@
         align-items: center;
         justify-content: center;
         transition: background-color 0.3s;
+        margin-left: 5px;
       }
-      .remove-entry-button:hover {
+      .edit-button {
+        background-color: #f1c40f;
+      }
+      .edit-button:hover {
+        background-color: #d4ac0d;
+      }
+      .delete-button {
+        background-color: #e74c3c;
+      }
+      .delete-button:hover {
         background-color: #c0392b;
       }
-      .remove-entry-button:disabled {
+      .save-button {
+        background-color: #2ecc71;
+      }
+      .save-button:hover {
+        background-color: #27ae60;
+      }
+      .cancel-button {
+        background-color: #e74c3c;
+      }
+      .cancel-button:hover {
+        background-color: #c0392b;
+      }
+      .remove-entry-button:disabled,
+      .save-button:disabled,
+      .cancel-button:disabled {
         background-color: #bdc3c7;
         cursor: not-allowed;
       }
       .invalid {
         border-color: red;
+      }
+      .read-only-text {
+        padding: 8px;
+        margin-top: 5px;
+        border: 1px solid transparent;
+        border-radius: 4px;
+        width: auto;
+      }
+      .read-only-text:hover {
+        background-color: #f9f9f9;
       }
     </style>
   </head>
@@ -325,7 +375,6 @@
           </div>
         </div>
 
-        <!-- New Settings Group: Features for team calendars -->
         <div class="settings-group" :class="{ disabled: !settings.enabled }">
           <h3>Features for team calendars</h3>
           <label>
@@ -349,47 +398,88 @@
               :key="index"
               class="team-calendar-entry"
             >
-              <div style="flex: 1">
+              <div>
                 <label>Calendar ID</label>
-                <input
-                  type="text"
-                  v-model="entry.calendarId"
-                  @input="validateCalendarId(index)"
-                  :class="{ invalid: validationErrors[index] && validationErrors[index].calendarId }"
-                  placeholder="your-calendar@group.calendar.google.com"
-                />
-                <span
-                  class="error"
-                  v-if="validationErrors[index] && validationErrors[index].calendarId"
-                >
-                  Calendar ID must end with @group.calendar.google.com
-                </span>
+                <div v-if="entry.editing">
+                  <input
+                    type="text"
+                    v-model="entry.calendarId"
+                    @input="validateCalendarId(index)"
+                    :class="{ invalid: validationErrors[index] && validationErrors[index].calendarId }"
+                    placeholder="your-calendar@group.calendar.google.com"
+                  />
+                  <span
+                    class="error"
+                    v-if="validationErrors[index] && validationErrors[index].calendarId"
+                  >
+                    Calendar ID must end with @group.calendar.google.com
+                  </span>
+                </div>
+                <div v-else class="read-only-text">{{ entry.calendarId }}</div>
               </div>
-              <div style="flex: 1">
+              <div>
                 <label>Group Email</label>
-                <input
-                  type="email"
-                  v-model="entry.groupEmail"
-                  @input="validateGroupEmail(index)"
-                  :class="{ invalid: validationErrors[index] && validationErrors[index].groupEmail }"
-                  placeholder="group@example.com"
-                />
-                <span
-                  class="error"
-                  v-if="validationErrors[index] && validationErrors[index].groupEmail"
-                >
-                  Please enter a valid email address.
-                </span>
+                <div v-if="entry.editing">
+                  <input
+                    type="email"
+                    v-model="entry.groupEmail"
+                    @input="validateGroupEmail(index)"
+                    :class="{ invalid: validationErrors[index] && validationErrors[index].groupEmail }"
+                    placeholder="group@example.com"
+                  />
+                  <span
+                    class="error"
+                    v-if="validationErrors[index] && validationErrors[index].groupEmail"
+                  >
+                    Please enter a valid email address.
+                  </span>
+                </div>
+                <div v-else class="read-only-text">{{ entry.groupEmail }}</div>
               </div>
-              <button
-                type="button"
-                class="remove-entry-button"
-                @click="removeTeamCalendarEntry(index)"
-                :disabled="!settings.enabled"
-                title="Remove this entry"
-              >
-                ❌
-              </button>
+              <div>
+                <div class="action-buttons">
+                  <button
+                    v-if="!entry.editing"
+                    type="button"
+                    class="edit-button"
+                    @click="editEntry(index)"
+                    :disabled="!settings.enabled"
+                    title="Edit"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    v-if="!entry.editing"
+                    type="button"
+                    class="delete-button"
+                    @click="removeTeamCalendarEntry(index)"
+                    :disabled="!settings.enabled"
+                    title="Delete"
+                  >
+                    🗑️
+                  </button>
+                  <button
+                    v-if="entry.editing"
+                    type="button"
+                    class="save-button"
+                    @click="saveEntry(index)"
+                    :disabled="!canSave(index)"
+                    title="Save changes"
+                  >
+                    💾
+                  </button>
+                  <button
+                    v-if="entry.editing"
+                    type="button"
+                    class="cancel-button"
+                    @click="cancelEdit(index)"
+                    :disabled="!settings.enabled"
+                    title="Cancel changes"
+                  >
+                    ❌
+                  </button>
+                </div>
+              </div>
             </div>
             <button
               type="button"
@@ -407,9 +497,35 @@
       </div>
     </div>
 
-    <!-- Embed the userSettings JSON directly into a JavaScript variable -->
     <script>
-      const userSettings = <?!= JSON.stringify(userSettings) ?>;
+      const userSettings = <?!= JSON.stringify(userSettings) ?> || {
+        enabled: false,
+        checks: {
+          plusFiveMinutes: false,
+          outOfOffice: false,
+          conflict: false,
+          quit: false,
+          eventColor: false,
+        },
+        checkSettings: {
+          eventColors: {
+            "External attendees": "No-op",
+            "One-on-one": "No-op",
+            "Focus Time": "No-op",
+            Hold: "No-op",
+            "Team sync": "No-op",
+            "Ad-hoc": "No-op",
+            "Out of office": "No-op",
+            Other: "No-op",
+          },
+        },
+        teamCalendar: {
+          outOfOffice: false,
+        },
+        teamCalendarSettings: {
+          outOfOffice: [],
+        },
+      };
       console.log("User settings object:", userSettings);
     </script>
 
@@ -420,10 +536,10 @@
           settings: {
             enabled: false,
             checks: {
-              outOfOffice: false,
               plusFiveMinutes: false,
-              quit: false,
+              outOfOffice: false,
               conflict: false,
+              quit: false,
               eventColor: false,
             },
             checkSettings: {
@@ -472,29 +588,49 @@
             "Out of office",
             "Other",
           ],
-          validationErrors: [], // Array to track validation errors per entry
+          validationErrors: [],
+          originalEntries: [],
         },
         created() {
-          // Assign the embedded userSettings object directly
-          this.settings = userSettings;
-          console.log("Received user settings:", this.settings);
-
-          // Ensure teamCalendarSettings.outOfOffice is initialized
-          if (
-            this.settings.teamCalendarSettings &&
-            Array.isArray(this.settings.teamCalendarSettings.outOfOffice)
-          ) {
-            // Already assigned correctly
-          } else {
-            // Initialize as an empty array if not present
-            this.settings.teamCalendarSettings.outOfOffice = [];
-          }
+          // Merge userSettings into settings
+          this.settings.enabled = userSettings.enabled;
+          this.settings.checks = Object.assign(
+            {},
+            this.settings.checks,
+            userSettings.checks
+          );
+          this.settings.checkSettings.eventColors = Object.assign(
+            {},
+            this.settings.checkSettings.eventColors,
+            userSettings.checkSettings.eventColors
+          );
+          this.settings.teamCalendar = Object.assign(
+            {},
+            this.settings.teamCalendar,
+            userSettings.teamCalendar
+          );
+          this.settings.teamCalendarSettings.outOfOffice =
+            userSettings.teamCalendarSettings &&
+            userSettings.teamCalendarSettings.outOfOffice
+              ? userSettings.teamCalendarSettings.outOfOffice.map((entry) => ({
+                  calendarId: entry.calendarId || "",
+                  groupEmail: entry.groupEmail || "",
+                  editing: false,
+                }))
+              : [];
 
           // Initialize validationErrors array based on existing entries
           this.validationErrors =
             this.settings.teamCalendarSettings.outOfOffice.map(() => ({
               calendarId: false,
               groupEmail: false,
+            }));
+
+          // Initialize originalEntries for cancel functionality
+          this.originalEntries =
+            this.settings.teamCalendarSettings.outOfOffice.map((entry) => ({
+              calendarId: entry.calendarId,
+              groupEmail: entry.groupEmail,
             }));
         },
         methods: {
@@ -508,7 +644,6 @@
                 (entry, index) => {
                   const errors = { calendarId: false, groupEmail: false };
                   if (this.settings.teamCalendar.outOfOffice) {
-                    // Only validate if at least one field is filled
                     if (
                       entry.calendarId.trim() !== "" ||
                       entry.groupEmail.trim() !== ""
@@ -545,14 +680,19 @@
 
             // Filter out empty entries (both fields empty)
             const filteredOutOfOfficeSettings =
-              this.settings.teamCalendarSettings.outOfOffice.filter(
-                (entry) =>
-                  entry.calendarId.trim() !== "" &&
-                  entry.groupEmail.trim() !== ""
-              );
+              this.settings.teamCalendarSettings.outOfOffice
+                .filter(
+                  (entry) =>
+                    entry.calendarId.trim() !== "" &&
+                    entry.groupEmail.trim() !== ""
+                )
+                .map((entry) => ({
+                  calendarId: entry.calendarId,
+                  groupEmail: entry.groupEmail,
+                }));
 
             // Prepare the settings object to save
-            const settingsToSave = { ...this.settings };
+            const settingsToSave = JSON.parse(JSON.stringify(this.settings));
             settingsToSave.teamCalendarSettings.outOfOffice =
               filteredOutOfOfficeSettings;
 
@@ -592,23 +732,75 @@
             savedElement.style.opacity = 0;
             setTimeout(() => {
               this.saved = false;
-              savedElement.style.opacity = 1; // Reset opacity for next time
+              savedElement.style.opacity = 1;
             }, 1000);
           },
           addTeamCalendarEntry() {
             this.settings.teamCalendarSettings.outOfOffice.push({
               calendarId: "",
               groupEmail: "",
+              editing: true,
             });
             this.validationErrors.push({
               calendarId: false,
               groupEmail: false,
             });
+            this.originalEntries.push({
+              calendarId: "",
+              groupEmail: "",
+            });
+          },
+          editEntry(index) {
+            this.settings.teamCalendarSettings.outOfOffice[index].editing =
+              true;
+            this.originalEntries[index] = {
+              calendarId:
+                this.settings.teamCalendarSettings.outOfOffice[index]
+                  .calendarId,
+              groupEmail:
+                this.settings.teamCalendarSettings.outOfOffice[index]
+                  .groupEmail,
+            };
           },
           removeTeamCalendarEntry(index) {
-            this.settings.teamCalendarSettings.outOfOffice.splice(index, 1);
-            this.validationErrors.splice(index, 1);
+            if (confirm("Are you sure you want to delete this entry?")) {
+              this.settings.teamCalendarSettings.outOfOffice.splice(index, 1);
+              this.validationErrors.splice(index, 1);
+              this.originalEntries.splice(index, 1);
+              this.onSettingsChanged();
+            }
+          },
+          saveEntry(index) {
+            const entry = this.settings.teamCalendarSettings.outOfOffice[index];
+            this.validateCalendarId(index);
+            this.validateGroupEmail(index);
+            if (
+              this.validationErrors[index].calendarId ||
+              this.validationErrors[index].groupEmail
+            ) {
+              alert("Please fix validation errors before saving.");
+              return;
+            }
+            this.settings.teamCalendarSettings.outOfOffice[index].editing =
+              false;
+            this.originalEntries[index] = {
+              calendarId: entry.calendarId,
+              groupEmail: entry.groupEmail,
+            };
             this.onSettingsChanged();
+          },
+          cancelEdit(index) {
+            const original = this.originalEntries[index];
+            this.settings.teamCalendarSettings.outOfOffice[index].calendarId =
+              original.calendarId;
+            this.settings.teamCalendarSettings.outOfOffice[index].groupEmail =
+              original.groupEmail;
+            this.settings.teamCalendarSettings.outOfOffice[index].editing =
+              false;
+            this.validationErrors[index] = {
+              calendarId: false,
+              groupEmail: false,
+            };
           },
           validateCalendarId(index) {
             const entry = this.settings.teamCalendarSettings.outOfOffice[index];
@@ -642,6 +834,19 @@
             } else {
               this.validationErrors[index].groupEmail = true;
             }
+          },
+          canSave(index) {
+            return (
+              this.settings.teamCalendarSettings.outOfOffice[
+                index
+              ].calendarId.trim() !== "" &&
+              this.settings.teamCalendarSettings.outOfOffice[
+                index
+              ].groupEmail.trim() !== "" &&
+              !this.validationErrors[index].calendarId &&
+              !this.validationErrors[index].groupEmail &&
+              this.settings.enabled
+            );
           },
         },
       });
