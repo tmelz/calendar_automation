@@ -15,6 +15,7 @@ import { TeamCalendarOOO } from "./team_calendar/team-calendar-ooo";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace Orchestrator {
+  // TODO carefully update this due to color changes
   export const MAX_EVENTS_ALLOWED_TO_MODIFY: number = 30;
   export const OPT_OUT: string = "[opt_out_automation]";
 

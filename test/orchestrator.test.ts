@@ -70,6 +70,12 @@ describe("checkEvents", () => {
     checkSettings: {
       eventColors: CheckColor.createDefaultSettings(),
     },
+    teamCalendar: {
+      outOfOffice: false,
+    },
+    teamCalendarSettings: {
+      outOfOffice: [],
+    },
   };
 
   jest.spyOn(UserSettings, "isCheckEnabled").mockImplementation(() => true);

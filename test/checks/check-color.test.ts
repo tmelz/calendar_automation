@@ -8,6 +8,7 @@ import {
   adhocEvent,
   theirOOOSpecificTimeEvent,
 } from "./event-data";
+import { CheckTypes } from "../../src/checks/check-types";
 
 describe("getCategoryForEvent", () => {
   it("should return Category.OneOnOne for a one-on-one event", () => {
@@ -61,4 +62,55 @@ describe("getCategoryForEvent", () => {
   //     const result = CheckColor.getCategoryForEvent(otherEvent);
   //     expect(result).toBe(Category.Other);
   //   });
+});
+
+describe("modifyEventLocally", () => {
+  it("correctly adds the right color id", () => {
+    const event = {
+      ...myOneOnOneEvent,
+      colorId: undefined,
+    };
+    CheckColor.modifyEventLocally(
+      event,
+      CheckTypes.ModificationType.YES_CHANGE_COLOR,
+      {
+        [CheckColor.Category.OneOnOne]: CheckColor.Color.Lavender,
+      } as CheckColor.Settings
+    );
+    expect(event.colorId).toBe(
+      CheckColor.mapColorToColorId(CheckColor.Color.Lavender)
+    );
+  });
+
+  it("changes color id", () => {
+    const event = {
+      ...myOneOnOneEvent,
+      colorId: "3",
+    };
+    CheckColor.modifyEventLocally(
+      event,
+      CheckTypes.ModificationType.YES_CHANGE_COLOR,
+      {
+        [CheckColor.Category.OneOnOne]: CheckColor.Color.Lavender,
+      } as CheckColor.Settings
+    );
+    expect(event.colorId).toBe(
+      CheckColor.mapColorToColorId(CheckColor.Color.Lavender)
+    );
+  });
+
+  it("removes color id if NoOp set", () => {
+    const event = {
+      ...myOneOnOneEvent,
+      colorId: "3",
+    };
+    CheckColor.modifyEventLocally(
+      event,
+      CheckTypes.ModificationType.YES_CHANGE_COLOR,
+      {
+        [CheckColor.Category.OneOnOne]: CheckColor.Color.NoOp,
+      } as CheckColor.Settings
+    );
+    expect(event.colorId).toBe(undefined);
+  });
 });

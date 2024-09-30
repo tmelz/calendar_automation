@@ -106,7 +106,10 @@ export namespace CheckColor {
     const color = mapColorIdToColor(event.colorId);
 
     const desiredColor = colorSettings[category];
-    if (desiredColor !== CheckColor.Color.NoOp && color !== desiredColor) {
+    if (
+      (desiredColor === CheckColor.Color.NoOp && color !== undefined) ||
+      (desiredColor !== CheckColor.Color.NoOp && color !== desiredColor)
+    ) {
       return CheckTypes.ModificationType.YES_CHANGE_COLOR;
     }
 
@@ -128,11 +131,17 @@ export namespace CheckColor {
       Log.log(`🚨 error, no category found for event, bailing`);
       return [];
     }
-    const colorId = mapColorToColorId(colorSettings[category]);
     const oldColorId = event.colorId;
-    event.colorId = colorId;
 
-    const logMessage = `Changed color from ${oldColorId} (${mapColorIdToColor(oldColorId)}) to ${colorId} (${mapColorIdToColor(colorId)})`;
+    const desiredColor = colorSettings[category];
+    if (desiredColor === CheckColor.Color.NoOp) {
+      event.colorId = undefined;
+    } else {
+      const colorId = mapColorToColorId(desiredColor);
+      event.colorId = colorId;
+    }
+
+    const logMessage = `Changed color from ${oldColorId} (${mapColorIdToColor(oldColorId)}) to ${event.colorId} (${mapColorIdToColor(event.colorId)})`;
     return [logMessage];
   }
 
