@@ -20,38 +20,48 @@ import { TeamCalendarOOO } from "./team_calendar/team-calendar-ooo";
 //   sendUpdates: "all",
 // });
 export function debug() {
-  const now = new Date();
-  const nowYesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const oneWeekFromNow = new Date(now.getTime() + 21 * 24 * 60 * 60 * 1000);
-  TeamCalendarOOO.syncCalendarOOO(
-    nowYesterday,
-    oneWeekFromNow,
-    "c_dbf46adba7f1d6fc383bbeaaf7d50723e6bea3901446fb11b02f9d5751219f6f@group.calendar.google.com",
-    "mdx-android@squareup.com"
+  Log.log(
+    JSON.stringify(WorkingHours.estimateWorkingHours("tmellor@block.xyz"))
   );
+  // const tmellorTestCal =
+  //   "c_dbf46adba7f1d6fc383bbeaaf7d50723e6bea3901446fb11b02f9d5751219f6f@group.calendar.google.com";
+  // // const androidTeamCal =
+  // //   "c_ae6f08804802c0642135e8e3280a2293ea73eb3e8b434424006afb947e767cfc@group.calendar.google.com";
+
+  // const now = new Date();
+  // const nowYesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  // const twoWeeksFromNow = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
+  // TeamCalendarOOO.syncCalendarOOO(
+  //   nowYesterday,
+  //   twoWeeksFromNow,
+  //   tmellorTestCal,
+  //   "mdx-ios@squareup.com",
+  //   // "mdx-android@squareup.com",
+  //   true // is dry run
+  // );
 }
 
-export function debugListCalEvents() {
-  const now = new Date();
-  const nowYesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+// export function debugListCalEvents() {
+//   const now = new Date();
+//   const nowYesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+//   const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-  const events = Calendar.Events?.list(
-    "c_dbf46adba7f1d6fc383bbeaaf7d50723e6bea3901446fb11b02f9d5751219f6f@group.calendar.google.com",
-    {
-      timeMin: nowYesterday.toISOString(),
-      timeMax: oneWeekFromNow.toISOString(),
-      singleEvents: true,
-      orderBy: "startTime",
-      maxResults: 10,
-    }
-  );
-  events?.items?.forEach((event) => {
-    console.log(
-      `${event.summary}, ${event.id}, ${JSON.stringify(event.start)}, ${JSON.stringify(event.end)}`
-    );
-  });
-}
+//   const events = Calendar.Events?.list(
+//     "c_dbf46adba7f1d6fc383bbeaaf7d50723e6bea3901446fb11b02f9d5751219f6f@group.calendar.google.com",
+//     {
+//       timeMin: nowYesterday.toISOString(),
+//       timeMax: oneWeekFromNow.toISOString(),
+//       singleEvents: true,
+//       orderBy: "startTime",
+//       maxResults: 10,
+//     }
+//   );
+//   events?.items?.forEach((event) => {
+//     console.log(
+//       `${event.summary}, ${event.id}, ${JSON.stringify(event.start)}, ${JSON.stringify(event.end)}`
+//     );
+//   });
+// }
 
 // const now = new Date();
 // const oneHourInFuture = new Date(now.getTime() + 60 * 60 * 1000);

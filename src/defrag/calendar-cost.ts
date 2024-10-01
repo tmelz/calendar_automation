@@ -16,6 +16,7 @@ export namespace CalendarCost {
     // this shouldn't happen, but in case we're evaluating a calendar
     // before it's been optimized, we track overlaps to penalize them significantly
     overlappingMeetingHours: number;
+    hoursFromLastMeetingUntilWorkDayEnd: number | undefined;
   };
 
   export type EventTiming = {
@@ -165,6 +166,16 @@ export namespace CalendarCost {
         cost += (meetingHours[4] - meetingHours[0]) * 2;
       }
     }
+
+    // Incentivize having time at end of day with no meetings
+    // de-incentivize meetings going past end of day
+    costFactorsArray.forEach((costFactors) => {
+      if (costFactors.hoursFromLastMeetingUntilWorkDayEnd === undefined) {
+        return;
+      }
+
+      cost -= costFactors.hoursFromLastMeetingUntilWorkDayEnd * 0.5;
+    });
 
     return cost;
     // return cost / CalendarCost.ROUGH_MAX_COST;
@@ -347,12 +358,25 @@ export namespace CalendarCost {
       currentMeetingStretch
     );
 
+    // get item from sortedMeetings with latest end time
+    let hoursFromLastMeetingUntilWorkDayEnd: number | undefined;
+    if (sortedMeetings.length > 0) {
+      const lastMeeting = sortedMeetings.reduce((latest, current) => {
+        return current.endTime > latest.endTime ? current : latest;
+      }, sortedMeetings[0]);
+      hoursFromLastMeetingUntilWorkDayEnd =
+        (workDayEnd - lastMeeting.endTime) / 3600;
+    } else {
+      hoursFromLastMeetingUntilWorkDayEnd = undefined;
+    }
+
     return {
       meetingHours: totalMeetingTime / 3600, // convert to hours
       longestMeetingStretchHours: longestMeetingStretch / 3600, // convert to hours
       focusTimeOneHourPlus: focusTimeOneHourPlus / 3600, // convert to hours
       focusTimeTwoHoursPlus: focusTimeTwoHoursPlus / 3600, // convert to hours
       overlappingMeetingHours, // Overlapping hours in the day
+      hoursFromLastMeetingUntilWorkDayEnd,
     };
   }
 }

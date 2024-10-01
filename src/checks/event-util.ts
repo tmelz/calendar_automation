@@ -13,6 +13,15 @@ export namespace EventUtil {
   ]);
   export const GMAIL_DOMAIN: string = "gmail.com";
 
+  export function standardizeEmail(email: string): string {
+    const [username, domain] = email.split("@");
+    if (EventUtil.BLOCK_EMAIL_DOMAINS.has(domain)) {
+      return `${username}@block.xyz`;
+    }
+
+    return email;
+  }
+
   export function isOneOnOneWithMe(
     event: GoogleAppsScript.Calendar.Schema.Event
   ): boolean {

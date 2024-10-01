@@ -142,6 +142,7 @@ describe("calculateCostFactorsPerDay", () => {
       focusTimeOneHourPlus: 4,
       focusTimeTwoHoursPlus: 4,
       overlappingMeetingHours: 0,
+      hoursFromLastMeetingUntilWorkDayEnd: 5,
     });
   });
 
@@ -200,6 +201,7 @@ describe("calculateCostFactorsPerDay", () => {
       focusTimeOneHourPlus: 0,
       focusTimeTwoHoursPlus: 0,
       overlappingMeetingHours: 0,
+      hoursFromLastMeetingUntilWorkDayEnd: 0,
     });
   });
 
@@ -258,6 +260,7 @@ describe("calculateCostFactorsPerDay", () => {
       focusTimeOneHourPlus: 0,
       focusTimeTwoHoursPlus: 0,
       overlappingMeetingHours: 0,
+      hoursFromLastMeetingUntilWorkDayEnd: 0,
     });
   });
 
@@ -311,6 +314,7 @@ describe("calculateCostFactorsPerDay", () => {
       focusTimeOneHourPlus: 1,
       focusTimeTwoHoursPlus: 0,
       overlappingMeetingHours: 0,
+      hoursFromLastMeetingUntilWorkDayEnd: 0,
     });
   });
 
@@ -364,6 +368,7 @@ describe("calculateCostFactorsPerDay", () => {
       focusTimeOneHourPlus: 1.5,
       focusTimeTwoHoursPlus: 0,
       overlappingMeetingHours: 0,
+      hoursFromLastMeetingUntilWorkDayEnd: 0,
     });
   });
 
@@ -413,6 +418,7 @@ describe("calculateCostFactorsPerDay", () => {
       focusTimeOneHourPlus: 2.5,
       focusTimeTwoHoursPlus: 0,
       overlappingMeetingHours: 0,
+      hoursFromLastMeetingUntilWorkDayEnd: 0,
     });
   });
 
@@ -450,6 +456,7 @@ describe("calculateCostFactorsPerDay", () => {
       focusTimeOneHourPlus: 6,
       focusTimeTwoHoursPlus: 5,
       overlappingMeetingHours: 0,
+      hoursFromLastMeetingUntilWorkDayEnd: 5,
     });
   });
 
@@ -487,6 +494,45 @@ describe("calculateCostFactorsPerDay", () => {
       focusTimeOneHourPlus: 6,
       focusTimeTwoHoursPlus: 6,
       overlappingMeetingHours: 1,
+      hoursFromLastMeetingUntilWorkDayEnd: 6,
+    });
+  });
+
+  it("handle meeting going over day end", () => {
+    const events: GoogleAppsScript.Calendar.Schema.Event[] = [
+      {
+        ...myOneOnOneEvent,
+        id: "1",
+        start: { dateTime: "2024-08-19T09:00:00-07:00" },
+        end: { dateTime: "2024-08-19T11:00:00-07:00" },
+        summary: "event 1",
+      },
+
+      {
+        ...myOneOnOneEvent,
+        id: "2",
+        start: { dateTime: "2024-08-19T16:00:00-07:00" },
+        end: { dateTime: "2024-08-19T18:00:00-07:00" },
+        summary: "event 2",
+      },
+    ];
+    const workingHours = {
+      startTimeSeconds: 9 * 3600,
+      endTimeSeconds: 17 * 3600,
+    };
+    const result = CalendarCost.calculateCostFactorsPerDay(
+      events,
+      new Map(),
+      workingHours
+    );
+
+    expect(result).toEqual({
+      meetingHours: 4,
+      longestMeetingStretchHours: 2,
+      focusTimeOneHourPlus: 5,
+      focusTimeTwoHoursPlus: 5,
+      overlappingMeetingHours: 0,
+      hoursFromLastMeetingUntilWorkDayEnd: -1,
     });
   });
 
@@ -532,6 +578,7 @@ describe("calculateCostFactorsPerDay", () => {
       focusTimeOneHourPlus: 6,
       focusTimeTwoHoursPlus: 6,
       overlappingMeetingHours: 1,
+      hoursFromLastMeetingUntilWorkDayEnd: 6,
     });
   });
 });

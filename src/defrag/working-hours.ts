@@ -11,7 +11,7 @@ export namespace WorkingHours {
 
   export function estimateWorkingHours(email: string): WorkingHours.TimeRange {
     const cache = CacheService.getUserCache();
-    const cacheKey = `workingHours_${email}_v8`;
+    const cacheKey = `workingHours_${email}_v11`;
     const cachedValue = cache.get(cacheKey);
 
     if (cachedValue) {
@@ -41,16 +41,15 @@ export namespace WorkingHours {
     let relevantEvents = events.filter((event) => {
       // Log.log(JSON.stringify(event));
       return (
-        event.eventType === "focusTime" ||
-        (event.eventType === "default" &&
-          event.summary?.includes("Focus Time (via Clockwise)")) ||
-        (event.eventType === "default" &&
-          EventUtil.didRSVPYes(event, email) &&
-          EventUtil.doAllAttendeesHaveSameBusinessEmailDomain(
-            event.attendees
-          ) &&
-          event.start?.dateTime !== undefined &&
-          event.end?.dateTime !== undefined)
+        // TODO figure out if i want to include focus time or not
+        // event.eventType === "focusTime" ||
+        // (event.eventType === "default" &&
+        //   event.summary?.includes("Focus Time (via Clockwise)")) ||
+        event.eventType === "default" &&
+        EventUtil.didRSVPYes(event, email) &&
+        EventUtil.doAllAttendeesHaveSameBusinessEmailDomain(event.attendees) &&
+        event.start?.dateTime !== undefined &&
+        event.end?.dateTime !== undefined
       );
     });
 

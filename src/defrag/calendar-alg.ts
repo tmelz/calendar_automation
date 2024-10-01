@@ -82,7 +82,9 @@ export namespace CalendarAlg {
     recurrenceSchedule: Map<string, EventRecurrence.RecurrenceType>
   ): Date[] {
     Log.log("Getting alternate start time options for " + event.summary);
-    const theirEmails = EventUtil.getEmailsForAllOtherAttendees(event);
+    const theirEmails = EventUtil.getEmailsForAllOtherAttendees(event)?.map(
+      (email) => EventUtil.standardizeEmail(email)
+    );
     if (theirEmails === undefined || theirEmails.length === 0) {
       return [];
     }
@@ -107,24 +109,49 @@ export namespace CalendarAlg {
         continue;
       }
 
-      const dayStart = new Date(newDate);
-      dayStart.setHours(
-        Math.floor(myWorkingHours.startTimeSeconds / 3600),
-        0,
-        0,
-        0
+      const dayStartSeconds = Math.max(
+        ...theirEmails.map(
+          (email) => theirWorkingHoursMap.get(email)?.startTimeSeconds ?? 0
+        ),
+        myWorkingHours.startTimeSeconds
+      );
+      const dayStart = CalendarAlg.convertSecondsTimingToDate(
+        dayStartSeconds,
+        newDate.getDay(),
+        newDate
+      );
+      const dayEndSeconds = Math.min(
+        ...theirEmails.map(
+          (email) => theirWorkingHoursMap.get(email)?.endTimeSeconds ?? 0
+        ),
+        myWorkingHours.endTimeSeconds
+      );
+      const dayEnd = CalendarAlg.convertSecondsTimingToDate(
+        dayEndSeconds,
+        newDate.getDay(),
+        newDate
       );
 
-      const dayEnd = new Date(newDate);
-      dayEnd.setHours(
-        Math.floor(myWorkingHours.endTimeSeconds / 3600),
-        0,
-        0,
-        0
-      );
       if (newDate.getDay() === 5) {
         dayEnd.setHours(dayEnd.getHours() - 1);
       }
+
+      Log.log(
+        "Considering times for this day between: " + dayStart + " - " + dayEnd
+      );
+      Log.log(
+        "Max working start: " +
+          dayStartSeconds +
+          " ; min working end: " +
+          dayEndSeconds +
+          "; across all attendees of event"
+      );
+      Log.log(
+        "Note my working hours: " +
+          myWorkingHours.startTimeSeconds +
+          " - " +
+          myWorkingHours.endTimeSeconds
+      );
 
       for (
         let currentStartTime = dayStart.getTime();
@@ -137,121 +164,89 @@ export namespace CalendarAlg {
         const proposedEnd = new Date(proposedStart.getTime() + eventDuration);
         Log.log("\tProposed start time: " + proposedStart.toISOString());
 
-        const proposedStartSeconds =
-          WorkingHours.getTimeOfDaySeconds(proposedStart);
-        const proposedEndSeconds =
-          WorkingHours.getTimeOfDaySeconds(proposedEnd);
-
-        // for each of theirEmails, get theirWorkingHoursMap and take the min of endTimeSeconds
-        const theirWorkingHoursMaxEnd = Math.min(
-          ...theirEmails.map(
-            (email) => theirWorkingHoursMap.get(email)?.endTimeSeconds ?? 0
-          )
-        );
-        const theirWorkingHoursEndSeconds =
-          newDate.getDay() === 5
-            ? theirWorkingHoursMaxEnd - 3600
-            : theirWorkingHoursMaxEnd;
-
-        // for each of theirEmails, get theirWorkingHoursMap and take the max of startTimeSeconds
-        const theirWorkingHoursMinStart = Math.max(
-          ...theirEmails.map(
-            (email) => theirWorkingHoursMap.get(email)?.startTimeSeconds ?? 0
-          )
-        );
-
-        if (
-          proposedStartSeconds >= myWorkingHours.startTimeSeconds &&
-          proposedEndSeconds <= myWorkingHours.endTimeSeconds &&
-          proposedStartSeconds >= theirWorkingHoursMinStart &&
-          proposedEndSeconds <= theirWorkingHoursEndSeconds
-        ) {
-          const hasConflict = (
-            events: GoogleAppsScript.Calendar.Schema.Event[],
-            solution: Map<string, CalendarCost.EventTiming>
-          ) =>
-            events.some((otherEvent) => {
-              if (otherEvent.id === event.id) {
-                return false;
-              }
-
-              const eventTiming = solution.get(otherEvent.id!);
-              const otherStart = eventTiming
-                ? (() => {
-                    const startDate = new Date(newDate);
-                    const dayDifference =
-                      eventTiming.dayOfWeek - startDate.getDay();
-                    startDate.setDate(startDate.getDate() + dayDifference);
-                    startDate.setHours(0, 0, 0, 0);
-                    startDate.setSeconds(eventTiming.startTimeOfDaySeconds);
-                    return startDate.getTime();
-                  })()
-                : new Date(otherEvent.start!.dateTime!).getTime();
-
-              const otherEnd = eventTiming
-                ? (() => {
-                    const endDate = new Date(newDate);
-                    const dayDifference =
-                      eventTiming.dayOfWeek - endDate.getDay();
-                    endDate.setDate(endDate.getDate() + dayDifference);
-                    endDate.setHours(0, 0, 0, 0);
-                    endDate.setSeconds(eventTiming.endTimeOfDaySeconds);
-                    return endDate.getTime();
-                  })()
-                : new Date(otherEvent.end!.dateTime!).getTime();
-
-              if (otherEvent.start?.date && otherEvent.end?.date) {
-                const isOOOEvent =
-                  otherEvent.eventType === "outOfOffice" ||
-                  otherEvent.summary === "OOO- Automated by Workday";
-
-                if (isOOOEvent) {
-                  const oooStart = new Date(otherEvent.start!.date!).getTime();
-                  const oooEnd =
-                    new Date(otherEvent.end!.date!).getTime() +
-                    24 * 60 * 60 * 1000;
-
-                  const conflict =
-                    proposedStart.getTime() < oooEnd &&
-                    proposedEnd.getTime() > oooStart;
-                  if (conflict) {
-                    Log.log(
-                      "\t\tConflict with OOO event: " + otherEvent.summary
-                    );
-                  }
-
-                  return conflict;
-                }
-              }
-
-              const conflict =
-                proposedStart.getTime() < otherEnd &&
-                proposedEnd.getTime() > otherStart;
-              if (conflict) {
-                Log.log("\t\tConflict with event: " + otherEvent.summary);
-              }
-
-              return conflict;
-            });
-
-          if (hasConflict(myEventsList, currentSolution)) {
-            continue;
-          }
-
-          // for each of theirEmails, check if there is a conflict with theirEvents
-          const hasConflictWithAnyOfThem = theirEmails.some((theirEmail) => {
-            const events = theirEvents.get(theirEmail) ?? [];
-            if (hasConflict(events, currentSolution)) {
-              return true;
+        const hasConflict = (
+          events: GoogleAppsScript.Calendar.Schema.Event[],
+          solution: Map<string, CalendarCost.EventTiming>
+        ) =>
+          events.some((otherEvent) => {
+            if (otherEvent.id === event.id) {
+              return false;
             }
+
+            const eventTiming = solution.get(otherEvent.id!);
+            const otherStart = eventTiming
+              ? (() => {
+                  const startDate = new Date(newDate);
+                  const dayDifference =
+                    eventTiming.dayOfWeek - startDate.getDay();
+                  startDate.setDate(startDate.getDate() + dayDifference);
+                  startDate.setHours(0, 0, 0, 0);
+                  startDate.setSeconds(eventTiming.startTimeOfDaySeconds);
+                  return startDate.getTime();
+                })()
+              : new Date(otherEvent.start!.dateTime!).getTime();
+
+            const otherEnd = eventTiming
+              ? (() => {
+                  const endDate = new Date(newDate);
+                  const dayDifference =
+                    eventTiming.dayOfWeek - endDate.getDay();
+                  endDate.setDate(endDate.getDate() + dayDifference);
+                  endDate.setHours(0, 0, 0, 0);
+                  endDate.setSeconds(eventTiming.endTimeOfDaySeconds);
+                  return endDate.getTime();
+                })()
+              : new Date(otherEvent.end!.dateTime!).getTime();
+
+            if (otherEvent.start?.date && otherEvent.end?.date) {
+              const isOOOEvent =
+                otherEvent.eventType === "outOfOffice" ||
+                otherEvent.summary === "OOO- Automated by Workday";
+
+              if (isOOOEvent) {
+                const oooStart = new Date(otherEvent.start!.date!).getTime();
+                const oooEnd =
+                  new Date(otherEvent.end!.date!).getTime() +
+                  24 * 60 * 60 * 1000;
+
+                const conflict =
+                  proposedStart.getTime() < oooEnd &&
+                  proposedEnd.getTime() > oooStart;
+                if (conflict) {
+                  Log.log("\t\tConflict with OOO event: " + otherEvent.summary);
+                }
+
+                return conflict;
+              }
+            }
+
+            const conflict =
+              proposedStart.getTime() < otherEnd &&
+              proposedEnd.getTime() > otherStart;
+            if (conflict) {
+              Log.log("\t\tConflict with event: " + otherEvent.summary);
+            }
+
+            return conflict;
           });
 
-          if (hasConflictWithAnyOfThem) {
-            continue;
-          }
-
-          newStartTimeOptions.push(proposedStart);
+        if (hasConflict(myEventsList, currentSolution)) {
+          continue;
         }
+
+        // for each of theirEmails, check if there is a conflict with theirEvents
+        const hasConflictWithAnyOfThem = theirEmails.some((theirEmail) => {
+          const events = theirEvents.get(theirEmail) ?? [];
+          if (hasConflict(events, currentSolution)) {
+            return true;
+          }
+        });
+
+        if (hasConflictWithAnyOfThem) {
+          continue;
+        }
+
+        newStartTimeOptions.push(proposedStart);
       }
     }
 
@@ -278,7 +273,15 @@ export namespace CalendarAlg {
     });
 
     Log.log("Getting my working hours");
-    const myWorkingHours = WorkingHours.estimateWorkingHours("primary");
+    const myWorkingHours = WorkingHours.estimateWorkingHours(
+      Session.getActiveUser().getEmail()
+    );
+
+    const moveableEvents = new Set(
+      Array.from(myEvents.values())
+        .filter((event) => isEventEligibleForDefragSelection(event))
+        .map((event) => event.id!)
+    );
 
     const theirEvents = new Map<
       string,
@@ -288,12 +291,19 @@ export namespace CalendarAlg {
 
     const otherPeople = new Set<string>();
     myEventsList
+      .filter((event) => moveableEvents.has(event.id!))
       .map((event) => event.attendees)
       .filter((attendees) => attendees !== undefined)
       .flatMap((attendees) => attendees!)
+      // uniqe by email, pretty gross
+      .filter(
+        (attendee, index, self) =>
+          self.findIndex((t) => t.email === attendee.email) === index
+      )
       .filter((attendee) => !EventUtil.isAttendeeLikelyAnEmailList(attendee))
       .map((attendee) => attendee.email)
       .filter((email) => email !== undefined)
+      .map((email) => EventUtil.standardizeEmail(email))
       .forEach((email) => {
         Log.log("Getting their events next week");
         const events =
@@ -321,8 +331,12 @@ export namespace CalendarAlg {
               (event.eventType === "default" &&
                 event.attendees === undefined &&
                 !event.summary?.toLowerCase().includes("focus time")) ||
+              // consider events that they haven't declined
+              // could be interesting to exclude events they havent RSVPd-Yes to
+              // but would need to be smart about that, could maybe see historically
+              // if they never RSVP to that event
               (event.eventType === "default" &&
-                EventUtil.didRSVPYes(event, email)) ||
+                !EventUtil.didRSVPNo(event, email)) ||
               event.eventType === "outOfOffice"
           )
         );
@@ -335,11 +349,6 @@ export namespace CalendarAlg {
         );
       });
 
-    const moveableEvents = new Set(
-      Array.from(myEvents.values())
-        .filter((event) => isEventEligibleForDefragSelection(event))
-        .map((event) => event.id!)
-    );
     const moveableEventTimings = new Map<string, CalendarCost.EventTiming>();
 
     myEvents.forEach((event) => {
