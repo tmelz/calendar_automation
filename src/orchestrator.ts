@@ -264,9 +264,13 @@ export namespace Orchestrator {
 
   export function saveEvent(
     event: GoogleAppsScript.Calendar.Schema.Event,
-    changeMyCalendarOnly: boolean = false
+    changeMyCalendarOnly: boolean = false,
+    sendUpdates: boolean = false
   ): boolean {
-    Log.log(`💾 Saving event, "${event.summary}"`);
+    Log.log(`💾 Saving event, "${event.summary}", sendUpdates=${sendUpdates}`);
+    const updateArgs = sendUpdates
+      ? { sendUpdates: "all" }
+      : { sendUpdates: "none" };
     // My event, I can modify
     if (changeMyCalendarOnly || EventUtil.amITheOrganizer(event)) {
       const calendarId = changeMyCalendarOnly
@@ -279,9 +283,7 @@ export namespace Orchestrator {
           `👋 I am organizer, saving changes using calendar "${event.organizer!.email!}"`
         );
       }
-      Calendar.Events?.update(event, calendarId, event.id!, {
-        sendUpdates: "none",
-      });
+      Calendar.Events?.update(event, calendarId, event.id!, updateArgs);
       return true;
 
       // Not my event, but I should be able to modify it directly on the organizers calendar
@@ -293,9 +295,12 @@ export namespace Orchestrator {
         `👎 I am not organizer, attempting to save changes on calendar, "${event.organizer!.email!}"`
       );
       try {
-        Calendar.Events?.update(event, event.organizer!.email!, event.id!, {
-          sendUpdates: "none",
-        });
+        Calendar.Events?.update(
+          event,
+          event.organizer!.email!,
+          event.id!,
+          updateArgs
+        );
         return true;
       } catch (error: any) {
         // GoogleJsonResponseException: API call to calendar.events.update failed with error: Not Found

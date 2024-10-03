@@ -337,7 +337,7 @@ function commitDefrag(message: string): { success: boolean; message: string } {
         Log.log(`Old start time: ${startDate.toISOString()}`);
         Log.log(`New start time: ${event.start!.dateTime}`);
         // TODO cant send custom message :( but change that call to at least send updates
-        // Orchestrator.saveEventChanges(event);
+        Orchestrator.saveEvent(event, false, true);
       }
     }
   );
