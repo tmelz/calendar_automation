@@ -64,7 +64,7 @@ export namespace TeamCalendarOOO {
       timeMin,
       timeMax,
       calendarId
-    ).filter((event) => isOOOEventOnTeamCalendar(event.summary));
+    ).filter((event) => isOOOEventOnTeamCalendar(event));
     const memberEventsFromTeamCalendar: Map<
       string,
       GoogleAppsScript.Calendar.Schema.Event[]
@@ -145,7 +145,7 @@ export namespace TeamCalendarOOO {
     Log.log(`Deleting events: ${changes.deleteEvents}`);
     changes.deleteEvents.forEach((event) => {
       Log.log(`Deleting event: ${event.summary}, ${event.id}`);
-      if (!isOOOEventOnTeamCalendar(event.summary)) {
+      if (!isOOOEventOnTeamCalendar(event)) {
         throw new Error("invariant violation: deleting non-OOO event");
       }
       if (dryRun) {
@@ -360,9 +360,14 @@ export namespace TeamCalendarOOO {
   }
 
   export function isOOOEventOnTeamCalendar(
-    eventTitle: string | undefined
+    event: GoogleAppsScript.Calendar.Schema.Event
   ): boolean {
-    return eventTitle?.startsWith("[OOO]") ?? false;
+    return (
+      (event.summary?.startsWith("[OOO]") ?? false) &&
+      event.eventType === "default" &&
+      event.attendees === undefined &&
+      event.conferenceData === undefined
+    );
   }
 
   export function getNameByEmail(email: string): string | undefined {

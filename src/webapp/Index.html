@@ -92,6 +92,20 @@
       .mb-1 {
         margin-bottom: 5px !important;
       }
+      .btn-action {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+      }
+      .btn-action i {
+        pointer-events: none;
+      }
+      /* Ensure spans are inline-block for tooltips */
+      .tooltip-wrapper {
+        display: inline-block;
+      }
     </style>
   </head>
   <body>
@@ -329,51 +343,53 @@
                     class="col-md-2 d-flex align-items-center justify-content-center"
                   >
                     <div class="btn-group" role="group">
-                      <button
-                        v-if="!entry.editing"
-                        type="button"
-                        class="btn btn-sm btn-outline-primary"
-                        @click="editEntry(index)"
-                        data-bs-toggle="tooltip"
-                        data-bs-placement="top"
-                        title="Edit"
-                      >
-                        <i class="bi bi-pencil"></i>
-                      </button>
-                      <button
-                        v-if="!entry.editing"
-                        type="button"
-                        class="btn btn-sm btn-outline-danger"
-                        @click="removeTeamCalendarEntry(index)"
-                        data-bs-toggle="tooltip"
-                        data-bs-placement="top"
-                        title="Delete"
-                      >
-                        <i class="bi bi-trash"></i>
-                      </button>
-                      <button
-                        v-if="entry.editing"
-                        type="button"
-                        class="btn btn-sm btn-success"
-                        @click="saveEntry(index)"
-                        :disabled="!canSave(index)"
+                      <!-- Save Button -->
+                      <span
+                        class="tooltip-wrapper"
                         data-bs-toggle="tooltip"
                         data-bs-placement="top"
                         title="Save changes"
                       >
-                        <i class="bi bi-save"></i>
-                      </button>
-                      <button
-                        v-if="entry.editing"
-                        type="button"
-                        class="btn btn-sm btn-danger"
-                        @click="cancelEdit(index)"
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-success"
+                          @click="saveEntry(index)"
+                          :disabled="!canSave(index) || !hasChanges(index)"
+                        >
+                          <i class="bi bi-save"></i>
+                        </button>
+                      </span>
+                      <!-- Undo Button -->
+                      <span
+                        class="tooltip-wrapper"
                         data-bs-toggle="tooltip"
                         data-bs-placement="top"
-                        title="Cancel changes"
+                        title="Undo changes"
                       >
-                        <i class="bi bi-x-circle"></i>
-                      </button>
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-warning"
+                          @click="cancelEdit(index)"
+                          :disabled="!hasChanges(index)"
+                        >
+                          <i class="bi bi-arrow-counterclockwise"></i>
+                        </button>
+                      </span>
+                      <!-- Delete Button -->
+                      <span
+                        class="tooltip-wrapper"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="top"
+                        title="Delete"
+                      >
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-danger"
+                          @click="removeTeamCalendarEntry(index, $event)"
+                        >
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -392,7 +408,7 @@
 
       <!-- Saving and Saved Indicators -->
       <div v-if="saving" class="alert alert-info" role="alert">
-        Saving{{ ellipsis }}
+        Saving<span>{{ ellipsis }}</span>
       </div>
       <div v-if="saved" class="alert alert-success" role="alert">
         Saved &#x2705;
@@ -419,7 +435,7 @@
             "Team sync": "No-op",
             "Ad-hoc": "No-op",
             "Out of office": "No-op",
-            Other: "No-op",
+            "Other": "No-op",
           },
         },
         teamCalendar: {
@@ -567,7 +583,10 @@
                 if (tooltip) {
                   tooltip.dispose();
                 }
-                new bootstrap.Tooltip(tooltipTriggerEl);
+                new bootstrap.Tooltip(tooltipTriggerEl, {
+                  trigger: "hover focus",
+                  boundary: "window",
+                });
               });
             });
           },
@@ -696,34 +715,6 @@
               this.initializeTooltips();
             });
           },
-          editEntry(index) {
-            this.settings.teamCalendarSettings.outOfOffice[index].editing =
-              true;
-            this.originalEntries[index] = {
-              calendarId:
-                this.settings.teamCalendarSettings.outOfOffice[index]
-                  .calendarId,
-              groupEmail:
-                this.settings.teamCalendarSettings.outOfOffice[index]
-                  .groupEmail,
-            };
-
-            this.$nextTick(() => {
-              this.initializeTooltips();
-            });
-          },
-          removeTeamCalendarEntry(index) {
-            if (confirm("Are you sure you want to delete this entry?")) {
-              this.settings.teamCalendarSettings.outOfOffice.splice(index, 1);
-              this.validationErrors.splice(index, 1);
-              this.originalEntries.splice(index, 1);
-              this.onSettingsChanged();
-
-              this.$nextTick(() => {
-                this.initializeTooltips();
-              });
-            }
-          },
           saveEntry(index) {
             const entry = this.settings.teamCalendarSettings.outOfOffice[index];
             this.validateCalendarId(index);
@@ -763,6 +754,25 @@
             this.$nextTick(() => {
               this.initializeTooltips();
             });
+          },
+          removeTeamCalendarEntry(index, event) {
+            // Find the parent span (tooltip-wrapper) and hide its tooltip
+            const span = event.currentTarget.parentElement;
+            const tooltip = bootstrap.Tooltip.getInstance(span);
+            if (tooltip) {
+              tooltip.hide();
+            }
+
+            if (confirm("Are you sure you want to delete this entry?")) {
+              this.settings.teamCalendarSettings.outOfOffice.splice(index, 1);
+              this.validationErrors.splice(index, 1);
+              this.originalEntries.splice(index, 1);
+              this.onSettingsChanged();
+
+              this.$nextTick(() => {
+                this.initializeTooltips();
+              });
+            }
           },
           validateCalendarId(index) {
             const entry = this.settings.teamCalendarSettings.outOfOffice[index];
@@ -808,6 +818,15 @@
               !this.validationErrors[index].calendarId &&
               !this.validationErrors[index].groupEmail &&
               this.settings.enabled
+            );
+          },
+          hasChanges(index) {
+            const current =
+              this.settings.teamCalendarSettings.outOfOffice[index];
+            const original = this.originalEntries[index];
+            return (
+              current.calendarId !== original.calendarId ||
+              current.groupEmail !== original.groupEmail
             );
           },
           selectColor(category, colorOption) {

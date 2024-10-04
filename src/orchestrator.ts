@@ -50,8 +50,7 @@ export namespace Orchestrator {
       return;
     }
 
-    // time range
-    const timeRange = Time.todayThroughEndOfNextWeek();
+    const timeRange = Time.todayThroughThreeMoreWeeks();
 
     settings.teamCalendarSettings.outOfOffice.forEach(
       ({ calendarId, groupEmail }) => {

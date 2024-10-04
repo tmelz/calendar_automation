@@ -24,6 +24,15 @@ export namespace Time {
     };
   }
 
+  export function todayThroughThreeMoreWeeks(): Range {
+    const sundayThreeMoreWeeks = new Date(Time.getSundayOfNextWeek());
+    sundayThreeMoreWeeks.setDate(sundayThreeMoreWeeks.getDate() + 14);
+    return {
+      timeMin: new Date(),
+      timeMax: sundayThreeMoreWeeks,
+    };
+  }
+
   export function getSundayOfCurrentWeek(): Date {
     const today: Date = new Date();
     const first: number = today.getDate() - today.getDay() + 1;
