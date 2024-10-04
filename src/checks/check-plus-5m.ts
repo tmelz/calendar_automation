@@ -22,6 +22,10 @@ export namespace CheckPlus5m {
     `<small><i>[Note from Tim: I've automatically updated this meeting to start +5m. With frequent meetings, this helps me handle action items and take a breather so that I can join fresh and ready to focus. Please reach out with any concerns! See <a href='http://go/cal5m'>go/cal5m</a>]</i><small>`,
     "\n<small><i>[Note: this meeting has been automatically modified to start +5m. Reachout to tmellor@ with any concerns.]</i></small>",
   ];
+  // TDOO seeing this error
+  // <br><small><i>[⚠️: this meeting has been automatically modified to start +5m.]</i></small>\n<small><i>[⚠️: this meeting has been automatically modified to start +5m.]</i></small>",
+  // probably best workaround is to use <br> instead of \n but to add the newline
+  // separately from the const here. Will think on this more
   export const DESCRIPTION_SUFFIX_NOTICE: string =
     "\n<small><i>[⚠️: this meeting has been automatically modified to start +5m.]</i></small>";
 
