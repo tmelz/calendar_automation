@@ -1,5 +1,8 @@
 [![CI](https://github.com/tmelz/calendar_automation/actions/workflows/ci.yml/badge.svg)](https://github.com/tmelz/calendar_automation/actions/workflows/ci.yml)[![codecov](https://codecov.io/github/tmelz/calendar_automation/graph/badge.svg?token=RZUDBKNLY6)](https://codecov.io/github/tmelz/calendar_automation)
 
+Note: I'm not maintaining Main as releasable from every commit, please checkout this commit as the last endorsed-as-stable; In the near future I'll add more polish via something like release tags
+https://github.com/tmelz/calendar_automation/commit/098d500a6517a1ca4d3dfd99d680c4fa21b9aa87
+
 # Install
 
 1. Install [clasp](https://github.com/google/clasp)
