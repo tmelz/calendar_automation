@@ -106,6 +106,8 @@ export namespace CheckColor {
     const color = mapColorIdToColor(event.colorId);
 
     const desiredColor = colorSettings[category];
+
+    Log.log(`Category: ${category}, current color: ${color}, desiredColor: ${desiredColor}`);
     if (
       (desiredColor === CheckColor.Color.NoOp && color !== undefined) ||
       (desiredColor !== CheckColor.Color.NoOp && color !== desiredColor)
@@ -151,11 +153,11 @@ export namespace CheckColor {
     if (colorId === undefined) {
       return undefined;
     }
-    return colorIdToColorMap[colorId] || undefined;
+    return CheckColor.colorIdToColorMap[colorId] || undefined;
   }
 
   export function mapColorToColorId(color: Color): string | undefined {
-    return colorToColorIdMap[color] || undefined;
+    return CheckColor.colorToColorIdMap[color] || undefined;
   }
 
   export function getCategoryForEvent(

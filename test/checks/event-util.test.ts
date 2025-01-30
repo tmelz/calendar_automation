@@ -221,6 +221,17 @@ describe("CheckQuit.doAllAttendeesHaveSameBusinessEmailDomain", () => {
     );
   });
 
+    test("shoudl exclude meeting rooms", () => {
+      const attendees = [
+        { email: "test@block.xyz" },
+        { email: "another@block.xyz" },
+        { email: "somemeetingroom@resource.calendar.google.com"}
+      ];
+      expect(EventUtil.doAllAttendeesHaveSameBusinessEmailDomain(attendees)).toBe(
+        true
+      );
+    });
+
   test("should return false for attendees with different domains", () => {
     const attendees = [
       { email: "test@block.xyz" },
@@ -255,7 +266,7 @@ describe("CheckQuit.doAllAttendeesHaveSameBusinessEmailDomain", () => {
   });
 
   test("should return true for empty attendees array", () => {
-    expect(EventUtil.doAllAttendeesHaveSameBusinessEmailDomain([])).toBe(false);
+    expect(EventUtil.doAllAttendeesHaveSameBusinessEmailDomain([])).toBe(true);
   });
 });
 

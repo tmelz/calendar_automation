@@ -255,8 +255,10 @@ export namespace EventUtil {
         })
         .map((attendee) => {
           return attendee.email!.split("@")[1];
-        })
+        // Exclude meeting rooms
+        }).filter((domain) => domain !== "resource.calendar.google.com")
     );
+    Log.log("Email domains for attendees: " + Array.from(emailDomains));
 
     // If both folks are @gmail.com, doesn't count
     if (emailDomains.has(EventUtil.GMAIL_DOMAIN) && emailDomains.size === 1) {
@@ -264,11 +266,14 @@ export namespace EventUtil {
     }
 
     const attendeesHaveSameEmailDomain =
-      attendees?.length === 2 &&
       (emailDomains.size === 1 ||
         [...emailDomains].every((domain) =>
           EventUtil.BLOCK_EMAIL_DOMAINS.has(domain)
         ));
+    Log.log("Are all Block email domains: " + (emailDomains.size === 1 ||
+      [...emailDomains].every((domain) =>
+        EventUtil.BLOCK_EMAIL_DOMAINS.has(domain)
+      )));
 
     return attendeesHaveSameEmailDomain;
   }
