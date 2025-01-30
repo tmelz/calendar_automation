@@ -108,7 +108,7 @@ describe("ModifyEvent", () => {
         ["Discuss project"]
       );
       expect(mockEvent.description).toBe(
-        " - Next steps" + "new blurb not present"
+        " - Next steps" + "\n" + "new blurb not present"
       );
     });
   });

@@ -16,7 +16,7 @@ export namespace CheckQuit {
 
   export const QUIT_TITLE_PREFIX_NOTICE: string = "[📅❓] ";
   export const QUIT_DESCRIPTION_BLURB: string =
-    "\n<small><i>[📅❓: failed to fetch calendar for an attendee, unusual]</i></small>";
+    "<small><i>[📅❓: failed to fetch calendar for an attendee, unusual]</i></small>";
 
   export function checkShouldModifyEvent(
     event: GoogleAppsScript.Calendar.Schema.Event,

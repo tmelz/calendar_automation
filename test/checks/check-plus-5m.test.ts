@@ -350,7 +350,7 @@ describe("CheckPlus5m.modifyEventLocally", () => {
       CheckTypes.ModificationType.YES_ADD_LABEL
     );
     expect(modifiedEvent.description).toBe(
-      "Description " + CheckPlus5m.DESCRIPTION_SUFFIX_NOTICE
+      "Description " + "\n" + CheckPlus5m.DESCRIPTION_SUFFIX_NOTICE
     );
   });
 });

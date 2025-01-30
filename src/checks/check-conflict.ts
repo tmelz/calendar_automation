@@ -16,7 +16,7 @@ export namespace CheckConflict {
 
   export const CONFLICT_TITLE_PREFIX_NOTICE: string = "[🕰️⚔️] ";
   export const CONFLICT_DESCRIPTION_BLURB: string =
-    "\n<small><i>[🕰️⚔️: detected that an attendee is RSVPd to another event at this time]</i></small>";
+    "<small><i>[🕰️⚔️: detected that an attendee is RSVPd to another event at this time]</i></small>";
 
   export function checkShouldModifyEvent(
     event: GoogleAppsScript.Calendar.Schema.Event,
