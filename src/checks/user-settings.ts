@@ -47,6 +47,8 @@ export namespace UserSettings {
         return settings.checks.quit;
       case CheckConflict.ConflictCheck.id:
         return settings.checks.conflict;
+      case CheckColor.ColorCheck.id:
+        return settings.checks.eventColor;
       default:
         throw new Error(`Unknown check id: ${checkId}`);
         return false;

@@ -46,7 +46,10 @@ export namespace CheckOOO {
 
     const start = new Date(event.start!.dateTime!);
     // Handle bug where single day Workday-OOO events are for some reason excluded when making queries within that day
-    start.setDate(start.getDate() - 1);
+    // Update 1-30-2024 seeing another issue where I even need to go back 2 days to catch the all day event for this day
+    // can't explain the jank I'm seeing in the gcal API, but it's harmless to fetch more events, we still
+    // do a proper overlap check later regardless.
+    start.setDate(start.getDate() - 2);
     const end = new Date(event.end!.dateTime!);
     const theirEventsDuringMeeting = getEvents(
       start,
@@ -147,12 +150,14 @@ export namespace CheckOOO {
       // Ugly hack for that is add back the delta between UTC and current timezone. Probably a much better way but this seems
       // stable and I'm lazy and don't want to spend too much time on this.
       const theirOOOStart = new Date(theirEvent.start.date);
+      Log.log(`Debug: theirOOOStartWithoutOffset=${theirOOOStart}, offset=${theirOOOStart.getTimezoneOffset()}`);
       theirOOOStart.setMinutes(
         theirOOOStart.getMinutes() + theirOOOStart.getTimezoneOffset()
       );
       Log.log(`Debug: theirOOOStart=${theirOOOStart}`);
       theirOOOStart.setHours(0, 0, 0, 0);
       const theirOOOEnd = new Date(theirEvent.end.date);
+      Log.log(`Debug: theirOOOEndWithoutOffset=${theirOOOEnd}, offset=${theirOOOEnd.getTimezoneOffset()}`);
       theirOOOEnd.setMinutes(
         theirOOOEnd.getMinutes() + theirOOOEnd.getTimezoneOffset()
       );
