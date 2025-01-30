@@ -43,7 +43,7 @@ describe("checkShouldModifyEvent", () => {
 
     expect(result).toBe(CheckTypes.ModificationType.YES_ADD_LABEL);
     expect(getEventMock).toHaveBeenCalledWith(
-      new Date("2024-07-30T21:35:00.000Z"),
+      new Date("2024-07-29T21:35:00.000Z"),
       new Date("2024-07-31T22:00:00.000Z"),
       "them@example.com",
       undefined,
