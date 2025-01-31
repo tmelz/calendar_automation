@@ -31,7 +31,7 @@ export function runTeamCalendarFeatures(): void {
     return;
   }
   globalTriggerHook();
-  Orchestrator.runTeamCalendarFeatures();
+  Orchestrator.runTeamCalendarFeatures(false /* isDryRun */);
 }
 
 export function runCalendarChangedChecksDryRun(): void {
