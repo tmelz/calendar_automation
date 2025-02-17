@@ -55,14 +55,24 @@
         position: relative;
       }
       .color-button.selected {
-        border: 2px solid #000;
+        border: 5px solid cyan;
       }
       .color-button.no-op {
         background-color: transparent;
-        border: 2px solid #6c757d;
       }
       .color-button.no-op::after {
         content: "🚫";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 16px;
+      }
+      .color-button.trash-emoji {
+        background-color: transparent;
+      }
+      .color-button.trash-emoji::after {
+        content: "🗑️";
         position: absolute;
         top: 50%;
         left: 50%;
@@ -252,14 +262,19 @@
                       :key="colorOption"
                       type="button"
                       class="color-button"
-                      :class="{ 'no-op': colorOption === 'No-op', selected: settings.checkSettings.eventColors[category] === colorOption }"
-                      :style="{ backgroundColor: colorHexMap[colorOption] }"
+                      :class="{ 
+                        'no-op': colorOption === 'No-op',
+                        'trash-emoji': colorOption === 'Delete',
+                        selected: settings.checkSettings.eventColors[category] === colorOption
+                      }"
+                      :style="{ backgroundColor: colorOption === 'Delete' ? 'transparent' : colorHexMap[colorOption] }"
                       @click="selectColor(category, colorOption)"
-                      :title="colorOption"
+                      :title="colorOption === 'Delete' ? 'Remove color (thus using calendar default)' : colorOption"
                       data-bs-toggle="tooltip"
                       data-bs-placement="top"
                     >
                       <span v-if="colorOption === 'No-op'"></span>
+                      <span v-else-if="colorOption === 'Delete'"></span>
                     </button>
                   </div>
                 </div>
@@ -486,6 +501,7 @@
           ellipsis: "",
           colorOptions: [
             "No-op",
+            "Delete",
             "Lavender",
             "Sage",
             "Grape",
@@ -511,19 +527,21 @@
           validationErrors: [],
           originalEntries: [],
           showColorOptions: true,
+          // https://google-calendar-simple-api.readthedocs.io/en/latest/colors.html
           colorHexMap: {
             "No-op": "transparent",
-            Lavender: "#a4bdfc",
-            Sage: "#7ae7bf",
-            Grape: "#dbadff",
-            Flamingo: "#ff887c",
-            Banana: "#ffd966",
-            Tangerine: "#fbd75b",
-            Peacock: "#51e898",
-            Graphite: "#c6c6c6",
-            Blueberry: "#46d6db",
-            Basil: "#b6e880",
-            Tomato: "#ff6f61",
+            Delete: "transparent",
+            Lavender: "#7986CB",
+            Sage: "#33B679",
+            Grape: "#8E24AA",
+            Flamingo: "#E67C73",
+            Banana: "#F6BF26",
+            Tangerine: "#F4511E",
+            Peacock: "#039BE5",
+            Graphite: "#616161",
+            Blueberry: "#3F51B5",
+            Basil: "#0B8043",
+            Tomato: "#D50000",
           },
         },
         created() {

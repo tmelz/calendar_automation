@@ -847,7 +847,7 @@ export const interviewEvent: GoogleAppsScript.Calendar.Schema.Event = {
       self: true,
     },
     {
-      email: "them@example.com",
+      email: "them@example2.com",
       responseStatus: "needsAction",
     },
   ],
@@ -876,6 +876,75 @@ export const interviewEvent: GoogleAppsScript.Calendar.Schema.Event = {
   etag: '"3445080529088000"',
   iCalUID: "23tpogmf1r7657hah3vai49s68@google.com",
   created: "2024-08-01T19:21:06.000Z",
+};
+
+export const interviewEvent2: GoogleAppsScript.Calendar.Schema.Event = {
+  start: {
+    timeZone: "America/Los_Angeles",
+    dateTime: "2025-02-19T11:30:00-08:00",
+  },
+  sequence: 0,
+  iCalUID: "event123@google.com",
+  status: "confirmed",
+  conferenceData: {
+    createRequest: {
+      requestId: "123456789",
+      status: { statusCode: "success" },
+      conferenceSolutionKey: { type: "hangoutsMeet" },
+    },
+    conferenceId: "abc-defg-hij",
+    conferenceSolution: {
+      key: { type: "hangoutsMeet" },
+      name: "Google Meet",
+      iconUri:
+        "https://fonts.gstatic.com/s/i/productlogos/meet_2020q4/v6/web-512dp/logo_meet_2020q4_color_2x_web_512dp.png",
+    },
+    entryPoints: [
+      {
+        label: "meet.google.com/abc-defg-hij",
+        entryPointType: "video",
+        uri: "https://meet.google.com/abc-defg-hij",
+      },
+      {
+        uri: "https://tel.meet/abc-defg-hij?pin=1234567890123",
+        entryPointType: "more",
+        pin: "1234567890123",
+      },
+      {
+        regionCode: "US",
+        uri: "tel:+1-555-555-5555",
+        pin: "123456789",
+        entryPointType: "phone",
+        label: "+1 555-555-5555",
+      },
+    ],
+  },
+  created: "2025-02-13T19:46:33.000Z",
+  organizer: {
+    email: "calendar@company.com",
+    displayName: "Interview Calendar",
+  },
+  reminders: { useDefault: true },
+  attendees: [
+    { email: "user@example.com", self: true, responseStatus: "accepted" },
+    { email: "schedule@company.com", responseStatus: "needsAction" },
+  ],
+  eventType: "default",
+  end: {
+    dateTime: "2025-02-19T12:00:00-08:00",
+    timeZone: "America/Los_Angeles",
+  },
+  creator: { email: "creator@company.com" },
+  hangoutLink: "https://meet.google.com/abc-defg-hij",
+  kind: "calendar#event",
+  description:
+    "Please interview Candidate Name for the ___ role. Please RSVP to confirm.",
+  updated: "2025-02-17T22:27:59.081Z",
+  htmlLink: "https://www.google.com/calendar/event?eid=event123",
+  etag: '"1234567890123456"',
+  id: "event123",
+  colorId: "6",
+  summary: "Interview - Candidate Name | ____",
 };
 
 export const lunchEvent: GoogleAppsScript.Calendar.Schema.Event = {
@@ -1145,3 +1214,178 @@ export const adhocEvent: GoogleAppsScript.Calendar.Schema.Event = {
   id: "5qs1nuutbanoautoo0bm68nnkg",
   hangoutLink: "https://meet.google.com/fgt-wbyo-jrq",
 };
+
+export const groupEventWithNoVizOnOtherGuests: GoogleAppsScript.Calendar.Schema.Event =
+  {
+    description:
+      "A general discussion on platform dependencies and usage across teams.",
+    reminders: { useDefault: true },
+    guestsCanSeeOtherGuests: false,
+    conferenceData: {
+      conferenceId: "dummy-conf-id",
+      conferenceSolution: {
+        iconUri:
+          "https://fonts.gstatic.com/s/i/productlogos/meet_2020q4/v6/web-512dp/logo_meet_2020q4_color_2x_web_512dp.png",
+        key: { type: "hangoutsMeet" },
+        name: "Google Meet",
+      },
+      entryPoints: [
+        {
+          uri: "https://meet.google.com/dummy-meet",
+          entryPointType: "video",
+          label: "meet.google.com/dummy-meet",
+        },
+        {
+          uri: "https://tel.meet/dummy-meet?pin=1234567890",
+          pin: "1234567890",
+          entryPointType: "more",
+        },
+        {
+          pin: "987654",
+          uri: "tel:+1-555-555-5555",
+          regionCode: "US",
+          entryPointType: "phone",
+          label: "+1 555-555-5555",
+        },
+      ],
+    },
+    start: {
+      timeZone: "America/Los_Angeles",
+      dateTime: "2025-02-19T10:00:00-08:00",
+    },
+    attachments: [
+      {
+        iconLink:
+          "https://drive-thirdparty.googleusercontent.com/16/type/application/vnd.google-apps.document",
+        fileId: "dummy-file-id",
+        mimeType: "application/vnd.google-apps.kix",
+        title: "Platform Meeting Notes",
+        fileUrl:
+          "https://docs.google.com/document/d/dummy-file-id/edit?usp=drive_web",
+      },
+    ],
+    organizer: {
+      email: "dummy-group@group.calendar.google.com",
+      displayName: "Platform Team Events",
+    },
+    created: "2024-03-06T18:49:01.000Z",
+    attendees: [
+      {
+        responseStatus: "declined",
+        self: true,
+        optional: true,
+        email: "dummy@example.com",
+      },
+    ],
+    htmlLink: "https://www.google.com/calendar/event?eid=dummy-event-id",
+    iCalUID: "dummy-ical-uid@google.com",
+    summary: "Platform Discussion Meeting",
+    kind: "calendar#event",
+    hangoutLink: "https://meet.google.com/dummy-meet",
+    guestsCanInviteOthers: false,
+    etag: '"3479660775340000"',
+    sequence: 4,
+    updated: "2025-02-17T22:13:07.670Z",
+    visibility: "public",
+    status: "confirmed",
+    id: "dummy-event-id",
+    recurringEventId: "dummy-recurring-id",
+    creator: { email: "dummy@example.com" },
+    eventType: "default",
+    originalStartTime: {
+      dateTime: "2025-02-19T10:00:00-08:00",
+      timeZone: "America/Los_Angeles",
+    },
+    end: {
+      dateTime: "2025-02-19T10:30:00-08:00",
+      timeZone: "America/Los_Angeles",
+    },
+  };
+
+export const recurringLargeCalendarEVent: GoogleAppsScript.Calendar.Schema.Event =
+  {
+    organizer: {
+      email: "dummy-group@group.calendar.google.com",
+      displayName: "Project Team Meetings",
+    },
+    reminders: { useDefault: true },
+    etag: '"3479660780058000"',
+    guestsCanSeeOtherGuests: false,
+    id: "dummy-event-id_20250219T190000Z",
+    attachments: [
+      {
+        fileId: "dummy-file-id",
+        fileUrl: "https://drive.google.com/open?id=dummy-file-id&authuser=0",
+        iconLink:
+          "https://drive-thirdparty.googleusercontent.com/32/type/application/vnd.google-apps.spreadsheet",
+        title: "Team Collaboration Document",
+        mimeType: "application/vnd.google-apps.spreadsheet",
+      },
+    ],
+    eventType: "default",
+    end: {
+      timeZone: "America/Los_Angeles",
+      dateTime: "2025-02-19T12:00:00-08:00",
+    },
+    hangoutLink: "https://meet.google.com/dummy-meet",
+    kind: "calendar#event",
+    updated: "2025-02-17T22:13:10.029Z",
+    start: {
+      timeZone: "America/Los_Angeles",
+      dateTime: "2025-02-19T11:00:00-08:00",
+    },
+    htmlLink: "https://www.google.com/calendar/event?eid=dummy-event-id",
+    created: "2023-12-03T22:50:10.000Z",
+    summary: "🟦 Team Office Hours",
+    attendees: [
+      { email: "dummy@example.com", responseStatus: "declined", self: true },
+    ],
+    sequence: 1,
+    recurringEventId: "dummy-recurring-id",
+    creator: { email: "dummy@example.com" },
+    extendedProperties: {
+      shared: {
+        recordingMeetAdded: "false",
+        originalMeetId: "https://meet.google.com/dummy-original-meet",
+        recordingCalEventID: "dummy-recording-id",
+        recordingMeetId: "https://meet.google.com/dummy-original-meet",
+      },
+    },
+    guestsCanInviteOthers: false,
+    description:
+      "Team collaboration session for project discussions. Please use the attached document to sign up for a specific slot and provide relevant details for discussion. \n\nIf no sign-ups are recorded an hour before, the meeting may be canceled.",
+    iCalUID: "dummy-ical-uid@google.com",
+    originalStartTime: {
+      timeZone: "America/Los_Angeles",
+      dateTime: "2025-02-19T11:00:00-08:00",
+    },
+    status: "confirmed",
+    conferenceData: {
+      entryPoints: [
+        {
+          entryPointType: "video",
+          uri: "https://meet.google.com/dummy-meet",
+          label: "meet.google.com/dummy-meet",
+        },
+        {
+          uri: "https://tel.meet/dummy-meet?pin=1234567890",
+          pin: "1234567890",
+          entryPointType: "more",
+        },
+        {
+          label: "+1 555-555-5555",
+          uri: "tel:+1-555-555-5555",
+          regionCode: "US",
+          entryPointType: "phone",
+          pin: "987654",
+        },
+      ],
+      conferenceId: "dummy-meet",
+      conferenceSolution: {
+        iconUri:
+          "https://fonts.gstatic.com/s/i/productlogos/meet_2020q4/v6/web-512dp/logo_meet_2020q4_color_2x_web_512dp.png",
+        name: "Google Meet",
+        key: { type: "hangoutsMeet" },
+      },
+    },
+  };

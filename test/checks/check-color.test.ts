@@ -7,6 +7,10 @@ import {
   teamEvent,
   adhocEvent,
   theirOOOSpecificTimeEvent,
+  interviewEvent,
+  interviewEvent2,
+  groupEventWithNoVizOnOtherGuests,
+  recurringLargeCalendarEVent,
 } from "./event-data";
 import { CheckTypes } from "../../src/checks/check-types";
 
@@ -30,6 +34,16 @@ describe("getCategoryForEvent", () => {
       ],
     };
     const result = CheckColor.getCategoryForEvent(event);
+    expect(result).toBe(CheckColor.Category.ExternalAttendees);
+  });
+
+  it("should return external attendees for interview event", () => {
+    const result = CheckColor.getCategoryForEvent(interviewEvent);
+    expect(result).toBe(CheckColor.Category.ExternalAttendees);
+  });
+
+  it("should return external attendees for interview event", () => {
+    const result = CheckColor.getCategoryForEvent(interviewEvent2);
     expect(result).toBe(CheckColor.Category.ExternalAttendees);
   });
 
@@ -58,10 +72,17 @@ describe("getCategoryForEvent", () => {
     expect(result).toBe(CheckColor.Category.OutOfOffice);
   });
 
-  //   it("should return Category.Other for any other type of event", () => {
-  //     const result = CheckColor.getCategoryForEvent(otherEvent);
-  //     expect(result).toBe(Category.Other);
-  //   });
+  it("should return Category.Other for any other type of event", () => {
+    const result = CheckColor.getCategoryForEvent(
+      groupEventWithNoVizOnOtherGuests
+    );
+    expect(result).toBe(CheckColor.Category.Other);
+  });
+
+  it("should return Category.Other for any other type of event", () => {
+    const result = CheckColor.getCategoryForEvent(recurringLargeCalendarEVent);
+    expect(result).toBe(CheckColor.Category.Other);
+  });
 });
 
 describe("modifyEventLocally", () => {
@@ -99,7 +120,7 @@ describe("modifyEventLocally", () => {
     );
   });
 
-  it("removes color id if NoOp set", () => {
+  it("no-op color id if NoOp set", () => {
     const event = {
       ...myOneOnOneEvent,
       colorId: "3",
@@ -111,6 +132,108 @@ describe("modifyEventLocally", () => {
         [CheckColor.Category.OneOnOne]: CheckColor.Color.NoOp,
       } as CheckColor.Settings
     );
-    expect(event.colorId).toBe(undefined);
+    expect(event.colorId).toEqual("3");
+  });
+
+  it("removes color id if Delete set", () => {
+    const event = {
+      ...myOneOnOneEvent,
+      colorId: "3",
+    };
+    CheckColor.modifyEventLocally(
+      event,
+      CheckTypes.ModificationType.YES_CHANGE_COLOR,
+      {
+        [CheckColor.Category.OneOnOne]: CheckColor.Color.Delete,
+      } as CheckColor.Settings
+    );
+    expect(event.colorId).toBeUndefined();
+  });
+});
+
+describe("checkShouldModifyEvent", () => {
+  // Helper to create a settings object based on the default, with OneOnOne overridden as needed.
+  const createSettingsForOneOnOne = (
+    color: CheckColor.Color
+  ): CheckColor.Settings => {
+    const settings = CheckColor.createDefaultSettings();
+    settings[CheckColor.Category.OneOnOne] = color;
+    return settings;
+  };
+
+  it("should return undefined for events with eventType 'workingLocation'", () => {
+    const event = {
+      ...myOneOnOneEvent,
+      eventType: "workingLocation",
+    } as GoogleAppsScript.Calendar.Schema.Event;
+    const settings = createSettingsForOneOnOne(CheckColor.Color.Lavender);
+    const result = CheckColor.checkShouldModifyEvent(event, settings);
+    expect(result).toBeUndefined();
+  });
+
+  it("should return undefined if desired color is NoOp", () => {
+    const event = {
+      ...myOneOnOneEvent,
+      colorId: "3",
+    } as GoogleAppsScript.Calendar.Schema.Event; // current color is Grape, but irrelevant here
+    const settings = createSettingsForOneOnOne(CheckColor.Color.NoOp);
+    const result = CheckColor.checkShouldModifyEvent(event, settings);
+    expect(result).toBeUndefined();
+  });
+
+  it("should return YES_CHANGE_COLOR for desired Delete when event color is present", () => {
+    const event = {
+      ...myOneOnOneEvent,
+      colorId: "3",
+    } as GoogleAppsScript.Calendar.Schema.Event; // colorId "3" maps to Grape
+    const settings = createSettingsForOneOnOne(CheckColor.Color.Delete);
+    const result = CheckColor.checkShouldModifyEvent(event, settings);
+    expect(result).toBe(CheckTypes.ModificationType.YES_CHANGE_COLOR);
+  });
+
+  it("should return undefined for desired Delete when event color is undefined", () => {
+    const event = {
+      ...myOneOnOneEvent,
+      colorId: undefined,
+    } as GoogleAppsScript.Calendar.Schema.Event;
+    const settings = createSettingsForOneOnOne(CheckColor.Color.Delete);
+    const result = CheckColor.checkShouldModifyEvent(event, settings);
+    expect(result).toBeUndefined();
+  });
+
+  it("should return YES_CHANGE_COLOR when desired specific color is set and current color is different", () => {
+    // current color "3" (Grape), desired is Lavender.
+    const event = {
+      ...myOneOnOneEvent,
+      colorId: "3",
+    } as GoogleAppsScript.Calendar.Schema.Event;
+    const settings = createSettingsForOneOnOne(CheckColor.Color.Lavender);
+    const result = CheckColor.checkShouldModifyEvent(event, settings);
+    expect(result).toBe(CheckTypes.ModificationType.YES_CHANGE_COLOR);
+  });
+
+  it("should return YES_CHANGE_COLOR when desired specific color is set and event has no color", () => {
+    // current color is undefined, desired is Lavender.
+    const event = {
+      ...myOneOnOneEvent,
+      colorId: undefined,
+    } as GoogleAppsScript.Calendar.Schema.Event;
+    const settings = createSettingsForOneOnOne(CheckColor.Color.Lavender);
+    const result = CheckColor.checkShouldModifyEvent(event, settings);
+    expect(result).toBe(CheckTypes.ModificationType.YES_CHANGE_COLOR);
+  });
+
+  it("should return undefined when desired specific color is set and current color matches desired", () => {
+    // Set event's colorId to the desired value for Lavender.
+    const desiredColorId = CheckColor.mapColorToColorId(
+      CheckColor.Color.Lavender
+    );
+    const event = {
+      ...myOneOnOneEvent,
+      colorId: desiredColorId,
+    } as GoogleAppsScript.Calendar.Schema.Event;
+    const settings = createSettingsForOneOnOne(CheckColor.Color.Lavender);
+    const result = CheckColor.checkShouldModifyEvent(event, settings);
+    expect(result).toBeUndefined();
   });
 });

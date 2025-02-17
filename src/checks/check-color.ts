@@ -31,6 +31,7 @@ export namespace CheckColor {
   // e.g. CalendarApp.EventColor.BLUE;
   export enum Color {
     NoOp = "No-op",
+    Delete = "Delete",
     Lavender = "Lavender",
     Sage = "Sage",
     Grape = "Grape",
@@ -91,6 +92,7 @@ export namespace CheckColor {
     [Color.Basil]: "10",
     [Color.Tomato]: "11",
     [Color.NoOp]: "",
+    [Color.Delete]: "",
   };
 
   export function checkShouldModifyEvent(
@@ -98,6 +100,10 @@ export namespace CheckColor {
     colorSettings: Settings = UserSettings.loadSettings().checkSettings
       .eventColors
   ): CheckTypes.ModificationType | undefined {
+    if (event.eventType === "workingLocation") {
+      return undefined;
+    }
+
     const category = getCategoryForEvent(event);
     if (category === undefined) {
       Log.log(`👎 not modifying event color, no category found`);
@@ -107,11 +113,21 @@ export namespace CheckColor {
 
     const desiredColor = colorSettings[category];
 
-    Log.log(`Category: ${category}, current color: ${color}, desiredColor: ${desiredColor}`);
-    if (
-      (desiredColor === CheckColor.Color.NoOp && color !== undefined) ||
-      (desiredColor !== CheckColor.Color.NoOp && color !== desiredColor)
-    ) {
+    Log.log(
+      `Category: ${category}, current color: ${color}, desiredColor: ${desiredColor}`
+    );
+
+    if (desiredColor === CheckColor.Color.NoOp) {
+      return undefined;
+    }
+
+    if (desiredColor === CheckColor.Color.Delete) {
+      return color !== undefined
+        ? CheckTypes.ModificationType.YES_CHANGE_COLOR
+        : undefined;
+    }
+
+    if (color !== desiredColor) {
       return CheckTypes.ModificationType.YES_CHANGE_COLOR;
     }
 
@@ -137,6 +153,8 @@ export namespace CheckColor {
 
     const desiredColor = colorSettings[category];
     if (desiredColor === CheckColor.Color.NoOp) {
+      // do nothing, invariant violation, but dont throw error because setting could've changed async
+    } else if (desiredColor === CheckColor.Color.Delete) {
       event.colorId = undefined;
     } else {
       const colorId = mapColorToColorId(desiredColor);
@@ -163,6 +181,10 @@ export namespace CheckColor {
   export function getCategoryForEvent(
     event: GoogleAppsScript.Calendar.Schema.Event
   ): Category | undefined {
+    if (event.guestsCanSeeOtherGuests === false) {
+      return Category.Other;
+    }
+
     // Ordering of these if checks is very deliberate
     if (event.eventType === "focusTime") {
       return Category.FocusTime;
