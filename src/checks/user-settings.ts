@@ -24,9 +24,14 @@ export namespace UserSettings {
     };
     teamCalendar: {
       outOfOffice: boolean;
+      oncall: boolean;
     };
     teamCalendarSettings: {
       outOfOffice: { calendarId: string; groupEmail: string }[];
+      oncall: {
+        calendarId: string;
+        scheduleId: string;
+      }[];
     };
   };
 
@@ -92,9 +97,11 @@ export namespace UserSettings {
       },
       teamCalendar: {
         outOfOffice: false,
+        oncall: false,
       },
       teamCalendarSettings: {
         outOfOffice: [],
+        oncall: [],
       },
     };
   }

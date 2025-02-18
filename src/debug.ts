@@ -8,6 +8,7 @@ import { WorkingHours } from "./defrag/working-hours";
 import { ModifyEvent } from "./checks/modify-event";
 import { TeamCalendarOOO } from "./team_calendar/team-calendar-ooo";
 import { CheckColor } from "./checks/check-color";
+import { TeamCalendarOncall } from "./team_calendar/team-calendar-pagerduty";
 
 // export function debugEstimateWorkingHours(email: string) {
 //   const events = GetEvents.getEventsForRestOfWeek();
@@ -21,18 +22,29 @@ import { CheckColor } from "./checks/check-color";
 //   sendUpdates: "all",
 // });
 export function debug() {
-  Log.log(
-    JSON.stringify(WorkingHours.estimateWorkingHours("tmellor@block.xyz"))
+  const now = new Date();
+  const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  TeamCalendarOncall.syncCalendarOncall(
+    now,
+    nextWeek,
+    // test calendar
+    "c_dbf46adba7f1d6fc383bbeaaf7d50723e6bea3901446fb11b02f9d5751219f6f@group.calendar.google.com",
+    // example pagerduty
+    "PGPS6UF",
+    true /*dry run*/
   );
 
+  // Log.log(
+  //   JSON.stringify(WorkingHours.estimateWorkingHours("tmellor@block.xyz"))
+  // );
 
-  const events = GetEvents.getEventsForDateRange(new Date(), new Date((new Date()).getTime() + 7 * 24 * 60 * 60 * 1000));
-  events.forEach((event) => {
-    Log.log(`${event.summary}`);
-    Log.log(CheckColor.getCategoryForEvent(event) ?? "undefined");
-    Log.log(`\t${event}`);
-    
-  });
+  // const events = GetEvents.getEventsForDateRange(new Date(), new Date((new Date()).getTime() + 7 * 24 * 60 * 60 * 1000));
+  // events.forEach((event) => {
+  //   Log.log(`${event.summary}`);
+  //   Log.log(CheckColor.getCategoryForEvent(event) ?? "undefined");
+  //   Log.log(`\t${event}`);
+
+  // });
 
   // const tmellorTestCal =
   //   "c_dbf46adba7f1d6fc383bbeaaf7d50723e6bea3901446fb11b02f9d5751219f6f@group.calendar.google.com";

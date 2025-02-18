@@ -2,6 +2,7 @@ import { Orchestrator } from "./orchestrator";
 import { Analytics } from "./analytics";
 import { UserSettings } from "./checks/user-settings";
 import { Log } from "./checks/log";
+import { Pagerduty } from "./pagerduty";
 
 // README
 // To install, select setupTriggers function in IDE and click run
@@ -111,4 +112,13 @@ export function getAnalytics(): { [key: string]: string } {
 
   Logger.log(allProperties); // View in Apps Script Logs
   return allProperties; // Or return as JSON for an API endpoint
+}
+
+export function setupSecrets() {
+  // don't commit these values to source control, use the apps script UI
+  // to fill them out and run the method; as a hacky secrets manager
+  PropertiesService.getScriptProperties().setProperty(
+    Pagerduty.TOKEN_KEY,
+    "TODO"
+  );
 }

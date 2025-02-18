@@ -72,9 +72,11 @@ describe("checkEvents", () => {
     },
     teamCalendar: {
       outOfOffice: false,
+      oncall: false,
     },
     teamCalendarSettings: {
       outOfOffice: [],
+      oncall: [],
     },
   };
 
