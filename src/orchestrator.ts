@@ -12,6 +12,7 @@ import { Analytics } from "./analytics";
 import { UserSettings } from "./checks/user-settings";
 import { CheckColor } from "./checks/check-color";
 import { TeamCalendarOOO } from "./team_calendar/team-calendar-ooo";
+import { TeamCalendarOncall } from "./team_calendar/team-calendar-pagerduty";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace Orchestrator {
@@ -45,28 +46,49 @@ export namespace Orchestrator {
       return;
     }
 
-    if (!settings.teamCalendar.outOfOffice) {
-      Log.log("🚨 Team calendar OOO disabled, exiting");
-      return;
-    }
-
     const timeRange = Time.todayThroughThreeMoreWeeks();
 
-    settings.teamCalendarSettings.outOfOffice.forEach(
-      ({ calendarId, groupEmail }) => {
-        if (calendarId.trim().length == 0 || groupEmail.trim().length == 0) {
-          throw new Error("invariant violation");
-          return;
+    if (settings.teamCalendar.outOfOffice) {
+      Log.log("🏃 Running Team calendar OOO checks");
+      settings.teamCalendarSettings.outOfOffice.forEach(
+        ({ calendarId, groupEmail }) => {
+          if (calendarId.trim().length == 0 || groupEmail.trim().length == 0) {
+            throw new Error("invariant violation");
+            return;
+          }
+          TeamCalendarOOO.syncCalendarOOO(
+            timeRange.timeMin,
+            timeRange.timeMax,
+            calendarId,
+            groupEmail,
+            isDryRun
+          );
         }
-        TeamCalendarOOO.syncCalendarOOO(
-          timeRange.timeMin,
-          timeRange.timeMax,
-          calendarId,
-          groupEmail,
-          isDryRun
-        );
-      }
-    );
+      );
+    } else {
+      Log.log("🚨 Team calendar OOO disabled, skipping");
+    }
+
+    if (settings.teamCalendar.oncall) {
+      Log.log("🏃 Running Team calendar oncall checks");
+      settings.teamCalendarSettings.oncall.forEach(
+        ({ calendarId, scheduleId }) => {
+          if (calendarId.trim().length == 0 || scheduleId.trim().length == 0) {
+            throw new Error("invariant violation");
+            return;
+          }
+          TeamCalendarOncall.syncCalendarOncall(
+            timeRange.timeMin,
+            timeRange.timeMax,
+            calendarId,
+            scheduleId,
+            isDryRun
+          );
+        }
+      );
+    } else {
+      Log.log("🚨 Team calendar oncall disabled, skipping");
+    }
   }
 
   // Only look at events that have recently changed

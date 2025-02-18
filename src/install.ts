@@ -35,6 +35,15 @@ export function runTeamCalendarFeatures(): void {
   Orchestrator.runTeamCalendarFeatures(false /* isDryRun */);
 }
 
+export function runTeamCalendarFeaturesDryRun(): void {
+  if (!checkIfEnabled()) {
+    Log.log("Triggered, but disabled. Exiting.");
+    return;
+  }
+  globalTriggerHook();
+  Orchestrator.runTeamCalendarFeatures(true /* isDryRun */);
+}
+
 export function runCalendarChangedChecksDryRun(): void {
   Orchestrator.runFastChecks(true /* isDryRun */);
 }
