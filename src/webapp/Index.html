@@ -158,21 +158,6 @@
               <input
                 class="form-check-input"
                 type="checkbox"
-                id="plusFiveMinutes"
-                v-model="settings.checks.plusFiveMinutes"
-                @change="onSettingsChanged"
-              />
-              <label class="form-check-label" for="plusFiveMinutes">
-                Start meetings +5m
-              </label>
-              <div class="form-text">
-                Start meetings 5m after the hour or half hour.
-              </div>
-            </div>
-            <div class="form-check mb-1">
-              <input
-                class="form-check-input"
-                type="checkbox"
                 id="outOfOffice"
                 v-model="settings.checks.outOfOffice"
                 @change="onSettingsChanged"
@@ -217,7 +202,54 @@
           <!-- Features for All Events -->
           <fieldset :disabled="!settings.enabled" class="mb-4">
             <h5>Features for All Events</h5>
-            <div class="d-flex justify-content-between align-items-center mb-1">
+            <div class="form-check mb-1">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                id="plusFiveMinutes"
+                v-model="settings.checks.plusFiveMinutes"
+                @change="onSettingsChanged"
+              />
+              <label class="form-check-label" for="plusFiveMinutes">
+                Start meetings +5m
+              </label>
+              <div class="form-text">
+                Start meetings 5m after the hour or half hour. This high level
+                setting unblocks the sub settings below, it has no effect if all
+                sub settings are disabled.
+              </div>
+            </div>
+            <div v-if="settings.checks.plusFiveMinutes" class="ms-3">
+              <div class="form-check mb-1">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="plusFiveMinutesOneOnOnes"
+                  v-model="settings.checkSettings.plusFiveMinutes.oneOnOnes"
+                  @change="onSettingsChanged"
+                />
+                <label class="form-check-label" for="plusFiveMinutesOneOnOnes">
+                  For 1-on-1 meetings
+                </label>
+              </div>
+              <div class="form-check mb-1">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="plusFiveMinutesAnyEvent"
+                  v-model="settings.checkSettings.plusFiveMinutes.anyEventIOrganizeOrCreateWithAttendees"
+                  @change="onSettingsChanged"
+                />
+                <label class="form-check-label" for="plusFiveMinutesAnyEvent">
+                  For any event I organize or create (with attendees, excludes
+                  calendar holds)
+                </label>
+              </div>
+            </div>
+            <!-- Event Color Setting -->
+            <div
+              class="d-flex justify-content-between align-items-center mb-1 mt-3"
+            >
               <div class="form-check">
                 <input
                   class="form-check-input"
@@ -583,6 +615,10 @@
             "Out of office": "No-op",
             "Other": "No-op",
           },
+          plusFiveMinutes: {
+            oneOnOnes: false,
+            anyEventIOrganizeOrCreateWithAttendees: false,
+          },
         },
         teamCalendar: {
           outOfOffice: false,
@@ -620,6 +656,10 @@
                 "Ad-hoc": "No-op",
                 "Out of office": "No-op",
                 Other: "No-op",
+              },
+              plusFiveMinutes: {
+                oneOnOnes: false,
+                anyEventIOrganizeWithAttendees: false,
               },
             },
             teamCalendar: {
@@ -695,6 +735,13 @@
             this.settings.checkSettings.eventColors,
             userSettings.checkSettings.eventColors
           );
+          if (userSettings.checkSettings.plusFiveMinutes) {
+            this.settings.checkSettings.plusFiveMinutes = Object.assign(
+              {},
+              this.settings.checkSettings.plusFiveMinutes,
+              userSettings.checkSettings.plusFiveMinutes
+            );
+          }
           this.settings.teamCalendar = Object.assign(
             {},
             this.settings.teamCalendar,
@@ -867,6 +914,7 @@
               checks: this.settings.checks,
               checkSettings: {
                 eventColors: this.settings.checkSettings.eventColors,
+                plusFiveMinutes: this.settings.checkSettings.plusFiveMinutes,
               },
               teamCalendar: this.settings.teamCalendar,
               teamCalendarSettings: {

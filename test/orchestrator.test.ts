@@ -69,6 +69,10 @@ describe("checkEvents", () => {
     },
     checkSettings: {
       eventColors: CheckColor.createDefaultSettings(),
+      plusFiveMinutes: {
+        oneOnOnes: true,
+        anyEventIOrganizeOrCreateWithAttendees: true,
+      },
     },
     teamCalendar: {
       outOfOffice: false,

@@ -3,6 +3,7 @@ import { CheckTypes } from "./check-types";
 import { ModifyEvent } from "./modify-event";
 import { Log } from "./log";
 import { Analytics } from "../analytics";
+import { UserSettings } from "./user-settings";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace CheckPlus5m {
@@ -11,6 +12,12 @@ export namespace CheckPlus5m {
     id: CheckPlus5m.ID,
     shouldModifyEvent: checkShouldModifyEvent,
     modifyEventLocally: modifyEventLocally,
+  };
+
+  export type Settings = {
+    oneOnOnes: boolean;
+    anyEventIOrganizeOrCreateWithAttendees: boolean;
+    // anyEventWithFiveOrFewerPeopleAndNoEmailListAttendees: boolean;
   };
 
   // add these to modified meetings to indicate that it starts 5m late and why
@@ -25,11 +32,72 @@ export namespace CheckPlus5m {
   export const DESCRIPTION_SUFFIX_NOTICE: string =
     "<small><i>[⚠️: this meeting has been automatically modified to start +5m.]</i></small>";
 
+  export function isOkToModifyEventBasedOnSettings(
+    event: GoogleAppsScript.Calendar.Schema.Event,
+    settings: Settings
+  ): boolean {
+    // Pre-existing behavior for 1:1s
+    if (settings.oneOnOnes && EventUtil.isOneOnOneWithMe(event)) {
+      return true;
+    }
+
+    // Allow for more generalized case, but first do basic exclusions
+    // Can clean this up in the future since some is redundant with 1:1 check
+    const logMessage = "👎 Not ok to modify event, reason: ";
+
+    const isDefaultEvent = event.eventType === "default";
+    if (!isDefaultEvent) {
+      Log.log(logMessage + "event type is not 'default'");
+      return false;
+    }
+
+    const guestVisibilityRestricted = event.guestsCanSeeOtherGuests === false;
+    if (guestVisibilityRestricted) {
+      Log.log(logMessage + "guestsCanSeeOtherGuests is false");
+      return false;
+    }
+
+    const isAllDayEvent = event.start?.date !== undefined;
+    if (isAllDayEvent) {
+      Log.log(logMessage + "event is an all-day event");
+      return false;
+    }
+
+    const amITheOrganizer = EventUtil.amITheOrganizer(event);
+    if (!amITheOrganizer && event?.guestsCanModify !== true) {
+      Log.log(
+        logMessage + "I am not the organizer and cannot modify the event"
+      );
+      return false;
+    }
+
+    // Basic exclusions finished, let's do checks specific to other settings
+    if (
+      settings.anyEventIOrganizeOrCreateWithAttendees &&
+      (amITheOrganizer || EventUtil.amITheCreator(event)) &&
+      (event.attendees?.length ?? 0) > 0
+    ) {
+      Log.log(
+        "👍 ok to modify event based on settings, reason: " +
+          "I am the organizer or creator and the event has attendees"
+      );
+      return true;
+    }
+
+    // TODO any event with 5 or fewer attendees and no email list attendees
+
+    return false;
+  }
+
   export function checkShouldModifyEvent(
-    event: GoogleAppsScript.Calendar.Schema.Event
+    event: GoogleAppsScript.Calendar.Schema.Event,
+    settings: Settings = UserSettings.loadSettings().checkSettings
+      .plusFiveMinutes
   ): CheckTypes.ModificationType | undefined {
-    if (!EventUtil.isOneOnOneWithMe(event)) {
-      Log.log(`👎 skipping, doesn't appear to be a 1:1 with me, ${event}`);
+    if (!isOkToModifyEventBasedOnSettings(event, settings)) {
+      Log.log(
+        `👎 skipping, not ok to modify based on settings, ${event.summary}`
+      );
       return undefined;
     }
 

@@ -107,6 +107,12 @@ export namespace EventUtil {
     return attendee.email?.startsWith(`${attendee.displayName}@`) ?? false;
   }
 
+  export function amITheCreator(
+    event: GoogleAppsScript.Calendar.Schema.Event
+  ): boolean {
+    return event?.creator?.self === true;
+  }
+
   export function amITheOrganizer(
     event: GoogleAppsScript.Calendar.Schema.Event
   ): boolean {
@@ -255,8 +261,9 @@ export namespace EventUtil {
         })
         .map((attendee) => {
           return attendee.email!.split("@")[1];
-        // Exclude meeting rooms
-        }).filter((domain) => domain !== "resource.calendar.google.com")
+          // Exclude meeting rooms
+        })
+        .filter((domain) => domain !== "resource.calendar.google.com")
     );
     Log.log("Email domains for attendees: " + Array.from(emailDomains));
 
@@ -266,14 +273,17 @@ export namespace EventUtil {
     }
 
     const attendeesHaveSameEmailDomain =
-      (emailDomains.size === 1 ||
-        [...emailDomains].every((domain) =>
-          EventUtil.BLOCK_EMAIL_DOMAINS.has(domain)
-        ));
-    Log.log("Are all Block email domains: " + (emailDomains.size === 1 ||
+      emailDomains.size === 1 ||
       [...emailDomains].every((domain) =>
         EventUtil.BLOCK_EMAIL_DOMAINS.has(domain)
-      )));
+      );
+    Log.log(
+      "Are all Block email domains: " +
+        (emailDomains.size === 1 ||
+          [...emailDomains].every((domain) =>
+            EventUtil.BLOCK_EMAIL_DOMAINS.has(domain)
+          ))
+    );
 
     return attendeesHaveSameEmailDomain;
   }

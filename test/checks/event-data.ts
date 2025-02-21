@@ -448,40 +448,6 @@ export const myOneOnOneWithPotentialConflict: GoogleAppsScript.Calendar.Schema.E
     ],
   };
 
-// const theirRandomEvent1: GoogleAppsScript.Calendar.Schema.Event = {
-//   description: `<a href="https://docs.google.com/spreadsheets/d/1KtkyWk9RInXyRFB4dPE_2RAlCnqyTCQzbOrtzWWjfcQ/edit#gid=0" target="_blank"><b>SQUARE 2024 DWW SCHEDULE</b></a><ul><li>Week of 1/1</li><li>Week of 1/29</li><li>Week of 3/11</li><li>Week of 4/29</li><li>Week of 6/24</li><li>Week of 7/29</li><li>Week of 9/16</li><li>Week of 11/11</li><li>Week of 12/16</li></ul><br><b>DWW DETAILS</b><br><br><b>WHAT</b><br>Deep work weeks (DWW) are an opportunity to set aside an entire work week where schedules are cleared and individuals have the space to execute on initiatives big and small that might be typically slowed by the regular day to day noise of work such as meetings, stand ups, and events. <br><br><b>WHY</b><br>Even though we are no longer physically in the same space, the pace of swirl has not slowed and there is a feeling that we may be meeting more, not less, frequently. While meetings can be great and help us move our work forward, in addition to helping us feel more connected, they can also lead to exhaustion and a lack of time for deeper, more focused thought and work. Context switching between meetings and deep work can be challenging, so segmented deep work time can be highly beneficial.<br><br><b>GUIDING PRINCIPLES</b><br><ul><li>Deep Work Week is not “No Work Week” or “Quiet Week” and there should be a tangible and measurable output that individuals can provide which contributes to the success of the team’s roadmaps and objectives. We should trust and leverage existing systems (sprint planning, 1-1s) to measure output and should not create new processes. </li><li>It is our responsibility to guard our time and use it wisely to optimize our productivity and productivity of the entire team</li><li>This ensures that all members are empathetic for each other and their time during the week.</li><li>While we encourage the cancellation of standing meetings [1:1s and regular team meetings], DWW is meant to continue the level of work required to get your work done. In some cases, it will not be possible to cancel all meetings, (i.e. sprint teams or essential meetings).</li><li>We learn and iterate on the guiding principles and what works.</li><li>We recommend that you silence all notifications during your deep work blocks, slack, email, phones- lean into deep work even if it’s uncomfortable or foreign at first.</li><li>Challenge yourself to get outside of your day to day work life- use the space to think through big problems that require quiet and concentration, use the time for training or research you might not otherwise get to, etc. </li></ul>`,
-//   updated: "2024-07-31T14:01:56.030Z",
-//   eventType: "default",
-//   htmlLink:
-//     "https://www.google.com/calendar/event?eid=MmF0dG1scXBlbGhjcTdtcm4wNGFocHVtOWkgeXVhbmZlbmdAYmxvY2sueHl6",
-//   guestsCanSeeOtherGuests: false,
-//   etag: '"3444869032060000"',
-//   status: "confirmed",
-//   organizer: {
-//     email: "example.com_hktfkmsgusb7q61dp502ci6sfc@group.calendar.google.com",
-//     displayName: "Foo Org",
-//   },
-//   reminders: { useDefault: false },
-//   end: { date: "2024-08-03" },
-//   start: { date: "2024-07-29" },
-//   sequence: 0,
-//   attendees: [
-//     {
-//       email: "them@example.com",
-//       self: true,
-//       responseStatus: "needsAction",
-//     },
-//   ],
-//   created: "2023-12-08T17:14:56.000Z",
-//   summary: "Deep Work Week",
-//   kind: "calendar#event",
-//   transparency: "transparent",
-//   guestsCanInviteOthers: false,
-//   creator: { email: "foo@example.com" },
-//   id: "2attmlqpelhcq7mrn04ahpum9i",
-//   iCalUID: "2attmlqpelhcq7mrn04ahpum9i@google.com",
-// };
-
 export const theirRandomEvent1: GoogleAppsScript.Calendar.Schema.Event = {
   guestsCanSeeOtherGuests: false,
   organizer: {

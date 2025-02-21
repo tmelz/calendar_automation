@@ -21,6 +21,10 @@ export namespace UserSettings {
       eventColors: {
         [key in CheckColor.Category]: CheckColor.Color;
       };
+      plusFiveMinutes: {
+        oneOnOnes: boolean;
+        anyEventIOrganizeOrCreateWithAttendees: boolean;
+      };
     };
     teamCalendar: {
       outOfOffice: boolean;
@@ -94,6 +98,11 @@ export namespace UserSettings {
       },
       checkSettings: {
         eventColors: CheckColor.createDefaultSettings(),
+        plusFiveMinutes: {
+          oneOnOnes: false,
+          anyEventIOrganizeOrCreateWithAttendees: false,
+          // anyEventWithFiveOrFewerPeopleAndNoEmailListAttendees: false,
+        },
       },
       teamCalendar: {
         outOfOffice: false,

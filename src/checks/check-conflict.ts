@@ -23,7 +23,9 @@ export namespace CheckConflict {
     getEvents: GetEvents.EventFetcherWithError = GetEvents.getEventsForDateRangeCustomCalendarWithErrorCatch
   ): CheckTypes.ModificationType | undefined {
     if (!EventUtil.isOneOnOneWithMe(event)) {
-      Log.log(`👎 skipping, doesn't appear to be a 1:1 with me, ${event}`);
+      Log.log(
+        `👎 skipping, doesn't appear to be a 1:1 with me, ${event.summary}`
+      );
       return undefined;
     }
 

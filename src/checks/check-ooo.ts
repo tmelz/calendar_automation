@@ -31,7 +31,9 @@ export namespace CheckOOO {
     checkIsOOOAndOverlaps: CompareEvents = checkIfEventIsOOOAndOverlaps
   ): CheckTypes.ModificationType | undefined {
     if (!EventUtil.isOneOnOneWithMe(event)) {
-      Log.log(`👎 skipping, doesn't appear to be a 1:1 with me, ${event}`);
+      Log.log(
+        `👎 skipping, doesn't appear to be a 1:1 with me, ${event.summary}`
+      );
       return undefined;
     }
 
@@ -150,14 +152,18 @@ export namespace CheckOOO {
       // Ugly hack for that is add back the delta between UTC and current timezone. Probably a much better way but this seems
       // stable and I'm lazy and don't want to spend too much time on this.
       const theirOOOStart = new Date(theirEvent.start.date);
-      Log.log(`Debug: theirOOOStartWithoutOffset=${theirOOOStart}, offset=${theirOOOStart.getTimezoneOffset()}`);
+      Log.log(
+        `Debug: theirOOOStartWithoutOffset=${theirOOOStart}, offset=${theirOOOStart.getTimezoneOffset()}`
+      );
       theirOOOStart.setMinutes(
         theirOOOStart.getMinutes() + theirOOOStart.getTimezoneOffset()
       );
       Log.log(`Debug: theirOOOStart=${theirOOOStart}`);
       theirOOOStart.setHours(0, 0, 0, 0);
       const theirOOOEnd = new Date(theirEvent.end.date);
-      Log.log(`Debug: theirOOOEndWithoutOffset=${theirOOOEnd}, offset=${theirOOOEnd.getTimezoneOffset()}`);
+      Log.log(
+        `Debug: theirOOOEndWithoutOffset=${theirOOOEnd}, offset=${theirOOOEnd.getTimezoneOffset()}`
+      );
       theirOOOEnd.setMinutes(
         theirOOOEnd.getMinutes() + theirOOOEnd.getTimezoneOffset()
       );
