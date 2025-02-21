@@ -315,6 +315,25 @@ export namespace Orchestrator {
       Log.log(
         `👎 I am not organizer, attempting to save changes on calendar, "${event.organizer!.email!}"`
       );
+
+      // Ok this edge case makes me sad.
+      // The scenario we're in is that we're modifying an event that is owned
+      // by a different calendar. That's totally fine for most cases.
+      // However, we fetched the event from our calendar, and thus it might
+      // have a colorId set that is specific for our calendar. If you push
+      // this event to another calendar AND you have edit permissions of that calendar
+      // then the colorId will be applied to that event for all attendees.
+      // We can workaround this by unsetting the colorId before pushing the change.
+      // Of course this could backfire if someone is intentionally setting the color
+      // of group calendar events. But I've honestly only ever seen that happen
+      // by accident, so I'm OK with that assumption.
+      if (event.colorId !== undefined) {
+        console.log(
+          "👿 Unsetting colorId for event temporarily while saving to another calendar, to avoid setting color for others."
+        );
+        event.colorId = undefined;
+      }
+
       try {
         Calendar.Events?.update(
           event,
