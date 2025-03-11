@@ -22,17 +22,38 @@ import { TeamCalendarOncall } from "./team_calendar/team-calendar-pagerduty";
 //   sendUpdates: "all",
 // });
 
+// try out UrlFetchApp.fetchAll
 export function debug() {
-  // veryifyin color id  change fix for other calendars.
-  const event = Calendar.Events?.get("primary", "4udjjghm949ljp1b3cchbbsoeh");
-  const newStart = new Date(event!.start!.dateTime!);
-  newStart.setMinutes(newStart.getMinutes() + 5);
-  event!.start!.dateTime = newStart.toISOString();
-  console.log(event!.summary);
-  console.log(event);
-  Orchestrator.saveEvent(event!, false /*changeMyCalendarOnly*/);
-  
+    const now = new Date();
+  const tomorrow = new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000);
+
+  // array that repeats "primary" 100 times
+  const reqs = Array(100).fill("primary");
+  const result = GetEvents.getEventsForDateRangeMultipleCalendarsWithErrorCatch(now, tomorrow, reqs);
+  if (result === undefined) {
+    Log.log("No events found.");
+    return;
+  }
+
+  console.log(result);
+  const events = result["primary"];
+  events.forEach((event) => {
+    console.log(`${event.summary}`);
+    console.log(`${event}`);
+  });
 }
+
+// export function debug() {
+//   // veryifyin color id  change fix for other calendars.
+//   const event = Calendar.Events?.get("primary", "4udjjghm949ljp1b3cchbbsoeh");
+//   const newStart = new Date(event!.start!.dateTime!);
+//   newStart.setMinutes(newStart.getMinutes() + 5);
+//   event!.start!.dateTime = newStart.toISOString();
+//   console.log(event!.summary);
+//   console.log(event);
+//   Orchestrator.saveEvent(event!, false /*changeMyCalendarOnly*/);
+  
+// }
 
 
 // export function debug() {

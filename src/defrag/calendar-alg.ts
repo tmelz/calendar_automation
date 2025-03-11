@@ -304,17 +304,19 @@ export namespace CalendarAlg {
       .map((attendee) => attendee.email)
       .filter((email) => email !== undefined)
       .map((email) => EventUtil.standardizeEmail(email))
-      .forEach((email) => {
-        Log.log("Getting their events next week");
-        const events =
-          GetEvents.getEventsForDateRangeCustomCalendarWithErrorCatch(
-            startDate,
-            endDate,
-            email!,
-            undefined,
-            undefined,
-            true
-          );
+      .forEach((email) => otherPeople.add(email));
+
+    const otherPeopleEvents = GetEvents.getEventsForDateRangeMultipleCalendarsWithErrorCatch(
+      startDate,
+      endDate,
+      Array.from(otherPeople)
+    ) ?? {};
+
+    Object.keys(otherPeopleEvents).forEach((email: string) => {
+      const events = otherPeopleEvents
+        ? otherPeopleEvents[email]
+        : undefined;
+
         if (events === undefined) {
           Log.log(
             "Error fetching events for " +
@@ -340,12 +342,28 @@ export namespace CalendarAlg {
               event.eventType === "outOfOffice"
           )
         );
-        otherPeople.add(email);
+      });
+
+      const today = new Date();
+      const lookBack = new Date(today);
+      lookBack.setMonth(lookBack.getMonth() - 2);
+      const otherPeopleLongRangeEvents = GetEvents.getEventsForDateRangeMultipleCalendarsWithErrorCatch(
+        lookBack,
+        today,
+        Array.from(otherPeople),
+        undefined,
+        2500
+      ) ?? {};
+
+      Object.keys(otherPeopleLongRangeEvents).forEach((email: string) => {
+        const events = otherPeopleLongRangeEvents
+          ? otherPeopleLongRangeEvents[email]
+          : undefined;
 
         Log.log("Getting their working hours");
         theirWorkingHours.set(
           email!,
-          WorkingHours.estimateWorkingHours(email!)
+          WorkingHours.estimateWorkingHours(email!, events)
         );
       });
 

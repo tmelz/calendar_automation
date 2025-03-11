@@ -9,7 +9,8 @@ export namespace WorkingHours {
     endTimeSeconds: number;
   };
 
-  export function estimateWorkingHours(email: string): WorkingHours.TimeRange {
+  // TODO cleanup prefetchedevents thing, check early to see if we have cached results and can avoid fetch
+  export function estimateWorkingHours(email: string, prefetchedEvents?: GoogleAppsScript.Calendar.Schema.Event[]): WorkingHours.TimeRange {
     const cache = CacheService.getUserCache();
     const cacheKey = `workingHours_${email}_v11`;
     const cachedValue = cache.get(cacheKey);
@@ -25,7 +26,8 @@ export namespace WorkingHours {
     const lookBack = new Date(today);
     lookBack.setMonth(lookBack.getMonth() - 2);
 
-    const events = GetEvents.getEventsForDateRangeCustomCalendar(
+    const events = prefetchedEvents ||
+    GetEvents.getEventsForDateRangeCustomCalendar(
       lookBack,
       today,
       email,

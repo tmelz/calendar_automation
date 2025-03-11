@@ -182,4 +182,85 @@ export namespace GetEvents {
       return undefined;
     }
   }
+
+  export function getEventsForDateRangeMultipleCalendarsWithErrorCatch(
+    timeMin: Date,
+    timeMax: Date,
+    calendarIds: string[],
+    updatedMin?: Date,
+    maxResultsInput?: number,
+  ): { [calendarId: string]: GoogleAppsScript.Calendar.Schema.Event[] } | undefined {
+    const maxResults = maxResultsInput === undefined ? GetEvents.MAX_EVENTS_ALLOWED_TO_FETCH : maxResultsInput;
+    const results: { [calendarId: string]: GoogleAppsScript.Calendar.Schema.Event[] } = {};
+  
+    try {
+      Log.log(
+        `🕵️ Fetching events for calendarIds="${calendarIds.join(", ")}": "${timeMin.toLocaleString()}" till "${timeMax.toLocaleString()}" with updatedMin:${updatedMin?.toLocaleString()}`
+      );
+  
+      // Build query parameters that are common for all calendar requests
+      const params: { [key: string]: string } = {
+        timeMin: timeMin.toISOString(),
+        timeMax: timeMax.toISOString(),
+        singleEvents: 'true',
+        orderBy: 'startTime',
+        maxResults: maxResults.toString(),
+      };
+  
+      if (updatedMin !== undefined) {
+        params.updatedMin = updatedMin.toISOString();
+      }
+  
+      // Convert the params object into a query string
+      const queryString = Object.keys(params)
+        .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+        .join('&');
+  
+      // Create an array of request objects, one for each calendarId
+      const requests: GoogleAppsScript.URL_Fetch.URLFetchRequest[] = calendarIds.map(calendarId => {
+        return {
+          url: `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${queryString}`,
+          method: 'get',
+          headers: {
+            Authorization: 'Bearer ' + ScriptApp.getOAuthToken(),
+          },
+          muteHttpExceptions: true, // allows error responses to be processed
+        };
+      });
+  
+      // Execute all requests in parallel
+      const responses = UrlFetchApp.fetchAll(requests);
+  
+      // Process each response corresponding to a calendarId (order is preserved)
+      responses.forEach((response, index) => {
+        const calendarId = calendarIds[index];
+        if (response.getResponseCode() >= 200 && response.getResponseCode() < 300) {
+          const eventsData = JSON.parse(response.getContentText());
+          const events: GoogleAppsScript.Calendar.Schema.Event[] = eventsData.items || [];
+  
+          if (events.length === 0) {
+            Log.log(`No events found for calendarId "${calendarId}".`);
+            results[calendarId] = [];
+          } else {
+            Log.log(
+              `Got ${events.length} events for calendarId "${calendarId}" (capped at ${maxResults}).`
+            );
+            const cappedResults = events.slice(0, maxResults);
+            results[calendarId] = cappedResults;
+          }
+        } else {
+          Log.log(
+            `Error fetching events for calendarId "${calendarId}": HTTP ${response.getResponseCode()} - ${response.getContentText()}`
+          );
+          results[calendarId] = [];
+        }
+      });
+  
+      return results;
+    } catch (error: any) {
+      Log.log(`Error fetching events: ${error.message}`);
+      return undefined;
+    }
+  }
+  
 }
