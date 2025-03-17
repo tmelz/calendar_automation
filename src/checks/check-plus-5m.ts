@@ -19,6 +19,7 @@ export namespace CheckPlus5m {
     anyEventIOrganizeOrCreateWithAttendees: boolean;
     // anyEventWithFiveOrFewerPeopleAndNoEmailListAttendees: boolean;
   };
+  export const OPT_OUT: string = "[opt_out_plus5m]";
 
   // add these to modified meetings to indicate that it starts 5m late and why
   export const TITLE_SUFFIX_NOTICES_DEPRECATED: string[] = [" [⚠️ +5m start]"];
@@ -98,6 +99,11 @@ export namespace CheckPlus5m {
       Log.log(
         `👎 skipping, not ok to modify based on settings, ${event.summary}`
       );
+      return undefined;
+    }
+
+    if (event.description?.includes(CheckPlus5m.OPT_OUT)) {
+      Log.log(`👎 skipping, has opt out`);
       return undefined;
     }
 

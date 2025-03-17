@@ -367,6 +367,21 @@ describe("CheckPlus5m.checkShouldModifyEvent", () => {
       undefined
     );
   });
+
+  test("should return undefined for an event with OPT_OUT in the description", () => {
+    const modifiedEvent = {
+      ...myOneOnOneEvent,
+      description: "Description " + CheckPlus5m.OPT_OUT,
+      start: {
+        ...myOneOnOneEvent.start,
+        dateTime: "2024-07-26T14:00:00-07:00",
+      },
+      end: { ...myOneOnOneEvent.end, dateTime: "2024-07-26T14:30:00-07:00" },
+    };
+    expect(CheckPlus5m.checkShouldModifyEvent(modifiedEvent, settings)).toBe(
+      undefined
+    );
+  });
 });
 
 describe("CheckPlus5m.modifyEventLocally", () => {
