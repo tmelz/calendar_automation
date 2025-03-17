@@ -20,7 +20,7 @@ export namespace TeamCalendarOOO {
   };
 
   export function syncCalendarOOO(
-    timeMin: Date,
+    timeMinInput: Date,
     timeMax: Date,
     calendarId: string,
     groupEmail: string,
@@ -29,6 +29,9 @@ export namespace TeamCalendarOOO {
     Log.logPhase(`Running for calendar: ${calendarId}, group: ${groupEmail}`);
 
     const eventsToDelete: GoogleAppsScript.Calendar.Schema.Event[] = [];
+    // Subtract 1 day from timeMin, helps with Gcal off by one issues
+    // (all day events for today are not returned if you query mid-day)
+    const timeMin = new Date(timeMinInput.getTime() - 1 * 24 * 60 * 60 * 1000);
 
     // get all people for that group
     const groupMembers: GroupMember[] = GroupsApp.getGroupByEmail(groupEmail)

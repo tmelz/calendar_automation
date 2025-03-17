@@ -22,26 +22,39 @@ import { TeamCalendarOncall } from "./team_calendar/team-calendar-pagerduty";
 //   sendUpdates: "all",
 // });
 
-// try out UrlFetchApp.fetchAll
+
+// debugging team calendar OOO issue
 export function debug() {
-    const now = new Date();
-  const tomorrow = new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000);
-
-  // array that repeats "primary" 100 times
-  const reqs = Array(100).fill("primary");
-  const result = GetEvents.getEventsForDateRangeMultipleCalendarsWithErrorCatch(now, tomorrow, reqs);
-  if (result === undefined) {
-    Log.log("No events found.");
-    return;
-  }
-
-  console.log(result);
-  const events = result["primary"];
-  events.forEach((event) => {
-    console.log(`${event.summary}`);
-    console.log(`${event}`);
-  });
+  TeamCalendarOOO.syncCalendarOOO(
+    new Date(),
+    new Date(new Date().getTime() + 1 * 24 * 60 * 60 * 1000),
+    "c_ae6f08804802c0642135e8e3280a2293ea73eb3e8b434424006afb947e767cfc@group.calendar.google.com",
+    "mdx-android@squareup.com",
+    true // dry run
+  );
 }
+
+// try out UrlFetchApp.fetchAll
+// trying to optimize defrag perf
+// export function debug() {
+//     const now = new Date();
+//   const tomorrow = new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000);
+
+//   // array that repeats "primary" 100 times
+//   const reqs = Array(100).fill("primary");
+//   const result = GetEvents.getEventsForDateRangeMultipleCalendarsWithErrorCatch(now, tomorrow, reqs);
+//   if (result === undefined) {
+//     Log.log("No events found.");
+//     return;
+//   }
+
+//   console.log(result);
+//   const events = result["primary"];
+//   events.forEach((event) => {
+//     console.log(`${event.summary}`);
+//     console.log(`${event}`);
+//   });
+// }
 
 // export function debug() {
 //   // veryifyin color id  change fix for other calendars.
