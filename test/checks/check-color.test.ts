@@ -171,6 +171,16 @@ describe("checkShouldModifyEvent", () => {
     expect(result).toBeUndefined();
   });
 
+  it("should return undefined for events where guests cannot see other guests", () => {
+    const event = {
+      ...myOneOnOneEvent,
+      guestsCanSeeOtherGuests: false,
+    } as GoogleAppsScript.Calendar.Schema.Event;
+    const settings = createSettingsForOneOnOne(CheckColor.Color.Lavender);
+    const result = CheckColor.checkShouldModifyEvent(event, settings);
+    expect(result).toBeUndefined();
+  });
+
   it("should return undefined if desired color is NoOp", () => {
     const event = {
       ...myOneOnOneEvent,

@@ -104,6 +104,13 @@ export namespace CheckColor {
       return undefined;
     }
 
+    if (
+      event.eventType === "default" &&
+      event.guestsCanSeeOtherGuests === false
+    ) {
+      return undefined;
+    }
+
     const category = getCategoryForEvent(event);
     if (category === undefined) {
       Log.log(`👎 not modifying event color, no category found`);
