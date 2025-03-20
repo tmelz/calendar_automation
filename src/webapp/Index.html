@@ -144,6 +144,43 @@
         justify-content: flex-end;
         gap: 8px;
       }
+      /* Saving indicator styles */
+      .saving-indicator {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1050;
+        background-color: #cfe2ff;
+        color: #084298;
+        padding: 10px 20px;
+        border-radius: 5px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 120px;
+        max-width: 200px;
+      }
+      .saved-indicator {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1050;
+        background-color: #d1e7dd;
+        color: #0f5132;
+        padding: 10px 20px;
+        border-radius: 5px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 120px;
+        max-width: 200px;
+      }
     </style>
   </head>
   <body>
@@ -549,12 +586,10 @@
       </div>
 
       <!-- Saving and Saved Indicators -->
-      <div v-if="saving" class="alert alert-info" role="alert">
+      <div v-if="saving" class="saving-indicator">
         Saving<span>{{ ellipsis }}</span>
       </div>
-      <div v-if="saved" class="alert alert-success" role="alert">
-        Saved &#x2705;
-      </div>
+      <div v-if="saved" class="saved-indicator">Saved &#x2705;</div>
     </div>
 
     <!-- User Settings Script -->
