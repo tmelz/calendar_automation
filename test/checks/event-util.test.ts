@@ -3,12 +3,17 @@ import {
   myOneOnOneEvent,
   oneOnOneOwnedByTHem,
   interviewEvent,
+  holdEventWhereImOrganizer,
 } from "./event-data";
 import { EventUtil } from "../../src/checks/event-util";
 
 describe("EventUtil.amITheOrganizer", () => {
   test("should return true for my event", () => {
     expect(EventUtil.amITheOrganizer(myOneOnOneEvent)).toBe(true);
+  });
+
+  test("should return true for my event", () => {
+    expect(EventUtil.amITheOrganizer(holdEventWhereImOrganizer)).toBe(true);
   });
 
   test("should return false for someone elses event", () => {
@@ -37,6 +42,7 @@ describe("EventUtil.isOneOnOneWithMe", () => {
         },
       ],
       guestsCanModify: false,
+      organizer: undefined,
     };
     expect(EventUtil.isOneOnOneWithMe(eventNotTheOrganizer)).toBe(false);
   });
@@ -221,16 +227,16 @@ describe("CheckQuit.doAllAttendeesHaveSameBusinessEmailDomain", () => {
     );
   });
 
-    test("shoudl exclude meeting rooms", () => {
-      const attendees = [
-        { email: "test@block.xyz" },
-        { email: "another@block.xyz" },
-        { email: "somemeetingroom@resource.calendar.google.com"}
-      ];
-      expect(EventUtil.doAllAttendeesHaveSameBusinessEmailDomain(attendees)).toBe(
-        true
-      );
-    });
+  test("shoudl exclude meeting rooms", () => {
+    const attendees = [
+      { email: "test@block.xyz" },
+      { email: "another@block.xyz" },
+      { email: "somemeetingroom@resource.calendar.google.com" },
+    ];
+    expect(EventUtil.doAllAttendeesHaveSameBusinessEmailDomain(attendees)).toBe(
+      true
+    );
+  });
 
   test("should return false for attendees with different domains", () => {
     const attendees = [

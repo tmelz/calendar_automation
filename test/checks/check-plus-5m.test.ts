@@ -118,6 +118,7 @@ describe("CheckPlus5m.checkShouldModifyEvent", () => {
           organizer: true,
         },
       ],
+      organizer: undefined,
     };
     expect(CheckPlus5m.checkShouldModifyEvent(modifiedEvent, settings)).toBe(
       undefined
@@ -256,6 +257,7 @@ describe("CheckPlus5m.checkShouldModifyEvent", () => {
         { email: "jane.doe@example.com", responseStatus: "needsAction" },
         { email: "jane.doe2@example.com", responseStatus: "needsAction" },
       ],
+      organizer: undefined,
     };
     expect(
       CheckPlus5m.checkShouldModifyEvent(modifiedEvent, customSettings)
@@ -284,6 +286,7 @@ describe("CheckPlus5m.checkShouldModifyEvent", () => {
         { email: "jane.doe@example.com", responseStatus: "needsAction" },
         { email: "jane.doe2@example.com", responseStatus: "needsAction" },
       ],
+      organizer: undefined,
     };
     expect(
       CheckPlus5m.checkShouldModifyEvent(modifiedEvent, customSettings)

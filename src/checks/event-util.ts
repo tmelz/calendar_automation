@@ -118,7 +118,7 @@ export namespace EventUtil {
   ): boolean {
     return (
       event?.attendees?.find((attendee) => attendee.self === true)
-        ?.organizer === true
+        ?.organizer === true || event?.organizer?.self === true
     );
   }
 

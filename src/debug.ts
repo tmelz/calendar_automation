@@ -10,6 +10,15 @@ import { TeamCalendarOOO } from "./team_calendar/team-calendar-ooo";
 import { CheckColor } from "./checks/check-color";
 import { TeamCalendarOncall } from "./team_calendar/team-calendar-pagerduty";
 
+// verify <br> vs \n changes for description
+export function debug() {
+  const event = Calendar.Events?.get("primary", "0enmq0hkjfaqundma6693vss6q");
+  event!.description = event!.description + "<br>" + "new blurb";
+  console.log(event!.summary);
+  console.log(event);
+  Orchestrator.saveEvent(event!, false /*changeMyCalendarOnly*/);
+}
+
 // export function debugEstimateWorkingHours(email: string) {
 //   const events = GetEvents.getEventsForRestOfWeek();
 //   events.forEach((event) => {
@@ -22,17 +31,16 @@ import { TeamCalendarOncall } from "./team_calendar/team-calendar-pagerduty";
 //   sendUpdates: "all",
 // });
 
-
 // debugging team calendar OOO issue
-export function debug() {
-  TeamCalendarOOO.syncCalendarOOO(
-    new Date(),
-    new Date(new Date().getTime() + 1 * 24 * 60 * 60 * 1000),
-    "c_ae6f08804802c0642135e8e3280a2293ea73eb3e8b434424006afb947e767cfc@group.calendar.google.com",
-    "mdx-android@squareup.com",
-    true // dry run
-  );
-}
+// export function debug() {
+//   TeamCalendarOOO.syncCalendarOOO(
+//     new Date(),
+//     new Date(new Date().getTime() + 1 * 24 * 60 * 60 * 1000),
+//     "c_ae6f08804802c0642135e8e3280a2293ea73eb3e8b434424006afb947e767cfc@group.calendar.google.com",
+//     "mdx-android@squareup.com",
+//     true // dry run
+//   );
+// }
 
 // try out UrlFetchApp.fetchAll
 // trying to optimize defrag perf
@@ -65,9 +73,8 @@ export function debug() {
 //   console.log(event!.summary);
 //   console.log(event);
 //   Orchestrator.saveEvent(event!, false /*changeMyCalendarOnly*/);
-  
-// }
 
+// }
 
 // export function debug() {
 //   const now = new Date();
@@ -82,35 +89,35 @@ export function debug() {
 //     true /*dry run*/
 //   );
 
-  // Log.log(
-  //   JSON.stringify(WorkingHours.estimateWorkingHours("tmellor@block.xyz"))
-  // );
+// Log.log(
+//   JSON.stringify(WorkingHours.estimateWorkingHours("tmellor@block.xyz"))
+// );
 
-  // const events = GetEvents.getEventsForDateRange(new Date(), new Date((new Date()).getTime() + 7 * 24 * 60 * 60 * 1000));
-  // events.forEach((event) => {
-  //   Log.log(`${event.summary}`);
-  //   Log.log(CheckColor.getCategoryForEvent(event) ?? "undefined");
-  //   Log.log(`\t${event}`);
+// const events = GetEvents.getEventsForDateRange(new Date(), new Date((new Date()).getTime() + 7 * 24 * 60 * 60 * 1000));
+// events.forEach((event) => {
+//   Log.log(`${event.summary}`);
+//   Log.log(CheckColor.getCategoryForEvent(event) ?? "undefined");
+//   Log.log(`\t${event}`);
 
-  // });
+// });
 
-  // const tmellorTestCal =
-  //   "c_dbf46adba7f1d6fc383bbeaaf7d50723e6bea3901446fb11b02f9d5751219f6f@group.calendar.google.com";
-  // // const androidTeamCal =
-  // //   "c_ae6f08804802c0642135e8e3280a2293ea73eb3e8b434424006afb947e767cfc@group.calendar.google.com";
+// const tmellorTestCal =
+//   "c_dbf46adba7f1d6fc383bbeaaf7d50723e6bea3901446fb11b02f9d5751219f6f@group.calendar.google.com";
+// // const androidTeamCal =
+// //   "c_ae6f08804802c0642135e8e3280a2293ea73eb3e8b434424006afb947e767cfc@group.calendar.google.com";
 
-  // const now = new Date();
-  // const nowYesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  // const twoWeeksFromNow = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
-  // TeamCalendarOOO.syncCalendarOOO(
-  //   nowYesterday,
-  //   twoWeeksFromNow,
-  //   tmellorTestCal,
-  //   "mdx-ios@squareup.com",
-  //   // "mdx-android@squareup.com",
-  //   true // is dry run
-  // );
-}
+// const now = new Date();
+// const nowYesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+// const twoWeeksFromNow = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
+// TeamCalendarOOO.syncCalendarOOO(
+//   nowYesterday,
+//   twoWeeksFromNow,
+//   tmellorTestCal,
+//   "mdx-ios@squareup.com",
+//   // "mdx-android@squareup.com",
+//   true // is dry run
+// );
+// }
 
 // export function debugListCalEvents() {
 //   const now = new Date();

@@ -85,7 +85,7 @@ describe("ModifyEvent", () => {
         mockEvent,
         " - Next steps"
       );
-      expect(mockEvent.description).toBe("Discuss project - Next steps");
+      expect(mockEvent.description).toBe("Discuss project\n - Next steps");
     });
 
     it("should not update description if it already contains the blurb or deprecated blurbs", () => {

@@ -1355,3 +1355,39 @@ export const recurringLargeCalendarEVent: GoogleAppsScript.Calendar.Schema.Event
       },
     },
   };
+
+export const holdEventWhereImOrganizer: GoogleAppsScript.Calendar.Schema.Event =
+  {
+    kind: "calendar#event",
+    eventType: "default",
+    description: "test description",
+    summary: "test",
+    iCalUID: "0enmq0hkjfaqundma6693vss6q@google.com",
+    organizer: {
+      self: true,
+      email: "tmellor@block.xyz",
+    },
+    sequence: 2,
+    reminders: { useDefault: true },
+    start: {
+      dateTime: "2025-03-19T18:00:00-07:00",
+      timeZone: "America/Los_Angeles",
+    },
+    htmlLink:
+      "https://www.google.com/calendar/event?eid=MGVubXEwaGtqZmFxdW5kbWE2NjkzdnNzNnEgdG1lbGxvckBibG9jay54eXo",
+    end: {
+      dateTime: "2025-03-19T18:30:00-07:00",
+      timeZone: "America/Los_Angeles",
+    },
+    created: "2025-03-20T00:10:53.000Z",
+    creator: {
+      email: "tmellor@block.xyz",
+      self: true,
+    },
+    status: "confirmed",
+    updated: "2025-03-20T00:14:39.117Z",
+    etag: '"3484859358235998"',
+    guestsCanModify: true,
+    id: "0enmq0hkjfaqundma6693vss6q",
+    colorId: "8",
+  };

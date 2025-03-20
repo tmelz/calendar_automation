@@ -172,13 +172,13 @@ export namespace ModifyEvent {
             event.description = (event.description ?? "").replace(needle, "");
           });
 
-          event.description = event.description + '\n' + blurb;
+          event.description = event.description + "\n" + blurb;
           const logEntry = `📝 updating description to remove deprecated blurbs then add new one: "${oldDescription}" ==> "${event.description}"`;
           Log.log(logEntry);
           return logEntry;
         } else {
           const oldDescription = event.description ?? "";
-          event.description = oldDescription + blurb;
+          event.description = oldDescription + "\n" + blurb;
 
           const logEntry = `📝 updating description to add blurb: "${oldDescription}" ==> "${event.description}"`;
           Log.log(logEntry);
