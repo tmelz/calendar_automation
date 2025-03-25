@@ -227,6 +227,15 @@ export namespace Orchestrator {
         return;
       }
 
+      // The events API says we shouldn't get cancelled events in the response unless
+      // we ask for them, but I've seen regressions where they show up, and it can create
+      // errors downstream if we try to modify them.
+      // https://developers.google.com/calendar/api/v3/reference/events/list#parameters
+      if (event.status === "cancelled") {
+        Log.log(`👎 skipping, event is cancelled`);
+        return;
+      }
+
       Log.log(`✅ can analyze: running all checks for this event`);
       enabledChecks.forEach((check) => {
         Log.log(`🚦 Check "${check.id}":shouldModifyEvent`);
