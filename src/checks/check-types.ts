@@ -4,6 +4,7 @@ export namespace CheckTypes {
     YES_ADD_LABEL,
     YES_REMOVE_LABEL,
     YES_CHANGE_COLOR,
+    YES_ADD_NOTES,
   }
 
   export type Changelog = string[];

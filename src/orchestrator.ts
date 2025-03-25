@@ -11,6 +11,7 @@ import { LogLevel, Log } from "./checks/log";
 import { Analytics } from "./analytics";
 import { UserSettings } from "./checks/user-settings";
 import { CheckColor } from "./checks/check-color";
+import { CheckNotes } from "./checks/check-notes";
 import { TeamCalendarOOO } from "./team_calendar/team-calendar-ooo";
 import { TeamCalendarOncall } from "./team_calendar/team-calendar-pagerduty";
 
@@ -30,6 +31,7 @@ export namespace Orchestrator {
     CheckPlus5m.PlusFiveMinutesCheck,
     CheckQuit.QuitCheck,
     CheckConflict.ConflictCheck,
+    CheckNotes.NotesCheck,
   ];
 
   export const applyToPersonalEventOnlyChecks: CheckTypes.CalendarCheck[] = [
@@ -298,9 +300,10 @@ export namespace Orchestrator {
     sendUpdates: boolean = false
   ): boolean {
     Log.log(`💾 Saving event, "${event.summary}", sendUpdates=${sendUpdates}`);
+    // Note: without supportsAttachments:true, attachment changes are silently dropped
     const updateArgs = sendUpdates
-      ? { sendUpdates: "all" }
-      : { sendUpdates: "none" };
+      ? { sendUpdates: "all", supportsAttachments: true }
+      : { sendUpdates: "none", supportsAttachments: true };
     // My event, I can modify
     if (changeMyCalendarOnly || EventUtil.amITheOrganizer(event)) {
       const calendarId = changeMyCalendarOnly

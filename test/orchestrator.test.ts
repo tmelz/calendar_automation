@@ -66,6 +66,7 @@ describe("checkEvents", () => {
       quit: true,
       conflict: true,
       eventColor: true,
+      notes: true,
     },
     checkSettings: {
       eventColors: CheckColor.createDefaultSettings(),
@@ -237,7 +238,7 @@ describe("saveEvent", () => {
       event,
       event.organizer!.email!,
       event.id!,
-      { sendUpdates: "none" }
+      { sendUpdates: "none", supportsAttachments: true }
     );
     expect(result).toBe(true);
   });
@@ -251,7 +252,7 @@ describe("saveEvent", () => {
       event,
       event.organizer!.email!,
       event.id!,
-      { sendUpdates: "none" }
+      { sendUpdates: "none", supportsAttachments: true }
     );
     expect(result).toBe(true);
   });
@@ -278,7 +279,7 @@ describe("saveEvent", () => {
       event,
       event.organizer!.email!,
       event.id!,
-      { sendUpdates: "none" }
+      { sendUpdates: "none", supportsAttachments: true }
     );
     expect(result).toBe(false);
   });

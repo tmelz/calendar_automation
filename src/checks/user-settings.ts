@@ -3,6 +3,7 @@ import { CheckOOO } from "./check-ooo";
 import { CheckPlus5m } from "./check-plus-5m";
 import { CheckQuit } from "./check-quit";
 import { CheckColor } from "./check-color";
+import { CheckNotes } from "./check-notes";
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace UserSettings {
   export let settings: Settings | undefined = undefined;
@@ -16,6 +17,7 @@ export namespace UserSettings {
       quit: boolean;
       conflict: boolean;
       eventColor: boolean;
+      notes: boolean;
     };
     checkSettings: {
       eventColors: {
@@ -58,6 +60,8 @@ export namespace UserSettings {
         return settings.checks.conflict;
       case CheckColor.ColorCheck.id:
         return settings.checks.eventColor;
+      case CheckNotes.NotesCheck.id:
+        return settings.checks.notes;
       default:
         throw new Error(`Unknown check id: ${checkId}`);
         return false;
@@ -95,6 +99,7 @@ export namespace UserSettings {
         quit: false,
         conflict: false,
         eventColor: false,
+        notes: false,
       },
       checkSettings: {
         eventColors: CheckColor.createDefaultSettings(),

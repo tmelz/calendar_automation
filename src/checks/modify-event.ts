@@ -74,6 +74,9 @@ export namespace ModifyEvent {
       case CheckTypes.ModificationType.YES_CHANGE_COLOR: {
         throw new Error("Color modification type not expected here");
       }
+      case CheckTypes.ModificationType.YES_ADD_NOTES: {
+        throw new Error("Notes modification type not expected here");
+      }
       case CheckTypes.ModificationType.YES_REMOVE_LABEL: {
         const oldTitle = event.summary;
         if (label !== undefined) {
@@ -145,6 +148,9 @@ export namespace ModifyEvent {
     switch (modificationType) {
       case CheckTypes.ModificationType.YES_CHANGE_COLOR: {
         throw new Error("Color modification type not expected here");
+      }
+      case CheckTypes.ModificationType.YES_ADD_NOTES: {
+        throw new Error("Notes modification type not expected here");
       }
       case CheckTypes.ModificationType.YES_REMOVE_LABEL: {
         const oldDescription = event.description;

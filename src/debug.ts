@@ -9,15 +9,49 @@ import { ModifyEvent } from "./checks/modify-event";
 import { TeamCalendarOOO } from "./team_calendar/team-calendar-ooo";
 import { CheckColor } from "./checks/check-color";
 import { TeamCalendarOncall } from "./team_calendar/team-calendar-pagerduty";
-
-// verify <br> vs \n changes for description
+import { CheckNotes } from "./checks/check-notes";
+import { CheckTypes } from "./checks/check-types";
 export function debug() {
-  const event = Calendar.Events?.get("primary", "0enmq0hkjfaqundma6693vss6q");
-  event!.description = event!.description + "<br>" + "new blurb";
-  console.log(event!.summary);
-  console.log(event);
-  Orchestrator.saveEvent(event!, false /*changeMyCalendarOnly*/);
+  // const results = CheckNotes.createNotesMapping(new Date());
+  // results?.forEach(
+  //   (value: GoogleAppsScript.Calendar.Schema.EventAttachment, key: string) => {
+  //     console.log(`${key}: ${value.title}`);
+  //   }
+  // );
+
+  const event = Calendar.Events?.get("primary", "16s58k98q35erlt14ahp00l4mh");
+  const modificationType = CheckNotes.checkShouldModifyEvent(event!);
+  Log.log(
+    `should modify: ${modificationType}, ${modificationType === CheckTypes.ModificationType.YES_ADD_NOTES}`
+  );
+  Log.log(CheckNotes.modifyEventLocally(event!, modificationType!)[0]);
+
+  Orchestrator.saveEvent(event!, false);
 }
+
+// experiment with attaching notes docs to events
+// export function debug() {
+//   // event 1 with notes doc
+//   // 4775g5i0kb9h6mp3css8vp8lql
+//   // event 2 with none
+//   // 5dplf7tfngdlu8m5e20k83gh05
+
+//   const event = Calendar.Events?.get("primary", "4775g5i0kb9h6mp3css8vp8lql");
+//   console.log(event!.attachments);
+//   console.log(event);
+
+//   const event2 = Calendar.Events?.get("primary", "5dplf7tfngdlu8m5e20k83gh05");
+//   console.log(event2!.attachments);
+//   console.log(event2);
+//   event2!.attachments = [event?.attachments[0]];
+//   // lol what you can set the event preview title to whatever you want?
+//   // that's so odd
+//   event2!.attachments![0].title = "💩";
+//   console.log(event2!.attachments);
+//   // event2!.attachments![0].title = "💩";
+
+//   Orchestrator.saveEvent(event2!, false /*changeMyCalendarOnly*/);
+// }
 
 // export function debugEstimateWorkingHours(email: string) {
 //   const events = GetEvents.getEventsForRestOfWeek();
