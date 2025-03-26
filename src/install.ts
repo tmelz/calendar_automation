@@ -89,7 +89,7 @@ export namespace Install {
     }
     removeAllTriggers(true);
 
-    // Create a daily trigger at 8 AM Pacific Time
+    // Create triggers to run at 8 AM and 3 PM Pacific Time
     ScriptApp.newTrigger("runDailyChecks")
       .timeBased()
       .atHour(8)
@@ -98,11 +98,27 @@ export namespace Install {
       .everyDays(1)
       .create();
 
-    // Create a daily trigger at 8 AM Pacific Time
+    ScriptApp.newTrigger("runDailyChecks")
+      .timeBased()
+      .atHour(15) // 3 PM
+      .nearMinute(0)
+      .inTimezone("America/Los_Angeles")
+      .everyDays(1)
+      .create();
+
+    // Create triggers to run at 8 AM and 3 PM Pacific Time
     ScriptApp.newTrigger("runTeamCalendarFeatures")
       .timeBased()
-      .atHour(9)
-      .nearMinute(0)
+      .atHour(8)
+      .nearMinute(30) // Offset by 30 minutes
+      .inTimezone("America/Los_Angeles")
+      .everyDays(1)
+      .create();
+
+    ScriptApp.newTrigger("runTeamCalendarFeatures")
+      .timeBased()
+      .atHour(15) // 3 PM
+      .nearMinute(30) // Offset by 30 minutes
       .inTimezone("America/Los_Angeles")
       .everyDays(1)
       .create();
