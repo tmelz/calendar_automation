@@ -29,16 +29,25 @@ export namespace TeamCalendarOncall {
       `Running for calendar: ${calendarId}, oncallScheduleId: ${oncallScheduleId}`
     );
 
-    const oncalls = Pagerduty.listOnCalls(
+    const oncallResponse = Pagerduty.listOnCalls(
       timeMin.toDateString(),
       timeMax.toDateString(),
       [oncallScheduleId]
     );
 
-    if (oncalls === null) {
+    if (oncallResponse === null) {
       Log.log("Error, no oncalls found");
       return;
     }
+
+    const oncalls = deduplicateOncalls(oncallResponse);
+    Log.log(`Got oncalls: before deduplication: ${oncallResponse?.length}`);
+    Log.log(`After deduplication: ${oncalls?.length}`);
+    oncalls.forEach((oncall) => {
+      Log.log(
+        `oncall: ${oncall.id} ${oncall.user.name} ${oncall.user.email} ${oncall.schedule.summary}`
+      );
+    });
 
     // There's some slight differences in how Pagerduty and Google handle dates here,
     // so we need to -1 the start date, otherwise Pagerduty will return an oncall we won't
@@ -60,6 +69,26 @@ export namespace TeamCalendarOncall {
     );
   }
 
+  // TODO better understand this, but if an oncall has multiple escalation policies,
+  // the API response will have one oncall per escalation policy, even if the oncall
+  // details are otherwise identical. Probably understandable but for our purposes
+  // we only want one calendar event.
+  export function deduplicateOncalls(
+    oncalls: Pagerduty.OnCall[]
+  ): Pagerduty.OnCall[] {
+    return oncalls.filter(
+      (oncall, index, self) =>
+        index ===
+        self.findIndex(
+          (t) =>
+            t.user.email === oncall.user.email &&
+            t.start === oncall.start &&
+            t.end === oncall.end &&
+            t.schedule.summary === oncall.schedule.summary
+        )
+    );
+  }
+
   // get changes func, oncalls as input, team calendar oncall events as input, output calendar changes
   export function getChanges(
     oncalls: Pagerduty.OnCall[],
@@ -67,11 +96,23 @@ export namespace TeamCalendarOncall {
   ): CalendarChanges {
     const eventsToDelete: GoogleAppsScript.Calendar.Schema.Event[] = [];
     const oncallsToCreateEventsFor: Pagerduty.OnCall[] = [];
+    // Track which oncalls have been matched to events to ensure 1:1 mapping
+    const matchedOncalls = new Set<string>();
+
+    // Helper function to generate a unique key for an oncall
+    function getOncallKey(oncall: Pagerduty.OnCall): string {
+      return `${oncall.user.email}_${oncall.start}_${oncall.end}_${oncall.schedule.summary}`;
+    }
 
     teamCalendarOncallEvents.forEach((event) => {
-      const matchingOncall = oncalls?.find((oncall) =>
-        oncallAndEventMatch(oncall, event)
-      );
+      // Find a matching oncall that hasn't been matched yet
+      const matchingOncall = oncalls?.find((oncall) => {
+        return (
+          !matchedOncalls.has(getOncallKey(oncall)) &&
+          oncallAndEventMatch(oncall, event)
+        );
+      });
+
       if (matchingOncall === undefined) {
         Log.log(
           "No matching oncall for event, deleting (event: " +
@@ -79,6 +120,9 @@ export namespace TeamCalendarOncall {
             ")"
         );
         eventsToDelete.push(event);
+      } else {
+        // Mark this oncall as matched so it won't match with other events
+        matchedOncalls.add(getOncallKey(matchingOncall));
       }
     });
 

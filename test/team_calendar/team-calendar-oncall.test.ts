@@ -86,6 +86,163 @@ describe("TeamCalendarOncall", () => {
       expect(changes.deleteEvents).toHaveLength(0);
       expect(changes.newTimeRangeEvents).toHaveLength(0);
     });
+
+    it("should ensure duplicate oncalls wont create duplicate events", () => {
+      // Two oncalls with identical user, time, and schedule
+      const oncall1 = {
+        start: "2023-10-02T08:00:00Z",
+        end: "2023-10-02T16:00:00Z",
+        user: { name: "Alice", email: "alice@example.com" },
+        schedule: { summary: "Primary" },
+      } as Pagerduty.OnCall;
+
+      const oncall2 = {
+        start: "2023-10-02T08:00:00Z",
+        end: "2023-10-02T16:00:00Z",
+        user: { name: "Alice", email: "alice@example.com" },
+        schedule: { summary: "Primary" },
+      } as Pagerduty.OnCall;
+
+      // Single matching event that could match both oncalls
+      const matchingEvent: FakeCalendarEvent = {
+        id: "1",
+        summary: "[oncall] Alice (alice@example.com), schedule: Primary",
+        start: { dateTime: "2023-10-02T08:00:00Z" },
+        end: { dateTime: "2023-10-02T16:00:00Z" },
+        eventType: "default",
+      } as FakeCalendarEvent;
+
+      const oncalls = [oncall1, oncall2];
+      const teamCalendarOncallEvents = [matchingEvent];
+
+      const changes = TeamCalendarOncall.getChanges(
+        oncalls,
+        teamCalendarOncallEvents
+      );
+
+      expect(changes.deleteEvents).toHaveLength(0);
+      expect(changes.newTimeRangeEvents).toHaveLength(0);
+    });
+
+    it("should correctly handle multiple matching events and oncalls with 1:1 mapping", () => {
+      // Create three oncalls
+      const oncall1 = {
+        start: "2023-10-02T08:00:00Z",
+        end: "2023-10-02T16:00:00Z",
+        user: { name: "Alice", email: "alice@example.com" },
+        schedule: { summary: "Primary" },
+      } as Pagerduty.OnCall;
+
+      const oncall2 = {
+        start: "2023-10-03T08:00:00Z",
+        end: "2023-10-03T16:00:00Z",
+        user: { name: "Bob", email: "bob@example.com" },
+        schedule: { summary: "Secondary" },
+      } as Pagerduty.OnCall;
+
+      const oncall3 = {
+        start: "2023-10-04T08:00:00Z",
+        end: "2023-10-04T16:00:00Z",
+        user: { name: "Charlie", email: "charlie@example.com" },
+        schedule: { summary: "Tertiary" },
+      } as Pagerduty.OnCall;
+
+      // Create three matching events in a different order
+      const event1: FakeCalendarEvent = {
+        id: "1",
+        summary: "[oncall] Bob (bob@example.com), schedule: Secondary",
+        start: { dateTime: "2023-10-03T08:00:00Z" },
+        end: { dateTime: "2023-10-03T16:00:00Z" },
+        eventType: "default",
+      } as FakeCalendarEvent;
+
+      const event2: FakeCalendarEvent = {
+        id: "2",
+        summary: "[oncall] Charlie (charlie@example.com), schedule: Tertiary",
+        start: { dateTime: "2023-10-04T08:00:00Z" },
+        end: { dateTime: "2023-10-04T16:00:00Z" },
+        eventType: "default",
+      } as FakeCalendarEvent;
+
+      const event3: FakeCalendarEvent = {
+        id: "3",
+        summary: "[oncall] Alice (alice@example.com), schedule: Primary",
+        start: { dateTime: "2023-10-02T08:00:00Z" },
+        end: { dateTime: "2023-10-02T16:00:00Z" },
+        eventType: "default",
+      } as FakeCalendarEvent;
+
+      // // Add duplicate event that should be removed
+      const event4: FakeCalendarEvent = {
+        id: "4",
+        summary: "[oncall] Alice (alice@example.com), schedule: Primary",
+        start: { dateTime: "2023-10-02T08:00:00Z" },
+        end: { dateTime: "2023-10-02T16:00:00Z" },
+        eventType: "default",
+      } as FakeCalendarEvent;
+
+      const oncalls = [oncall1, oncall2, oncall3];
+      const teamCalendarOncallEvents = [event1, event2, event3, event4];
+
+      const changes = TeamCalendarOncall.getChanges(
+        oncalls,
+        teamCalendarOncallEvents
+      );
+
+      expect(changes).toEqual({
+        deleteEvents: [event4],
+        newTimeRangeEvents: [],
+      });
+    });
+
+    it("should correctly handle multiple oncalls that match the same event criteria", () => {
+      // Three oncalls with identical characteristics but different IDs (simulating multiple escalation policies)
+      const oncall1 = {
+        id: "oncall1",
+        start: "2023-10-02T08:00:00Z",
+        end: "2023-10-02T16:00:00Z",
+        user: { name: "Alice", email: "alice@example.com" },
+        schedule: { summary: "Primary" },
+      } as Pagerduty.OnCall;
+
+      const oncall2 = {
+        id: "oncall2",
+        start: "2023-10-02T08:00:00Z",
+        end: "2023-10-02T16:00:00Z",
+        user: { name: "Alice", email: "alice@example.com" },
+        schedule: { summary: "Primary" },
+      } as Pagerduty.OnCall;
+
+      const oncall3 = {
+        id: "oncall3",
+        start: "2023-10-02T08:00:00Z",
+        end: "2023-10-02T16:00:00Z",
+        user: { name: "Alice", email: "alice@example.com" },
+        schedule: { summary: "Primary" },
+      } as Pagerduty.OnCall;
+
+      // Only one matching event in the calendar
+      const event: FakeCalendarEvent = {
+        id: "1",
+        summary: "[oncall] Alice (alice@example.com), schedule: Primary",
+        start: { dateTime: "2023-10-02T08:00:00Z" },
+        end: { dateTime: "2023-10-02T16:00:00Z" },
+        eventType: "default",
+      } as FakeCalendarEvent;
+
+      const oncalls = [oncall1, oncall2, oncall3];
+      const teamCalendarOncallEvents = [event];
+
+      const changes = TeamCalendarOncall.getChanges(
+        oncalls,
+        teamCalendarOncallEvents
+      );
+
+      expect(changes).toEqual({
+        deleteEvents: [],
+        newTimeRangeEvents: [],
+      });
+    });
   });
 
   describe("oncallAndEventMatch", () => {
@@ -222,6 +379,93 @@ describe("TeamCalendarOncall", () => {
       const result =
         TeamCalendarOncall.isOncallEventOnTeamCalendar(myOneOnOneEvent);
       expect(result).toBe(false);
+    });
+  });
+
+  describe("deduplicateOncalls", () => {
+    it("should remove duplicate oncalls with the same user, time range, and schedule", () => {
+      const oncalls: Pagerduty.OnCall[] = [
+        {
+          user: { name: "Alice", email: "alice@example.com" },
+          start: "2023-10-10T08:00:00Z",
+          end: "2023-10-10T16:00:00Z",
+          schedule: { summary: "Primary" },
+        },
+        // Duplicate entry with same user, start/end times, and schedule
+        {
+          user: { name: "Alice", email: "alice@example.com" },
+          start: "2023-10-10T08:00:00Z",
+          end: "2023-10-10T16:00:00Z",
+          schedule: { summary: "Primary" },
+        },
+        // Different user, should be kept
+        {
+          user: { name: "Bob", email: "bob@example.com" },
+          start: "2023-10-10T08:00:00Z",
+          end: "2023-10-10T16:00:00Z",
+          schedule: { summary: "Primary" },
+        },
+      ] as Pagerduty.OnCall[];
+
+      const result = TeamCalendarOncall.deduplicateOncalls(oncalls);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].user.email).toBe("alice@example.com");
+      expect(result[1].user.email).toBe("bob@example.com");
+    });
+
+    it("should keep oncalls with the same user but different time ranges", () => {
+      const oncalls: Pagerduty.OnCall[] = [
+        {
+          user: { name: "Alice", email: "alice@example.com" },
+          start: "2023-10-10T08:00:00Z",
+          end: "2023-10-10T16:00:00Z",
+          schedule: { summary: "Primary" },
+        },
+        // Same user, different time range
+        {
+          user: { name: "Alice", email: "alice@example.com" },
+          start: "2023-10-11T08:00:00Z",
+          end: "2023-10-11T16:00:00Z",
+          schedule: { summary: "Primary" },
+        },
+      ] as Pagerduty.OnCall[];
+
+      const result = TeamCalendarOncall.deduplicateOncalls(oncalls);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].start).toBe("2023-10-10T08:00:00Z");
+      expect(result[1].start).toBe("2023-10-11T08:00:00Z");
+    });
+
+    it("should keep oncalls with the same user and time range but different schedules", () => {
+      const oncalls: Pagerduty.OnCall[] = [
+        {
+          user: { name: "Alice", email: "alice@example.com" },
+          start: "2023-10-10T08:00:00Z",
+          end: "2023-10-10T16:00:00Z",
+          schedule: { summary: "Primary" },
+        },
+        // Same user and time range, different schedule
+        {
+          user: { name: "Alice", email: "alice@example.com" },
+          start: "2023-10-10T08:00:00Z",
+          end: "2023-10-10T16:00:00Z",
+          schedule: { summary: "Secondary" },
+        },
+      ] as Pagerduty.OnCall[];
+
+      const result = TeamCalendarOncall.deduplicateOncalls(oncalls);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].schedule.summary).toBe("Primary");
+      expect(result[1].schedule.summary).toBe("Secondary");
+    });
+
+    it("should return an empty array when given an empty array", () => {
+      const result = TeamCalendarOncall.deduplicateOncalls([]);
+
+      expect(result).toHaveLength(0);
     });
   });
 });

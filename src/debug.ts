@@ -13,7 +13,18 @@ import { CheckNotes } from "./checks/check-notes";
 import { CheckTypes } from "./checks/check-types";
 import { Pagerduty } from "./pagerduty";
 
-export function debug() {}
+export function debug() {
+  const now = new Date();
+  const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  TeamCalendarOncall.syncCalendarOncall(
+    now,
+    nextWeek,
+    // tmellor test
+    "c_dbf46adba7f1d6fc383bbeaaf7d50723e6bea3901446fb11b02f9d5751219f6f@group.calendar.google.com",
+    "P8ZT0KB",
+    true /*dry run*/
+  );
+}
 
 // debug pagerduty oncall auth fail
 // export function debug() {
