@@ -1,6 +1,7 @@
 import { CheckOOO } from "../checks/check-ooo";
 import { GetEvents } from "../checks/get-events";
 import { Log } from "../checks/log";
+import { EventUtil } from "../checks/event-util";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace TeamCalendarOOO {
@@ -330,10 +331,63 @@ export namespace TeamCalendarOOO {
         )
     );
 
+    // Check for time range events 8 hours or longer that are subsets of all day events
+    const filteredTimeRangeEvents = Array.from(
+      uniqueTimeRangeEvents.values()
+    ).filter((timeEvent) => {
+      const startTime = new Date(timeEvent.startDateTime);
+      const endTime = new Date(timeEvent.endDateTime);
+      const durationHours =
+        (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+
+      // If duration is less than 8 hours, keep the event
+      if (durationHours < 8) {
+        return true;
+      }
+
+      // Check if this time range event is a subset of any all day event
+      return !filteredAllDayEvents.some((allDayEvent) => {
+        const allDayStart = new Date(allDayEvent.start);
+        let allDayEnd = new Date(allDayEvent.end);
+
+        // If allDayStart is the same as allDayEnd, add 24 hours to all day end date
+        if (allDayStart.getTime() === allDayEnd.getTime()) {
+          allDayEnd = new Date(allDayEnd.getTime() + 24 * 60 * 60 * 1000);
+        }
+
+        return startTime >= allDayStart && endTime <= allDayEnd;
+      });
+    });
+
+    // Check for all day events that may be subsets of time range events >= 24 hours
+    const finalAllDayEvents = filteredAllDayEvents.filter((allDayEvent) => {
+      const allDayStart = new Date(allDayEvent.start);
+      let allDayEnd = new Date(allDayEvent.end);
+
+      // If allDayStart is the same as allDayEnd, add 24 hours to all day end date
+      if (allDayStart.getTime() === allDayEnd.getTime()) {
+        allDayEnd = new Date(allDayEnd.getTime() + 24 * 60 * 60 * 1000);
+      }
+
+      return !Array.from(uniqueTimeRangeEvents.values()).some((timeEvent) => {
+        const startTime = new Date(timeEvent.startDateTime);
+        const endTime = new Date(timeEvent.endDateTime);
+        const durationHours =
+          (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+
+        // Only consider time range events >= 24 hours
+        return (
+          durationHours >= 24 &&
+          allDayStart >= startTime &&
+          allDayEnd <= endTime
+        );
+      });
+    });
+
     return {
       deleteEvents: deleteEvents,
-      newAllDayEvents: filteredAllDayEvents,
-      newTimeRangeEvents: Array.from(uniqueTimeRangeEvents.values()),
+      newAllDayEvents: finalAllDayEvents,
+      newTimeRangeEvents: filteredTimeRangeEvents,
     };
   }
 

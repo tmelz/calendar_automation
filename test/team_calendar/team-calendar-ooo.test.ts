@@ -27,8 +27,8 @@ describe("TeamCalendarOOO.getChangesPerPerson", () => {
   const createMockEvent = (
     id: string,
     summary: string,
-    start: { date?: string; dateTime?: string },
-    end: { date?: string; dateTime?: string },
+    start: { date?: string; dateTime?: string; timeZone?: string },
+    end: { date?: string; dateTime?: string; timeZone?: string },
     eventType?:
       | "default"
       | "outOfOffice"
@@ -352,6 +352,90 @@ describe("TeamCalendarOOO.getChangesPerPerson", () => {
           title: "[OOO] John Doe (john.doe@example.com)",
         },
       ],
+    };
+
+    const actualChanges = getChangesPerPerson(
+      mockGroupMember,
+      teamCalendarOOOEvents,
+      oooEvents
+    );
+
+    expect(actualChanges).toEqual(expectedChanges);
+  });
+
+  it("should handle multi day specific time OOO events", () => {
+    const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      // Parent all-day event
+      createMockEvent(
+        "1",
+        "full week OOO monday to fri, midnight to midnight",
+        { timeZone: "America/Toronto", dateTime: "2025-04-14T03:00:00-04:00" },
+        { dateTime: "2025-04-20T03:00:00-04:00", timeZone: "America/Toronto" },
+        "outOfOffice"
+      ),
+      // Subset all-day event
+      createMockEvent(
+        "2",
+        "monday all day OOO",
+        { date: "2025-04-15" },
+        { date: "2025-04-16" },
+        "outOfOffice"
+      ),
+    ];
+
+    const teamCalendarOOOEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
+
+    const expectedChanges: TeamCalendarOOO.CalendarChanges = {
+      deleteEvents: [],
+      newAllDayEvents: [],
+      newTimeRangeEvents: [
+        {
+          startDateTime: "2025-04-14T03:00:00-04:00",
+          endDateTime: "2025-04-20T03:00:00-04:00",
+          title: "[OOO] John Doe (john.doe@example.com)",
+        },
+      ],
+    };
+
+    const actualChanges = getChangesPerPerson(
+      mockGroupMember,
+      teamCalendarOOOEvents,
+      oooEvents
+    );
+
+    expect(actualChanges).toEqual(expectedChanges);
+  });
+
+  it("should handle multi day all day event with specific time overlap", () => {
+    const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      createMockEvent(
+        "1",
+        "subset specific time OOO",
+        { timeZone: "America/Toronto", dateTime: "2025-04-16T03:00:00-04:00" },
+        { dateTime: "2025-04-17T03:00:00-04:00", timeZone: "America/Toronto" },
+        "outOfOffice"
+      ),
+      createMockEvent(
+        "2",
+        "multiday OOO",
+        { date: "2025-04-15" },
+        { date: "2025-04-18" },
+        "outOfOffice"
+      ),
+    ];
+
+    const teamCalendarOOOEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
+
+    const expectedChanges: TeamCalendarOOO.CalendarChanges = {
+      deleteEvents: [],
+      newAllDayEvents: [
+        {
+          start: "2025-04-15",
+          end: "2025-04-18",
+          title: "[OOO] John Doe (john.doe@example.com)",
+        },
+      ],
+      newTimeRangeEvents: [],
     };
 
     const actualChanges = getChangesPerPerson(
