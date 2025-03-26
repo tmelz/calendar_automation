@@ -120,8 +120,14 @@ export namespace TeamCalendarOOO {
       ...teamCalendarOOOEvents.keys(),
     ]);
     allPeopleToConsider.forEach((person) => {
+      const groupMember = groupMembers.find(
+        (member) => member.email === person
+      );
+      if (groupMember === undefined) {
+        return;
+      }
       const changes = getChangesPerPerson(
-        groupMembers.find((member) => member.email === person)!,
+        groupMember,
         teamCalendarOOOEvents.get(person) ?? [],
         memberEvents.get(person) ?? []
       );
