@@ -383,11 +383,19 @@ export namespace TeamCalendarOOO {
       return cachedName;
     }
 
-    const result = AdminDirectory.Users?.get(email, {
-      fields: "name",
-      viewType: "domain_public",
-    });
-    const fullname = result?.name?.fullName;
+    let fullname: string | undefined;
+    try {
+      const result = AdminDirectory.Users?.get(email, {
+        fields: "name",
+        viewType: "domain_public",
+      });
+      fullname = result?.name?.fullName;
+    } catch (error) {
+      Logger.log(
+        "Error fetching user details for email: " + email + ", error: " + error
+      );
+      fullname = undefined;
+    }
 
     if (fullname !== undefined) {
       Logger.log("Got name: " + fullname);

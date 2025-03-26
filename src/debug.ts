@@ -11,23 +11,40 @@ import { CheckColor } from "./checks/check-color";
 import { TeamCalendarOncall } from "./team_calendar/team-calendar-pagerduty";
 import { CheckNotes } from "./checks/check-notes";
 import { CheckTypes } from "./checks/check-types";
-export function debug() {
-  // const results = CheckNotes.createNotesMapping(new Date());
-  // results?.forEach(
-  //   (value: GoogleAppsScript.Calendar.Schema.EventAttachment, key: string) => {
-  //     console.log(`${key}: ${value.title}`);
-  //   }
-  // );
+import { Pagerduty } from "./pagerduty";
 
-  const event = Calendar.Events?.get("primary", "16s58k98q35erlt14ahp00l4mh");
-  const modificationType = CheckNotes.checkShouldModifyEvent(event!);
-  Log.log(
-    `should modify: ${modificationType}, ${modificationType === CheckTypes.ModificationType.YES_ADD_NOTES}`
-  );
-  Log.log(CheckNotes.modifyEventLocally(event!, modificationType!)[0]);
+// debug pagerduty oncall auth fail
+// export function debug() {
+// const oncalls = Pagerduty.listOnCalls(
+//   new Date().toDateString(),
+//   new Date(new Date().getTime() + 1 * 24 * 60 * 60 * 1000).toDateString(),
+//   ["P1DXQ9G"]
+// );
+// console.log(oncalls);
+// }
 
-  Orchestrator.saveEvent(event!, false);
-}
+// debug getNameByEmail raising resource not found error despite being valid employee
+// export function debug() {
+//   console.log(TeamCalendarOOO.getNameByEmail("___@squareup.com"));
+// }
+
+// export function debug() {
+//   // const results = CheckNotes.createNotesMapping(new Date());
+//   // results?.forEach(
+//   //   (value: GoogleAppsScript.Calendar.Schema.EventAttachment, key: string) => {
+//   //     console.log(`${key}: ${value.title}`);
+//   //   }
+//   // );
+
+//   const event = Calendar.Events?.get("primary", "16s58k98q35erlt14ahp00l4mh");
+//   const modificationType = CheckNotes.checkShouldModifyEvent(event!);
+//   Log.log(
+//     `should modify: ${modificationType}, ${modificationType === CheckTypes.ModificationType.YES_ADD_NOTES}`
+//   );
+//   Log.log(CheckNotes.modifyEventLocally(event!, modificationType!)[0]);
+
+//   Orchestrator.saveEvent(event!, false);
+// }
 
 // experiment with attaching notes docs to events
 // export function debug() {
