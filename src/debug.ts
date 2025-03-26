@@ -13,6 +13,8 @@ import { CheckNotes } from "./checks/check-notes";
 import { CheckTypes } from "./checks/check-types";
 import { Pagerduty } from "./pagerduty";
 
+export function debug() {}
+
 // debug pagerduty oncall auth fail
 // export function debug() {
 // const oncalls = Pagerduty.listOnCalls(
