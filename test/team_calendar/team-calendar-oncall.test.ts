@@ -468,4 +468,46 @@ describe("TeamCalendarOncall", () => {
       expect(result).toHaveLength(0);
     });
   });
+
+  describe("groupOncallSettingsByCalendar", () => {
+    it("should correctly group oncall settings by calendar ID", () => {
+      const settings = [
+        { calendarId: "cal1", scheduleId: "sched1" },
+        { calendarId: "cal1", scheduleId: "sched2" },
+        { calendarId: "cal2", scheduleId: "sched3" },
+      ];
+
+      const result = TeamCalendarOncall.groupOncallSettingsByCalendar(settings);
+
+      expect(result.size).toBe(2);
+      expect(result.get("cal1")).toEqual(["sched1", "sched2"]);
+      expect(result.get("cal2")).toEqual(["sched3"]);
+    });
+
+    it("should throw error for empty calendar or schedule IDs", () => {
+      const settingsWithEmptyCalendar = [
+        { calendarId: "", scheduleId: "sched1" },
+      ];
+      const settingsWithEmptySchedule = [
+        { calendarId: "cal1", scheduleId: " " },
+      ];
+
+      expect(() =>
+        TeamCalendarOncall.groupOncallSettingsByCalendar(
+          settingsWithEmptyCalendar
+        )
+      ).toThrow("invariant violation");
+
+      expect(() =>
+        TeamCalendarOncall.groupOncallSettingsByCalendar(
+          settingsWithEmptySchedule
+        )
+      ).toThrow("invariant violation");
+    });
+
+    it("should return empty map for empty input", () => {
+      const result = TeamCalendarOncall.groupOncallSettingsByCalendar([]);
+      expect(result.size).toBe(0);
+    });
+  });
 });

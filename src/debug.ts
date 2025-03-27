@@ -13,18 +13,74 @@ import { CheckNotes } from "./checks/check-notes";
 import { CheckTypes } from "./checks/check-types";
 import { Pagerduty } from "./pagerduty";
 
-export function debug() {
-  const now = new Date();
-  const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-  TeamCalendarOncall.syncCalendarOncall(
-    now,
-    nextWeek,
-    // tmellor test
-    "c_dbf46adba7f1d6fc383bbeaaf7d50723e6bea3901446fb11b02f9d5751219f6f@group.calendar.google.com",
-    "P8ZT0KB",
-    true /*dry run*/
-  );
-}
+export function debug() {}
+
+// debugging new behavior with grouping oncall settings by calendar
+// export function debug() {
+//   const now = new Date();
+//   const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+// const oncalls = Pagerduty.listOnCalls(
+//   now.toDateString(),
+//   nextWeek.toDateString(),
+//   ["PSQSM9I", "P2PQIFR"]
+// );
+// console.log(oncalls?.length);
+// oncalls?.forEach((oncall) => {
+//   console.log(
+//     `${oncall.user.name}, ${oncall.user.email}, ${oncall.schedule.summary}, ${oncall.start}, ${oncall.end}`
+//   );
+// });
+
+// const oncalls1 = Pagerduty.listOnCalls(
+//   now.toDateString(),
+//   nextWeek.toDateString(),
+//   ["PSQSM9I"]
+// );
+// console.log(oncalls1?.length);
+// oncalls1?.forEach((oncall) => {
+//   console.log(
+//     `${oncall.user.name}, ${oncall.user.email}, ${oncall.schedule.summary}, ${oncall.start}, ${oncall.end}`
+//   );
+// });
+
+// const oncalls2 = Pagerduty.listOnCalls(
+//   now.toDateString(),
+//   nextWeek.toDateString(),
+//   ["PSQSM9I"]
+// );
+// console.log(oncalls2?.length);
+// oncalls2?.forEach((oncall) => {
+//   console.log(
+//     `${oncall.user.name}, ${oncall.user.email}, ${oncall.schedule.summary}, ${oncall.start}, ${oncall.end}`
+//   );
+// });
+
+// TeamCalendarOncall.syncCalendarOncall(
+//   now,
+//   nextWeek,
+//   // tmellor test
+//   "c_uoaafg58e3m97rp6767blj7pi0@group.calendar.google.com",
+//   ["PSQSM9I", "P2PQIFR"],
+//   true /*dry run*/
+// );
+
+// TeamCalendarOncall.syncCalendarOncalls(
+//   now,
+//   nextWeek,
+//   [
+//     {
+//       calendarId: "c_uoaafg58e3m97rp6767blj7pi0@group.calendar.google.com",
+//       scheduleId: "PSQSM9I",
+//     },
+//     {
+//       calendarId: "c_uoaafg58e3m97rp6767blj7pi0@group.calendar.google.com",
+//       scheduleId: "P2PQIFR",
+//     },
+//   ],
+//   true /*dry run*/
+// );
+// }
 
 // debug pagerduty oncall auth fail
 // export function debug() {

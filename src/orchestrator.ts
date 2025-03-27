@@ -73,20 +73,11 @@ export namespace Orchestrator {
 
     if (settings.teamCalendar.oncall) {
       Log.log("🏃 Running Team calendar oncall checks");
-      settings.teamCalendarSettings.oncall.forEach(
-        ({ calendarId, scheduleId }) => {
-          if (calendarId.trim().length == 0 || scheduleId.trim().length == 0) {
-            throw new Error("invariant violation");
-            return;
-          }
-          TeamCalendarOncall.syncCalendarOncall(
-            timeRange.timeMin,
-            timeRange.timeMax,
-            calendarId,
-            scheduleId,
-            isDryRun
-          );
-        }
+      TeamCalendarOncall.syncCalendarOncalls(
+        timeRange.timeMin,
+        timeRange.timeMax,
+        settings.teamCalendarSettings.oncall,
+        isDryRun
       );
     } else {
       Log.log("🚨 Team calendar oncall disabled, skipping");

@@ -18,21 +18,70 @@ export namespace TeamCalendarOncall {
     }[];
   };
 
+  export function groupOncallSettingsByCalendar(
+    oncallSettings: {
+      calendarId: string;
+      scheduleId: string;
+    }[]
+  ): Map<string, string[]> {
+    // Group oncall settings by calendarId
+    // we should change the UI to allow for multiple schedules per calendar, but
+    // we can still do that in the future and this is probably a good fallback
+    // protection anyway
+    const oncallSettingsByCalendar = new Map<string, string[]>();
+
+    oncallSettings.forEach(({ calendarId, scheduleId }) => {
+      if (calendarId.trim().length == 0 || scheduleId.trim().length == 0) {
+        throw new Error("invariant violation");
+        return;
+      }
+
+      if (!oncallSettingsByCalendar.has(calendarId)) {
+        oncallSettingsByCalendar.set(calendarId, []);
+      }
+      oncallSettingsByCalendar.get(calendarId)!.push(scheduleId);
+    });
+
+    return oncallSettingsByCalendar;
+  }
+
+  export function syncCalendarOncalls(
+    timeMin: Date,
+    timeMax: Date,
+    oncallSettings: {
+      calendarId: string;
+      scheduleId: string;
+    }[],
+    isDryRun: boolean = false
+  ): void {
+    const oncallSettingsByCalendar =
+      groupOncallSettingsByCalendar(oncallSettings);
+
+    // Process each calendar with all its schedule IDs
+    oncallSettingsByCalendar.forEach((scheduleIds, calendarId) => {
+      syncCalendarOncall(timeMin, timeMax, calendarId, scheduleIds, isDryRun);
+    });
+  }
+
   export function syncCalendarOncall(
     timeMin: Date,
     timeMax: Date,
     calendarId: string,
-    oncallScheduleId: string,
+    oncallScheduleIds: string[],
     dryRun: boolean = false
   ): void {
     Log.logPhase(
-      `Running for calendar: ${calendarId}, oncallScheduleId: ${oncallScheduleId}`
+      `Running for calendar: ${calendarId}, oncallScheduleIds: ${oncallScheduleIds}`
     );
+    if (oncallScheduleIds.length === 0) {
+      Log.log("No oncall schedule ids provided, skipping");
+      return;
+    }
 
     const oncallResponse = Pagerduty.listOnCalls(
       timeMin.toDateString(),
       timeMax.toDateString(),
-      [oncallScheduleId]
+      oncallScheduleIds
     );
 
     if (oncallResponse === null) {
@@ -43,9 +92,10 @@ export namespace TeamCalendarOncall {
     const oncalls = deduplicateOncalls(oncallResponse);
     Log.log(`Got oncalls: before deduplication: ${oncallResponse?.length}`);
     Log.log(`After deduplication: ${oncalls?.length}`);
+    Log.log("List of oncalls:");
     oncalls.forEach((oncall) => {
       Log.log(
-        `oncall: ${oncall.id} ${oncall.user.name} ${oncall.user.email} ${oncall.schedule.summary}`
+        `oncall: ${oncall.user.name} ${oncall.user.email} ${oncall.schedule.summary} ${oncall.start} ${oncall.end}`
       );
     });
 
