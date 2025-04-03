@@ -801,13 +801,6 @@ describe("TeamCalendarOOO.getChangesPerPerson", () => {
       teamCalendarOOOEvents,
       oooEvents
     );
-    // Sorting might be needed if the filter order isn't guaranteed, though less likely with only two items
-    actualChanges.newAllDayEvents.sort((a, b) =>
-      a.start.localeCompare(b.start)
-    );
-    expectedChanges.newAllDayEvents.sort((a, b) =>
-      a.start.localeCompare(b.start)
-    );
     expect(actualChanges).toEqual(expectedChanges);
   });
 });

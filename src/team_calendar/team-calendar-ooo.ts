@@ -216,34 +216,20 @@ export namespace TeamCalendarOOO {
     });
   }
 
-  export function getChangesPerPerson(
-    person: GroupMember,
-    teamCalendarOOOEvents: GoogleAppsScript.Calendar.Schema.Event[],
-    oooEvents: GoogleAppsScript.Calendar.Schema.Event[]
-  ): CalendarChanges {
-    const deleteEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
+  /**
+   * OOO events on someones calendar can have a lot of duplicate / redundant times
+   * e.g. a Workday OOO event, plus a manually created OOO all-day event, plus sometimes
+   * an short time range OOO event (etc.).
+   *
+   * The goal here is to output a simplified verison of the events, so that we can represent
+   * the OOO as simply as possible on the team calendar.
+   */
+  export function deduplicatePersonalOOOEvents(
+    events: GoogleAppsScript.Calendar.Schema.Event[]
+  ): GoogleAppsScript.Calendar.Schema.Event[] {
+    const normalizedEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
 
-    Log.log(
-      `Determining team-calendar-OOO changes to make for ${person.email}`
-    );
-    Log.log(`Their existing team calendar OOO events:`);
-    teamCalendarOOOEvents.forEach((event) => {
-      Log.log(
-        `\t- ${event.summary} for ${JSON.stringify(event.start)} to ${JSON.stringify(event.end)}`
-      );
-    });
-    Log.log(`Their OOO events from their own calendar:`);
-    oooEvents.forEach((event) => {
-      Log.log(
-        `\t- ${event.summary} for ${JSON.stringify(event.start)} to ${JSON.stringify(event.end)}`
-      );
-    });
-
-    // clone oooEvents
-    const eventsMayNeedToCreate: GoogleAppsScript.Calendar.Schema.Event[] = [];
-    const matchedEventIds = new Set<string>();
-
-    oooEvents.forEach((event) => {
+    events.forEach((event) => {
       // OOO holds are always at midnight in the creator's timezone, but practically speaking they just
       // created the all day event, it's not useful to set it midnight to midnight (which will show on
       // the previous/next day for folks in other timezones). So catch those cases and convert them
@@ -271,39 +257,271 @@ export namespace TeamCalendarOOO {
           return;
         }
 
-        eventsMayNeedToCreate.push({
+        normalizedEvents.push({
           id: event.id + "-synthetic",
           start: { date: startDate },
           end: { date: endDate },
           summary: `Synthetic event created for ${event.id} which is a midnight to midnight OOO event`,
         });
+        // Workday creates events where start==end, but the normal practice is even for 1 day events
+        // that end = start +1. So synthetically "normalize" this to make downstream logic easier.
+      } else if (
+        isAllDayEvent(event) &&
+        event.start?.date === event.end?.date
+      ) {
+        // Handle all day events where start == end
+        // Create a synthetic event where end = start + 1 day
+        Log.log(
+          `Found all day event with same start and end date: ${event.summary} on ${event.start?.date}`
+        );
+        Log.log(`Creating synthetic event with end date = start date + 1 day`);
+
+        const startDate = event.start?.date;
+        if (startDate === undefined) {
+          Log.log(
+            `Skipping event, start date is undefined, this is unexpected`
+          );
+          return;
+        }
+
+        // Calculate end date as start date + 1 day
+        const endDateObj = new Date(startDate);
+        endDateObj.setDate(endDateObj.getDate() + 1);
+        const endDate = endDateObj.toISOString().split("T")[0]; // Format as YYYY-MM-DD
+
+        normalizedEvents.push({
+          id: event.id + "-synthetic",
+          start: { date: startDate },
+          end: { date: endDate },
+          summary: event.summary,
+        });
       } else {
-        eventsMayNeedToCreate.push(event);
+        normalizedEvents.push(event);
       }
     });
+
+    // first, remove any events that an exact match in terms of start/end
+    // cover the case where a single day event has start==end or end=start+1 (those should be deduplicated)
+    const deduplicatedEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
+    normalizedEvents.forEach((event) => {
+      // Check if this event is already in our deduplicated list
+      const isDuplicate = deduplicatedEvents.some((existingEvent) => {
+        // For all-day events
+        if (isAllDayEvent(event) && isAllDayEvent(existingEvent)) {
+          return (
+            event.start?.date === existingEvent.start?.date &&
+            event.end?.date === existingEvent.end?.date
+          );
+        }
+        // For specific time events
+        else if (
+          isSpecificTimeEvent(event) &&
+          isSpecificTimeEvent(existingEvent)
+        ) {
+          return (
+            event.start?.dateTime === existingEvent.start?.dateTime &&
+            event.end?.dateTime === existingEvent.end?.dateTime
+          );
+        }
+        return false;
+      });
+
+      if (!isDuplicate) {
+        deduplicatedEvents.push(event);
+      } else {
+        Log.log(`Skipping duplicate event: ${event.summary}`);
+      }
+    });
+
+    // First, sort events by duration (longest first) to ensure larger events are processed first
+    const sortedEvents = [...deduplicatedEvents].sort((a, b) => {
+      // Calculate duration for event A
+      let durationA: number;
+      if (isAllDayEvent(a)) {
+        const startA = new Date(a.start!.date!);
+        const endA = new Date(a.end!.date!);
+        durationA = endA.getTime() - startA.getTime();
+      } else if (isSpecificTimeEvent(a)) {
+        const startA = new Date(a.start!.dateTime!);
+        const endA = new Date(a.end!.dateTime!);
+        durationA = endA.getTime() - startA.getTime();
+      } else {
+        durationA = 0;
+      }
+
+      // Calculate duration for event B
+      let durationB: number;
+      if (isAllDayEvent(b)) {
+        const startB = new Date(b.start!.date!);
+        const endB = new Date(b.end!.date!);
+        durationB = endB.getTime() - startB.getTime();
+      } else if (isSpecificTimeEvent(b)) {
+        const startB = new Date(b.start!.dateTime!);
+        const endB = new Date(b.end!.dateTime!);
+        durationB = endB.getTime() - startB.getTime();
+      } else {
+        durationB = 0;
+      }
+
+      // Sort by duration (descending)
+      return durationB - durationA;
+    });
+
+    const nonRedundantEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
+    const isRedundantMap = new Map<string, boolean>();
+
+    // First pass: determine which events are redundant
+    sortedEvents.forEach((currentEvent) => {
+      // Skip if already marked as redundant
+      if (isRedundantMap.get(currentEvent.id!)) {
+        return;
+      }
+
+      for (const otherEvent of sortedEvents) {
+        // Skip comparing with itself or already redundant events
+        if (currentEvent === otherEvent || isRedundantMap.get(otherEvent.id!)) {
+          continue;
+        }
+
+        // Case 1: All-day event encompassed by another all-day event
+        if (isAllDayEvent(currentEvent) && isAllDayEvent(otherEvent)) {
+          const currentStart = new Date(currentEvent.start!.date!);
+          const currentEnd = new Date(currentEvent.end!.date!);
+          const otherStart = new Date(otherEvent.start!.date!);
+          const otherEnd = new Date(otherEvent.end!.date!);
+
+          if (currentStart >= otherStart && currentEnd <= otherEnd) {
+            isRedundantMap.set(currentEvent.id!, true);
+            break;
+          }
+        }
+
+        // Case 2: Time range event encompassed by another time range event
+        else if (
+          isSpecificTimeEvent(currentEvent) &&
+          isSpecificTimeEvent(otherEvent)
+        ) {
+          const currentStart = new Date(currentEvent.start!.dateTime!);
+          const currentEnd = new Date(currentEvent.end!.dateTime!);
+          const otherStart = new Date(otherEvent.start!.dateTime!);
+          const otherEnd = new Date(otherEvent.end!.dateTime!);
+
+          if (currentStart >= otherStart && currentEnd <= otherEnd) {
+            isRedundantMap.set(currentEvent.id!, true);
+            break;
+          }
+        }
+
+        // Case 3: Time range event that is a subset of an all-day event (if ≥ 4 hours)
+        else if (
+          isSpecificTimeEvent(currentEvent) &&
+          isAllDayEvent(otherEvent)
+        ) {
+          const currentStart = new Date(currentEvent.start!.dateTime!);
+          const currentEnd = new Date(currentEvent.end!.dateTime!);
+          const otherStart = new Date(otherEvent.start!.date!);
+          const otherEnd = new Date(otherEvent.end!.date!);
+
+          // Calculate duration in hours
+          const durationMs = currentEnd.getTime() - currentStart.getTime();
+          const durationHours = durationMs / (1000 * 60 * 60);
+
+          if (durationHours >= 4) {
+            if (currentStart >= otherStart && currentEnd <= otherEnd) {
+              isRedundantMap.set(currentEvent.id!, true);
+              break;
+            }
+          }
+        }
+
+        // Case 4: All-day event that is a subset of a time range event
+        else if (
+          isAllDayEvent(currentEvent) &&
+          isSpecificTimeEvent(otherEvent)
+        ) {
+          const currentStart = new Date(currentEvent.start!.date!);
+          const currentEnd = new Date(currentEvent.end!.date!);
+          const otherStart = new Date(otherEvent.start!.dateTime!);
+          const otherEnd = new Date(otherEvent.end!.dateTime!);
+
+          // Get the date parts of the time range event
+          const otherStartDay = new Date(otherStart);
+          otherStartDay.setHours(0, 0, 0, 0);
+
+          const otherEndDay = new Date(otherEnd);
+          otherEndDay.setHours(0, 0, 0, 0);
+
+          // Calculate duration in hours
+          const durationMs = otherEnd.getTime() - otherStart.getTime();
+          const durationHours = durationMs / (1000 * 60 * 60);
+
+          // Check if time range event is ≥ 24 hours and encompasses the all-day event
+          if (
+            durationHours >= 24 &&
+            currentStart >= otherStartDay &&
+            currentEnd <= otherEndDay
+          ) {
+            isRedundantMap.set(currentEvent.id!, true);
+            break;
+          }
+        }
+      }
+    });
+
+    // Second pass: collect non-redundant events
+    sortedEvents.forEach((event) => {
+      if (!isRedundantMap.get(event.id!)) {
+        nonRedundantEvents.push(event);
+      } else {
+        Log.log(`Skipping redundant event: ${event.summary}`);
+      }
+    });
+
+    return nonRedundantEvents;
+  }
+
+  export function getChangesPerPerson(
+    person: GroupMember,
+    teamCalendarOOOEvents: GoogleAppsScript.Calendar.Schema.Event[],
+    oooEvents: GoogleAppsScript.Calendar.Schema.Event[]
+  ): CalendarChanges {
+    const deleteEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
+
+    Log.log(
+      `Determining team-calendar-OOO changes to make for ${person.email}`
+    );
+    Log.log(`Their existing team calendar OOO events:`);
+    teamCalendarOOOEvents.forEach((event) => {
+      Log.log(
+        `\t- ${event.summary} for ${JSON.stringify(event.start)} to ${JSON.stringify(event.end)}`
+      );
+    });
+    Log.log(`Their OOO events from their own calendar:`);
+    oooEvents.forEach((event) => {
+      Log.log(
+        `\t- ${event.summary} for ${JSON.stringify(event.start)} to ${JSON.stringify(event.end)}`
+      );
+    });
+
+    // clone oooEvents
+    const eventsMayNeedToCreate: GoogleAppsScript.Calendar.Schema.Event[] =
+      deduplicatePersonalOOOEvents(oooEvents);
+    const matchedEventIds = new Set<string>();
 
     teamCalendarOOOEvents.forEach((teamCalendarOOOEvent) => {
       Log.log(
         `Examing team calendar OOO event: ${teamCalendarOOOEvent.summary} ${JSON.stringify(teamCalendarOOOEvent.start)} to ${JSON.stringify(teamCalendarOOOEvent.end)}`
       );
 
-      // Find all matching events instead of just one
-      const matchingEvents = eventsMayNeedToCreate.filter((event) => {
+      // Find the first matching event instead of all matching events
+      const matchingEvent = eventsMayNeedToCreate.find((event) => {
         // Pretty gross logic. Sometimes single day events have start==end. Sometimes
         // they have end==start +1. Idk.
         if (
           isAllDayEvent(event) &&
           isAllDayEvent(teamCalendarOOOEvent) &&
-          // Check if start === start
           event.start!.date! === teamCalendarOOOEvent.start!.date! &&
-          // check if end == end OR (if the event is a start==end event AND the team event is the proper end=start+1)
-          (event.end!.date! === teamCalendarOOOEvent.end!.date! ||
-            (event.start!.date! === event.end!.date! &&
-              Math.abs(
-                new Date(event.end!.date!).getTime() -
-                  new Date(teamCalendarOOOEvent.end!.date!).getTime()
-              ) <=
-                1000 * 60 * 60 * 24))
+          event.end!.date! === teamCalendarOOOEvent.end!.date!
         ) {
           return true;
         }
@@ -323,20 +541,16 @@ export namespace TeamCalendarOOO {
         return false;
       });
 
-      if (matchingEvents.length > 0) {
-        Log.log(
-          `Found ${matchingEvents.length} matching events in team calendar for ${person.email}`
-        );
+      if (matchingEvent) {
+        Log.log(`Found matching event in team calendar for ${person.email}`);
 
-        // Mark all matching events as matched
-        matchingEvents.forEach((event) => {
-          if (event.id) {
-            matchedEventIds.add(event.id);
-          }
-          Log.log(
-            `Matched: ${event.summary} from ${JSON.stringify(event.start)} to ${JSON.stringify(event.end)}`
-          );
-        });
+        // Mark the matching event as matched
+        if (matchingEvent.id) {
+          matchedEventIds.add(matchingEvent.id);
+        }
+        Log.log(
+          `Matched: ${matchingEvent.summary} from ${JSON.stringify(matchingEvent.start)} to ${JSON.stringify(matchingEvent.end)}`
+        );
       } else {
         Log.log(`No matching, flagging for deletion`);
         deleteEvents.push(teamCalendarOOOEvent);
@@ -348,105 +562,33 @@ export namespace TeamCalendarOOO {
       (event) => !event.id || !matchedEventIds.has(event.id)
     );
 
-    const uniqueAllDayEvents = new Map<
-      string,
-      { start: string; end: string; title: string }
-    >();
-    const uniqueTimeRangeEvents = new Map<
-      string,
-      { startDateTime: string; endDateTime: string; title: string }
-    >();
+    const newAllDayEvents: { start: string; end: string; title: string }[] = [];
+    const newTimeRangeEvents: {
+      startDateTime: string;
+      endDateTime: string;
+      title: string;
+    }[] = [];
 
     eventsWithNoTeamCalendarMatch.forEach((event) => {
       if (isAllDayEvent(event)) {
-        const key = `${event.start!.date!}-${event.end!.date!}-${person.email}`;
-        if (!uniqueAllDayEvents.has(key)) {
-          uniqueAllDayEvents.set(key, {
-            start: event.start!.date!,
-            end: event.end!.date!,
-            title: createEventTitle(person.name, person.email),
-          });
-        }
+        newAllDayEvents.push({
+          start: event.start!.date!,
+          end: event.end!.date!,
+          title: createEventTitle(person.name, person.email),
+        });
       } else if (isSpecificTimeEvent(event)) {
-        const key = `${event.start!.dateTime!}-${event.end!.dateTime!}-${person.email}`;
-        if (!uniqueTimeRangeEvents.has(key)) {
-          uniqueTimeRangeEvents.set(key, {
-            startDateTime: event.start!.dateTime!,
-            endDateTime: event.end!.dateTime!,
-            title: createEventTitle(person.name, person.email),
-          });
-        }
+        newTimeRangeEvents.push({
+          startDateTime: event.start!.dateTime!,
+          endDateTime: event.end!.dateTime!,
+          title: createEventTitle(person.name, person.email),
+        });
       }
-    });
-
-    // Check for all day events that are subsets of other all day events
-    const filteredAllDayEvents = Array.from(uniqueAllDayEvents.values()).filter(
-      (event, index, self) =>
-        !self.some(
-          (otherEvent) =>
-            otherEvent !== event &&
-            new Date(event.start) >= new Date(otherEvent.start) &&
-            new Date(event.end) <= new Date(otherEvent.end)
-        )
-    );
-
-    // Check for time range events 8 hours or longer that are subsets of all day events
-    const filteredTimeRangeEvents = Array.from(
-      uniqueTimeRangeEvents.values()
-    ).filter((timeEvent) => {
-      const startTime = new Date(timeEvent.startDateTime);
-      const endTime = new Date(timeEvent.endDateTime);
-      const durationHours =
-        (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-
-      // If duration is less than 8 hours, keep the event
-      if (durationHours < 8) {
-        return true;
-      }
-
-      // Check if this time range event is a subset of any all day event
-      return !filteredAllDayEvents.some((allDayEvent) => {
-        const allDayStart = new Date(allDayEvent.start);
-        let allDayEnd = new Date(allDayEvent.end);
-
-        // If allDayStart is the same as allDayEnd, add 24 hours to all day end date
-        if (allDayStart.getTime() === allDayEnd.getTime()) {
-          allDayEnd = new Date(allDayEnd.getTime() + 24 * 60 * 60 * 1000);
-        }
-
-        return startTime >= allDayStart && endTime <= allDayEnd;
-      });
-    });
-
-    // Check for all day events that may be subsets of time range events >= 24 hours
-    const finalAllDayEvents = filteredAllDayEvents.filter((allDayEvent) => {
-      const allDayStart = new Date(allDayEvent.start);
-      let allDayEnd = new Date(allDayEvent.end);
-
-      // If allDayStart is the same as allDayEnd, add 24 hours to all day end date
-      if (allDayStart.getTime() === allDayEnd.getTime()) {
-        allDayEnd = new Date(allDayEnd.getTime() + 24 * 60 * 60 * 1000);
-      }
-
-      return !Array.from(uniqueTimeRangeEvents.values()).some((timeEvent) => {
-        const startTime = new Date(timeEvent.startDateTime);
-        const endTime = new Date(timeEvent.endDateTime);
-        const durationHours =
-          (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-
-        // Only consider time range events >= 24 hours
-        return (
-          durationHours >= 24 &&
-          allDayStart >= startTime &&
-          allDayEnd <= endTime
-        );
-      });
     });
 
     return {
       deleteEvents: deleteEvents,
-      newAllDayEvents: finalAllDayEvents,
-      newTimeRangeEvents: filteredTimeRangeEvents,
+      newAllDayEvents: newAllDayEvents,
+      newTimeRangeEvents: newTimeRangeEvents,
     };
   }
 
