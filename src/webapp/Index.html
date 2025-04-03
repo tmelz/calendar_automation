@@ -256,20 +256,6 @@
               <input
                 class="form-check-input"
                 type="checkbox"
-                id="quit"
-                v-model="settings.checks.quit"
-                @change="onSettingsChanged"
-              />
-              <label class="form-check-label" for="quit"> Quit </label>
-              <div class="form-text">
-                Add a 👻 to the meeting title if an attendee is no longer an
-                employee.
-              </div>
-            </div>
-            <div class="form-check mb-1">
-              <input
-                class="form-check-input"
-                type="checkbox"
                 id="notes"
                 v-model="settings.checks.notes"
                 @change="onSettingsChanged"
@@ -617,7 +603,6 @@
           plusFiveMinutes: false,
           outOfOffice: false,
           conflict: false,
-          quit: false,
           eventColor: false,
           notes: false,
         },
@@ -660,7 +645,6 @@
               plusFiveMinutes: false,
               outOfOffice: false,
               conflict: false,
-              quit: false,
               eventColor: false,
               notes: false,
             },

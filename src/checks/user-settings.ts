@@ -1,7 +1,6 @@
 import { CheckConflict } from "./check-conflict";
 import { CheckOOO } from "./check-ooo";
 import { CheckPlus5m } from "./check-plus-5m";
-import { CheckQuit } from "./check-quit";
 import { CheckColor } from "./check-color";
 import { CheckNotes } from "./check-notes";
 // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -14,7 +13,6 @@ export namespace UserSettings {
     checks: {
       outOfOffice: boolean;
       plusFiveMinutes: boolean;
-      quit: boolean;
       conflict: boolean;
       eventColor: boolean;
       notes: boolean;
@@ -54,8 +52,6 @@ export namespace UserSettings {
         return settings.checks.outOfOffice;
       case CheckPlus5m.PlusFiveMinutesCheck.id:
         return settings.checks.plusFiveMinutes;
-      case CheckQuit.QuitCheck.id:
-        return settings.checks.quit;
       case CheckConflict.ConflictCheck.id:
         return settings.checks.conflict;
       case CheckColor.ColorCheck.id:
@@ -96,7 +92,6 @@ export namespace UserSettings {
       checks: {
         outOfOffice: false,
         plusFiveMinutes: false,
-        quit: false,
         conflict: false,
         eventColor: false,
         notes: false,

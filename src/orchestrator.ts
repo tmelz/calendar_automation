@@ -2,7 +2,6 @@ import { EventUtil } from "./checks/event-util";
 import { CheckOOO } from "./checks/check-ooo";
 import { CheckPlus5m } from "./checks/check-plus-5m";
 import { CheckTypes } from "./checks/check-types";
-import { CheckQuit } from "./checks/check-quit";
 import { CheckConflict } from "./checks/check-conflict";
 import { GetEvents } from "./checks/get-events";
 import { Time } from "./checks/time";
@@ -29,7 +28,6 @@ export namespace Orchestrator {
   export const applyToSourceEventChecks: CheckTypes.CalendarCheck[] = [
     CheckOOO.OutOfOfficeCheck,
     CheckPlus5m.PlusFiveMinutesCheck,
-    CheckQuit.QuitCheck,
     CheckConflict.ConflictCheck,
     CheckNotes.NotesCheck,
   ];

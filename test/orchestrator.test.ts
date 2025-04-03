@@ -63,7 +63,6 @@ describe("checkEvents", () => {
     checks: {
       outOfOffice: true,
       plusFiveMinutes: true,
-      quit: true,
       conflict: true,
       eventColor: true,
       notes: true,

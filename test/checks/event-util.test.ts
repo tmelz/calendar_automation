@@ -216,7 +216,7 @@ describe("EventUtil.getMeetingDurationMinutes", () => {
   });
 });
 
-describe("CheckQuit.doAllAttendeesHaveSameBusinessEmailDomain", () => {
+describe("doAllAttendeesHaveSameBusinessEmailDomain", () => {
   test("should return true for attendees with the same domain", () => {
     const attendees = [
       { email: "test@block.xyz" },
