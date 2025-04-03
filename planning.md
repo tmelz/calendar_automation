@@ -5,6 +5,9 @@ cleanup
 improvements
 
 - add button in settings for adhoc team calendar syncs
+- add oncall person as invitee of oncall event
+- defrag configurability
+- defrag performance improvements
 
 features
 
