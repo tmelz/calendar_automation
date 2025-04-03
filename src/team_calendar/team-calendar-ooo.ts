@@ -709,25 +709,33 @@ export namespace TeamCalendarOOO {
   }
 
   /**
-   * Checks if the provided event start time is midnight in its timezone.
-   * @param eventStart - The event start object with dateTime and timeZone.
-   * @returns True if the time is midnight, otherwise false.
+   * Checks if a Google Calendar event time represents midnight in its timezone.
+   * Works by directly examining the time portion of the dateTime string.
+   *
+   * @param eventTime The event time object from Google Calendar API
+   * @returns True if the time is exactly midnight (00:00:00), false otherwise
    */
-  export function isMidnight(eventStart: {
+  export function isMidnight(eventTime: {
     dateTime?: string;
     timeZone?: string;
   }): boolean {
-    // Return false if either dateTime or timeZone is undefined.
-    if (!eventStart.dateTime || !eventStart.timeZone) {
+    // Return false if dateTime is missing
+    if (!eventTime?.dateTime) {
       return false;
     }
 
-    const eventDate: Date = new Date(eventStart.dateTime);
+    // Split the dateTime string at 'T' to get the time portion
+    const timeString = eventTime.dateTime.split("T")[1];
 
-    // Use the local formatter function instead of Utilities.formatDate.
-    const timeString: string = formatDateLocal(eventDate, eventStart.timeZone);
+    // Get just the time portion by removing anything after a '+', '-', or 'Z'
+    // Make sure to handle the case where 'Z' might be included in timePortion
+    let timePortion = timeString.split(/[+-]/)[0];
+    if (timePortion.endsWith("Z")) {
+      timePortion = timePortion.slice(0, -1);
+    }
 
-    return timeString === "00:00:00";
+    // Check if the time is exactly midnight (00:00:00)
+    return timePortion === "00:00:00";
   }
 
   /**

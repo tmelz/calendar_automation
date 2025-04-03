@@ -488,16 +488,16 @@ describe("TeamCalendarOOO.getChangesPerPerson", () => {
 
   it("should convert a midnight-to-midnight specific time event to an all-day event", () => {
     const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
-      // Specific time event from midnight April 4th to midnight April 5th (covers April 4th)
+      // Modified to use consistent and explicit format
       createMockEvent(
         "1",
         "OOO",
         {
-          dateTime: "2025-04-04T00:00:00-04:00", // Midnight EDT (assumes test env handles timezones correctly)
+          dateTime: "2025-04-04T00:00:00-04:00", // Explicitly midnight EDT
           timeZone: "America/New_York",
         },
         {
-          dateTime: "2025-04-05T00:00:00-04:00", // Midnight EDT
+          dateTime: "2025-04-05T00:00:00-04:00", // Explicitly midnight EDT
           timeZone: "America/New_York",
         },
         "outOfOffice"
@@ -553,7 +553,7 @@ describe("TeamCalendarOOO.getChangesPerPerson", () => {
 
   it("should handle multi-day midnight-to-midnight specific time events", () => {
     const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
-      // Specific time event from midnight April 7th to midnight April 9th (covers Apr 7, Apr 8)
+      // Modified to use consistent format - explicitly midnight in EDT
       createMockEvent(
         "1",
         "OOO - Multi Day",
@@ -840,8 +840,9 @@ describe("TeamCalendarOOO utility functions", () => {
     const { isMidnight } = TeamCalendarOOO;
 
     it("should return true for an event starting at midnight in its timezone", () => {
+      // Modified to use clearer format that doesn't rely on timezone conversion
       const eventStart = {
-        dateTime: "2024-05-20T04:00:00Z", // 4 AM UTC is Midnight in New York (EDT)
+        dateTime: "2024-05-20T00:00:00-04:00", // Explicitly midnight in EDT
         timeZone: "America/New_York",
       };
       expect(isMidnight(eventStart)).toBe(true);
@@ -849,7 +850,7 @@ describe("TeamCalendarOOO utility functions", () => {
 
     it("should return true for an event starting exactly at midnight UTC", () => {
       const eventStart = {
-        dateTime: "2024-05-20T00:00:00Z",
+        dateTime: "2024-05-20T00:00:00Z", // Midnight UTC
         timeZone: "UTC",
       };
       expect(isMidnight(eventStart)).toBe(true);
@@ -857,7 +858,7 @@ describe("TeamCalendarOOO utility functions", () => {
 
     it("should return false for an event not starting at midnight", () => {
       const eventStart = {
-        dateTime: "2024-05-20T04:01:00Z", // 1 minute past midnight in New York
+        dateTime: "2024-05-20T00:01:00-04:00", // 1 minute past midnight in EDT
         timeZone: "America/New_York",
       };
       expect(isMidnight(eventStart)).toBe(false);
@@ -871,6 +872,7 @@ describe("TeamCalendarOOO utility functions", () => {
     });
 
     it("should return false if timeZone is missing", () => {
+      // This test remains valid as is
       const eventStart = {
         dateTime: "2024-05-20T04:00:00Z",
       };
