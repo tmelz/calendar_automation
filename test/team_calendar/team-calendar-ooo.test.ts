@@ -485,4 +485,437 @@ describe("TeamCalendarOOO.getChangesPerPerson", () => {
 
     expect(actualChanges).toEqual(expectedChanges);
   });
+
+  it("should convert a midnight-to-midnight specific time event to an all-day event", () => {
+    const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      // Specific time event from midnight April 4th to midnight April 5th (covers April 4th)
+      createMockEvent(
+        "1",
+        "OOO",
+        {
+          dateTime: "2025-04-04T00:00:00-04:00", // Midnight EDT (assumes test env handles timezones correctly)
+          timeZone: "America/New_York",
+        },
+        {
+          dateTime: "2025-04-05T00:00:00-04:00", // Midnight EDT
+          timeZone: "America/New_York",
+        },
+        "outOfOffice"
+      ),
+      // Another regular all-day event to ensure duplicates/merging works
+      createMockEvent(
+        "2",
+        "OOO - All Day",
+        { date: "2025-04-04" }, // All day April 4th
+        { date: "2025-04-05" }, // API end date is exclusive
+        "outOfOffice"
+      ),
+    ];
+
+    const teamCalendarOOOEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
+
+    const expectedChanges: TeamCalendarOOO.CalendarChanges = {
+      deleteEvents: [],
+      newAllDayEvents: [
+        // Expecting a single all-day event for April 4th.
+        // Note: Relies on getDateStringFromEvent correctly parsing the start/end dateTimes
+        // AND the potentially buggy logic using event.start.date which might be undefined.
+        // If the underlying code is fixed to use getDateStringFromEvent result, this should pass.
+        // Assuming the corrected logic uses getDateStringFromEvent("2025-04-04T00:00:00-04:00") -> "2025-04-04"
+        // and getDateStringFromEvent("2025-04-05T00:00:00-04:00") -> "2025-04-05"
+        {
+          start: "2025-04-04", // Expected date derived from start dateTime
+          end: "2025-04-05", // Expected date derived from end dateTime
+          title: "[OOO] John Doe (john.doe@example.com)",
+        },
+      ],
+      newTimeRangeEvents: [],
+    };
+
+    const actualChanges = getChangesPerPerson(
+      mockGroupMember,
+      teamCalendarOOOEvents,
+      oooEvents
+    );
+
+    // We need to be careful comparing the newAllDayEvents array, as the order might not be guaranteed
+    // if both the specific time event and the all-day event were converted. Let's sort.
+    // Also, check the potential bug mentioned above - the test might fail here if the bug exists.
+    actualChanges.newAllDayEvents.sort((a, b) =>
+      a.start.localeCompare(b.start)
+    );
+    expectedChanges.newAllDayEvents.sort((a, b) =>
+      a.start.localeCompare(b.start)
+    );
+
+    expect(actualChanges).toEqual(expectedChanges);
+  });
+
+  it("should handle multi-day midnight-to-midnight specific time events", () => {
+    const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      // Specific time event from midnight April 7th to midnight April 9th (covers Apr 7, Apr 8)
+      createMockEvent(
+        "1",
+        "OOO - Multi Day",
+        {
+          dateTime: "2025-04-07T00:00:00-04:00", // Midnight EDT
+          timeZone: "America/New_York",
+        },
+        {
+          dateTime: "2025-04-09T00:00:00-04:00", // Midnight EDT
+          timeZone: "America/New_York",
+        },
+        "outOfOffice"
+      ),
+    ];
+
+    const teamCalendarOOOEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
+
+    const expectedChanges: TeamCalendarOOO.CalendarChanges = {
+      deleteEvents: [],
+      newAllDayEvents: [
+        // Expecting a single all-day event covering April 7th and 8th
+        // Relies on getDateStringFromEvent correctly producing "2025-04-07" and "2025-04-09"
+        // and the conversion logic using these derived dates correctly.
+        {
+          start: "2025-04-07",
+          end: "2025-04-09", // API end date is exclusive
+          title: "[OOO] John Doe (john.doe@example.com)",
+        },
+      ],
+      newTimeRangeEvents: [],
+    };
+
+    const actualChanges = getChangesPerPerson(
+      mockGroupMember,
+      teamCalendarOOOEvents,
+      oooEvents
+    );
+
+    expect(actualChanges).toEqual(expectedChanges);
+  });
+
+  it("should filter single-day events that are subsets of a multi-day event, regardless of format", () => {
+    const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      // The containing multi-day event
+      createMockEvent(
+        "1",
+        "Multi-Day OOO",
+        { date: "2024-08-10" },
+        { date: "2024-08-13" }, // Covers Aug 10, 11, 12
+        "outOfOffice"
+      ),
+      // Subset single-day event (start == end)
+      createMockEvent(
+        "2",
+        "Single Day (start==end)",
+        { date: "2024-08-11" },
+        { date: "2024-08-11" }, // Covers Aug 11
+        "outOfOffice"
+      ),
+      // Subset single-day event (end = start + 1)
+      createMockEvent(
+        "3",
+        "Single Day (end=start+1)",
+        { date: "2024-08-12" },
+        { date: "2024-08-13" }, // Covers Aug 12
+        "outOfOffice"
+      ),
+    ];
+
+    const teamCalendarOOOEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
+
+    const expectedChanges: TeamCalendarOOO.CalendarChanges = {
+      deleteEvents: [],
+      newAllDayEvents: [
+        // Only the multi-day event should remain
+        {
+          start: "2024-08-10",
+          end: "2024-08-13",
+          title: "[OOO] John Doe (john.doe@example.com)",
+        },
+      ],
+      newTimeRangeEvents: [],
+    };
+
+    const actualChanges = getChangesPerPerson(
+      mockGroupMember,
+      teamCalendarOOOEvents,
+      oooEvents
+    );
+
+    // Basic check is sufficient here as only one event type is expected
+    expect(actualChanges).toEqual(expectedChanges);
+  });
+
+  it("should filter one of two identical single-day events with different formats", () => {
+    const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      // Single day event (start == end)
+      createMockEvent(
+        "1",
+        "Single Day (start==end)",
+        { date: "2024-09-15" },
+        { date: "2024-09-15" }, // Covers Sep 15
+        "outOfOffice"
+      ),
+      // Same single day event (end = start + 1)
+      createMockEvent(
+        "2",
+        "Single Day (end=start+1)",
+        { date: "2024-09-15" },
+        { date: "2024-09-16" }, // Also covers Sep 15
+        "outOfOffice"
+      ),
+    ];
+
+    const teamCalendarOOOEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
+
+    // The filter logic should identify these as equivalent and remove one.
+    const expectedChanges: TeamCalendarOOO.CalendarChanges = {
+      deleteEvents: [],
+      newAllDayEvents: [
+        {
+          start: "2024-09-15",
+          end: "2024-09-16",
+          title: "[OOO] John Doe (john.doe@example.com)",
+        },
+      ],
+      newTimeRangeEvents: [],
+    };
+
+    const actualChanges = getChangesPerPerson(
+      mockGroupMember,
+      teamCalendarOOOEvents,
+      oooEvents
+    );
+
+    expect(actualChanges).toEqual(expectedChanges);
+  });
+
+  it("should filter a 'start == end' single-day event fully contained within a multi-day event", () => {
+    const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      createMockEvent(
+        "1",
+        "Multi-Day",
+        { date: "2024-08-10" },
+        { date: "2024-08-13" },
+        "outOfOffice"
+      ), // Aug 10, 11, 12
+      createMockEvent(
+        "2",
+        "Single Day",
+        { date: "2024-08-11" },
+        { date: "2024-08-11" },
+        "outOfOffice"
+      ), // Aug 11
+    ];
+    const teamCalendarOOOEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
+    const expectedChanges: TeamCalendarOOO.CalendarChanges = {
+      deleteEvents: [],
+      newAllDayEvents: [
+        {
+          start: "2024-08-10",
+          end: "2024-08-13",
+          title: "[OOO] John Doe (john.doe@example.com)",
+        },
+      ],
+      newTimeRangeEvents: [],
+    };
+    const actualChanges = getChangesPerPerson(
+      mockGroupMember,
+      teamCalendarOOOEvents,
+      oooEvents
+    );
+    expect(actualChanges).toEqual(expectedChanges);
+  });
+
+  it("should filter an 'end = start + 1' single-day event fully contained within a multi-day event", () => {
+    const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      createMockEvent(
+        "1",
+        "Multi-Day",
+        { date: "2024-08-10" },
+        { date: "2024-08-13" },
+        "outOfOffice"
+      ), // Aug 10, 11, 12
+      createMockEvent(
+        "2",
+        "Single Day",
+        { date: "2024-08-11" },
+        { date: "2024-08-12" },
+        "outOfOffice"
+      ), // Aug 11
+    ];
+    const teamCalendarOOOEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
+    const expectedChanges: TeamCalendarOOO.CalendarChanges = {
+      deleteEvents: [],
+      newAllDayEvents: [
+        {
+          start: "2024-08-10",
+          end: "2024-08-13",
+          title: "[OOO] John Doe (john.doe@example.com)",
+        },
+      ],
+      newTimeRangeEvents: [],
+    };
+    const actualChanges = getChangesPerPerson(
+      mockGroupMember,
+      teamCalendarOOOEvents,
+      oooEvents
+    );
+    expect(actualChanges).toEqual(expectedChanges);
+  });
+
+  it("should keep only one event when two represent the same single day with different formats", () => {
+    const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      createMockEvent(
+        "1",
+        "Single Day (start==end)",
+        { date: "2024-09-15" },
+        { date: "2024-09-15" },
+        "outOfOffice"
+      ), // Sep 15
+      createMockEvent(
+        "2",
+        "Single Day (end=start+1)",
+        { date: "2024-09-15" },
+        { date: "2024-09-16" },
+        "outOfOffice"
+      ), // Also Sep 15
+    ];
+    const teamCalendarOOOEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
+    // Expect the start==end version based on current filter logic
+    const expectedChanges: TeamCalendarOOO.CalendarChanges = {
+      deleteEvents: [],
+      newAllDayEvents: [
+        {
+          start: "2024-09-15",
+          end: "2024-09-16",
+          title: "[OOO] John Doe (john.doe@example.com)",
+        },
+      ],
+      newTimeRangeEvents: [],
+    };
+    const actualChanges = getChangesPerPerson(
+      mockGroupMember,
+      teamCalendarOOOEvents,
+      oooEvents
+    );
+    // Sorting might be needed if the filter order isn't guaranteed, though less likely with only two items
+    actualChanges.newAllDayEvents.sort((a, b) =>
+      a.start.localeCompare(b.start)
+    );
+    expectedChanges.newAllDayEvents.sort((a, b) =>
+      a.start.localeCompare(b.start)
+    );
+    expect(actualChanges).toEqual(expectedChanges);
+  });
+});
+
+describe("TeamCalendarOOO utility functions", () => {
+  describe("formatDateLocal", () => {
+    const { formatDateLocal } = TeamCalendarOOO;
+
+    it("should format the time correctly for a given timezone (New York)", () => {
+      const date = new Date("2024-01-01T05:00:00Z"); // 5 AM UTC is Midnight EST (New York)
+      const timeZone = "America/New_York";
+      expect(formatDateLocal(date, timeZone)).toBe("00:00:00");
+    });
+
+    it("should format the time correctly for a different timezone (Los Angeles)", () => {
+      const date = new Date("2024-01-01T08:00:00Z"); // 8 AM UTC is Midnight PST (Los Angeles)
+      const timeZone = "America/Los_Angeles";
+      expect(formatDateLocal(date, timeZone)).toBe("00:00:00");
+    });
+
+    it("should format a non-midnight time correctly", () => {
+      const date = new Date("2024-01-01T15:30:45Z");
+      const timeZone = "Europe/London"; // London is UTC+0 in Jan
+      expect(formatDateLocal(date, timeZone)).toBe("15:30:45");
+    });
+
+    it("should handle different locales implicitly using en-US", () => {
+      // Test assumes the underlying Intl.DateTimeFormat works correctly across locales
+      // for the specified "en-US" format target.
+      const date = new Date("2024-03-15T10:00:00Z");
+      const timeZone = "Asia/Tokyo"; // Tokyo is UTC+9
+      expect(formatDateLocal(date, timeZone)).toBe("19:00:00");
+    });
+  });
+
+  describe("isMidnight", () => {
+    const { isMidnight } = TeamCalendarOOO;
+
+    it("should return true for an event starting at midnight in its timezone", () => {
+      const eventStart = {
+        dateTime: "2024-05-20T04:00:00Z", // 4 AM UTC is Midnight in New York (EDT)
+        timeZone: "America/New_York",
+      };
+      expect(isMidnight(eventStart)).toBe(true);
+    });
+
+    it("should return true for an event starting exactly at midnight UTC", () => {
+      const eventStart = {
+        dateTime: "2024-05-20T00:00:00Z",
+        timeZone: "UTC",
+      };
+      expect(isMidnight(eventStart)).toBe(true);
+    });
+
+    it("should return false for an event not starting at midnight", () => {
+      const eventStart = {
+        dateTime: "2024-05-20T04:01:00Z", // 1 minute past midnight in New York
+        timeZone: "America/New_York",
+      };
+      expect(isMidnight(eventStart)).toBe(false);
+    });
+
+    it("should return false if dateTime is missing", () => {
+      const eventStart = {
+        timeZone: "America/New_York",
+      };
+      expect(isMidnight(eventStart)).toBe(false);
+    });
+
+    it("should return false if timeZone is missing", () => {
+      const eventStart = {
+        dateTime: "2024-05-20T04:00:00Z",
+      };
+      expect(isMidnight(eventStart)).toBe(false);
+    });
+  });
+
+  describe("getDateStringFromEvent", () => {
+    const { getDateStringFromEvent } = TeamCalendarOOO;
+
+    it("should return the correct date string for the given timezone", () => {
+      const eventStart = {
+        dateTime: "2024-12-31T23:00:00-05:00", // Dec 31st 11 PM EST
+        timeZone: "America/New_York",
+      };
+      expect(getDateStringFromEvent(eventStart)).toBe("2024-12-31");
+    });
+
+    it("should return the correct date string when the date differs from UTC", () => {
+      const eventStart = {
+        dateTime: "2025-01-01T02:00:00Z", // Jan 1st 2 AM UTC
+        timeZone: "America/Los_Angeles", // Is Dec 31st 6 PM PST
+      };
+      expect(getDateStringFromEvent(eventStart)).toBe("2024-12-31");
+    });
+
+    it("should return null if dateTime is missing", () => {
+      const eventStart = {
+        timeZone: "America/New_York",
+      };
+      expect(getDateStringFromEvent(eventStart)).toBeUndefined();
+    });
+
+    it("should return null if timeZone is missing", () => {
+      const eventStart = {
+        dateTime: "2024-12-31T23:00:00-05:00",
+      };
+      expect(getDateStringFromEvent(eventStart)).toBeUndefined();
+    });
+  });
 });

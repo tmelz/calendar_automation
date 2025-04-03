@@ -240,13 +240,55 @@ export namespace TeamCalendarOOO {
     });
 
     // clone oooEvents
-    const eventsMayNeedToCreate = [...oooEvents];
+    const eventsMayNeedToCreate: GoogleAppsScript.Calendar.Schema.Event[] = [];
+    const matchedEventIds = new Set<string>();
+
+    oooEvents.forEach((event) => {
+      // OOO holds are always at midnight in the creator's timezone, but practically speaking they just
+      // created the all day event, it's not useful to set it midnight to midnight (which will show on
+      // the previous/next day for folks in other timezones). So catch those cases and convert them
+      // to all day events instead.
+      //
+      // For specific time OOO events that are not midnight to midnight, we'll show them normally.
+      // This is useful for something like a 3 hour OOO afternoon.
+      if (
+        isSpecificTimeEvent(event) &&
+        isMidnight(event.start!) &&
+        isMidnight(event.end!)
+      ) {
+        Log.log(
+          `Found Midnight to midnight OOO event: ${event.summary} from ${JSON.stringify(event.start)} to ${JSON.stringify(event.end)}`
+        );
+        Log.log(
+          `Going to represent this as an all day event when calculating changes`
+        );
+        const startDate = getDateStringFromEvent(event.start!);
+        const endDate = getDateStringFromEvent(event.end!);
+        if (startDate === undefined || endDate === undefined) {
+          Log.log(
+            `Skipping event, inferred startDate or endDate is undefined, this is unexpected `
+          );
+          return;
+        }
+
+        eventsMayNeedToCreate.push({
+          id: event.id + "-synthetic",
+          start: { date: startDate },
+          end: { date: endDate },
+          summary: `Synthetic event created for ${event.id} which is a midnight to midnight OOO event`,
+        });
+      } else {
+        eventsMayNeedToCreate.push(event);
+      }
+    });
 
     teamCalendarOOOEvents.forEach((teamCalendarOOOEvent) => {
       Log.log(
         `Examing team calendar OOO event: ${teamCalendarOOOEvent.summary} ${JSON.stringify(teamCalendarOOOEvent.start)} to ${JSON.stringify(teamCalendarOOOEvent.end)}`
       );
-      const matchingEvent = eventsMayNeedToCreate.find((event) => {
+
+      // Find all matching events instead of just one
+      const matchingEvents = eventsMayNeedToCreate.filter((event) => {
         // Pretty gross logic. Sometimes single day events have start==end. Sometimes
         // they have end==start +1. Idk.
         if (
@@ -281,19 +323,30 @@ export namespace TeamCalendarOOO {
         return false;
       });
 
-      if (matchingEvent !== undefined) {
+      if (matchingEvents.length > 0) {
         Log.log(
-          `Found matching event in team calendar for ${person.email}: ${matchingEvent.summary} from ${JSON.stringify(matchingEvent.start)} to ${JSON.stringify(matchingEvent.end)}`
+          `Found ${matchingEvents.length} matching events in team calendar for ${person.email}`
         );
-        eventsMayNeedToCreate.splice(
-          eventsMayNeedToCreate.indexOf(matchingEvent),
-          1
-        );
+
+        // Mark all matching events as matched
+        matchingEvents.forEach((event) => {
+          if (event.id) {
+            matchedEventIds.add(event.id);
+          }
+          Log.log(
+            `Matched: ${event.summary} from ${JSON.stringify(event.start)} to ${JSON.stringify(event.end)}`
+          );
+        });
       } else {
         Log.log(`No matching, flagging for deletion`);
         deleteEvents.push(teamCalendarOOOEvent);
       }
     });
+
+    // Filter out events that have already been matched with team calendar events
+    const eventsWithNoTeamCalendarMatch = eventsMayNeedToCreate.filter(
+      (event) => !event.id || !matchedEventIds.has(event.id)
+    );
 
     const uniqueAllDayEvents = new Map<
       string,
@@ -304,7 +357,7 @@ export namespace TeamCalendarOOO {
       { startDateTime: string; endDateTime: string; title: string }
     >();
 
-    eventsMayNeedToCreate.forEach((event) => {
+    eventsWithNoTeamCalendarMatch.forEach((event) => {
       if (isAllDayEvent(event)) {
         const key = `${event.start!.date!}-${event.end!.date!}-${person.email}`;
         if (!uniqueAllDayEvents.has(key)) {
@@ -489,5 +542,97 @@ export namespace TeamCalendarOOO {
     // seems safe we can assume the format is YYYY-MM-DD
     const [year, month, day] = date.split("-").map(Number);
     return new Date(year, month - 1, day);
+  }
+
+  /**
+   * Formats a Date object to a "HH:mm:ss" string using the provided timezone.
+   * @param date - The Date object to format.
+   * @param timeZone - The timezone to use for formatting.
+   * @returns The formatted time string.
+   */
+  export function formatDateLocal(date: Date, timeZone: string): string {
+    // Create a formatter for HH:mm:ss with the specified timezone.
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+
+    // Format the date and ensure it matches the HH:mm:ss pattern.
+    // The output may include some locale-specific punctuation, so we remove any non-digit or colon characters.
+    const formatted = formatter.format(date);
+    return formatted.replace(/[^0-9:]/g, "");
+  }
+
+  /**
+   * Checks if the provided event start time is midnight in its timezone.
+   * @param eventStart - The event start object with dateTime and timeZone.
+   * @returns True if the time is midnight, otherwise false.
+   */
+  export function isMidnight(eventStart: {
+    dateTime?: string;
+    timeZone?: string;
+  }): boolean {
+    // Return false if either dateTime or timeZone is undefined.
+    if (!eventStart.dateTime || !eventStart.timeZone) {
+      return false;
+    }
+
+    const eventDate: Date = new Date(eventStart.dateTime);
+
+    // Use the local formatter function instead of Utilities.formatDate.
+    const timeString: string = formatDateLocal(eventDate, eventStart.timeZone);
+
+    return timeString === "00:00:00";
+  }
+
+  /**
+   * Extracts the date in "YYYY-MM-DD" format from an event object
+   * based on its dateTime and timeZone.
+   * @param eventStart - The event object with dateTime and timeZone.
+   * @returns The formatted date string, or null if dateTime or timeZone is missing.
+   */
+  export function getDateStringFromEvent(eventStart: {
+    date?: string | undefined;
+    dateTime?: string | undefined;
+    timeZone?: string | undefined;
+  }): string | undefined {
+    if (
+      eventStart.dateTime === undefined ||
+      eventStart.timeZone === undefined
+    ) {
+      return undefined;
+    }
+
+    // Parse the event's dateTime into a Date object.
+    const eventDate: Date = new Date(eventStart.dateTime);
+
+    // Create a formatter to get year, month, and day parts.
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: eventStart.timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+
+    // Use formatToParts to extract individual components.
+    const parts = formatter.formatToParts(eventDate);
+    let year = "";
+    let month = "";
+    let day = "";
+
+    for (const part of parts) {
+      if (part.type === "year") {
+        year = part.value;
+      } else if (part.type === "month") {
+        month = part.value;
+      } else if (part.type === "day") {
+        day = part.value;
+      }
+    }
+
+    return `${year}-${month}-${day}`;
   }
 }

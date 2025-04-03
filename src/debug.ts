@@ -13,7 +13,15 @@ import { CheckNotes } from "./checks/check-notes";
 import { CheckTypes } from "./checks/check-types";
 import { Pagerduty } from "./pagerduty";
 
-export function debug() {}
+export function debug() {
+  TeamCalendarOOO.syncCalendarOOO(
+    new Date(),
+    new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000),
+    "c_230536d5accf9563d9b5e7b20becfa47df6a09c6423499e9b1c841a80bd2abfc@group.calendar.google.com",
+    "mdx-ios@squareup.com",
+    true // dry run
+  );
+}
 
 // debugging new behavior with grouping oncall settings by calendar
 // export function debug() {
