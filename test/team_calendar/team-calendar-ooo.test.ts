@@ -806,36 +806,6 @@ describe("TeamCalendarOOO.getChangesPerPerson", () => {
 });
 
 describe("TeamCalendarOOO utility functions", () => {
-  describe("formatDateLocal", () => {
-    const { formatDateLocal } = TeamCalendarOOO;
-
-    it("should format the time correctly for a given timezone (New York)", () => {
-      const date = new Date("2024-01-01T05:00:00Z"); // 5 AM UTC is Midnight EST (New York)
-      const timeZone = "America/New_York";
-      expect(formatDateLocal(date, timeZone)).toBe("00:00:00");
-    });
-
-    it("should format the time correctly for a different timezone (Los Angeles)", () => {
-      const date = new Date("2024-01-01T08:00:00Z"); // 8 AM UTC is Midnight PST (Los Angeles)
-      const timeZone = "America/Los_Angeles";
-      expect(formatDateLocal(date, timeZone)).toBe("00:00:00");
-    });
-
-    it("should format a non-midnight time correctly", () => {
-      const date = new Date("2024-01-01T15:30:45Z");
-      const timeZone = "Europe/London"; // London is UTC+0 in Jan
-      expect(formatDateLocal(date, timeZone)).toBe("15:30:45");
-    });
-
-    it("should handle different locales implicitly using en-US", () => {
-      // Test assumes the underlying Intl.DateTimeFormat works correctly across locales
-      // for the specified "en-US" format target.
-      const date = new Date("2024-03-15T10:00:00Z");
-      const timeZone = "Asia/Tokyo"; // Tokyo is UTC+9
-      expect(formatDateLocal(date, timeZone)).toBe("19:00:00");
-    });
-  });
-
   describe("isMidnight", () => {
     const { isMidnight } = TeamCalendarOOO;
 

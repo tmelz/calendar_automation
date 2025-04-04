@@ -687,28 +687,6 @@ export namespace TeamCalendarOOO {
   }
 
   /**
-   * Formats a Date object to a "HH:mm:ss" string using the provided timezone.
-   * @param date - The Date object to format.
-   * @param timeZone - The timezone to use for formatting.
-   * @returns The formatted time string.
-   */
-  export function formatDateLocal(date: Date, timeZone: string): string {
-    // Create a formatter for HH:mm:ss with the specified timezone.
-    const formatter = new Intl.DateTimeFormat("en-US", {
-      timeZone,
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    });
-
-    // Format the date and ensure it matches the HH:mm:ss pattern.
-    // The output may include some locale-specific punctuation, so we remove any non-digit or colon characters.
-    const formatted = formatter.format(date);
-    return formatted.replace(/[^0-9:]/g, "");
-  }
-
-  /**
    * Checks if a Google Calendar event time represents midnight in its timezone.
    * Works by directly examining the time portion of the dateTime string.
    *
