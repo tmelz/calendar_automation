@@ -803,6 +803,48 @@ describe("TeamCalendarOOO.getChangesPerPerson", () => {
     );
     expect(actualChanges).toEqual(expectedChanges);
   });
+
+  it("should convert a nearly 24-hour specific time event to an all-day event", () => {
+    const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      // Event that spans from 10pm on April 3rd to 9:59pm on April 4th (Pacific Time)
+      // This is almost a full day on April 4th and should be treated as an all-day event
+      createMockEvent(
+        "1",
+        "Almost Full Day OOO",
+        {
+          dateTime: "2025-04-03T22:00:00-07:00", // 10:00 PM Pacific
+          timeZone: "America/Los_Angeles",
+        },
+        {
+          dateTime: "2025-04-04T21:59:00-07:00", // 9:59 PM Pacific
+          timeZone: "America/Los_Angeles",
+        },
+        "outOfOffice"
+      ),
+    ];
+
+    const teamCalendarOOOEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
+
+    const expectedChanges: TeamCalendarOOO.CalendarChanges = {
+      deleteEvents: [],
+      newAllDayEvents: [
+        {
+          start: "2025-04-04", // Should be detected as an all-day event for April 4th
+          end: "2025-04-05", // End date is exclusive in the API (means April 4th only)
+          title: "[OOO] John Doe (john.doe@example.com)",
+        },
+      ],
+      newTimeRangeEvents: [],
+    };
+
+    const actualChanges = getChangesPerPerson(
+      mockGroupMember,
+      teamCalendarOOOEvents,
+      oooEvents
+    );
+
+    expect(actualChanges).toEqual(expectedChanges);
+  });
 });
 
 describe("TeamCalendarOOO utility functions", () => {

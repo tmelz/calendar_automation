@@ -227,9 +227,72 @@ export namespace TeamCalendarOOO {
   export function deduplicatePersonalOOOEvents(
     events: GoogleAppsScript.Calendar.Schema.Event[]
   ): GoogleAppsScript.Calendar.Schema.Event[] {
-    const normalizedEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
-
+    // This is a hack to fix a bug where Workday syncs events that start at 10pm and end at 10pm-1min
+    // This probably will be fixed on their end but it was bothering me. This code should be cleaned up
+    // since its fairly gross.
+    const workdaySyncIssueFixedEvents: GoogleAppsScript.Calendar.Schema.Event[] =
+      [];
     events.forEach((event) => {
+      // Check for the Workday sync issue pattern: events that start at 10pm and end at 10pm-1min
+      if (
+        isSpecificTimeEvent(event) &&
+        event.start?.dateTime &&
+        event.end?.dateTime
+      ) {
+        const startDateTime = event.start.dateTime;
+        const endDateTime = event.end.dateTime;
+
+        // Extract just the time portion to check for 22:00:00 pattern
+        const startTimePart = startDateTime.split("T")[1];
+
+        // Check if it starts exactly at 10pm (22:00:00)
+        if (startTimePart.startsWith("22:00:00")) {
+          const startDate = new Date(startDateTime);
+          const endDate = new Date(endDateTime);
+
+          // Check if end date is the next day and end time is 21:59
+          const isNextDay = endDate.getDate() - startDate.getDate() === 1;
+          const endTimePart = endDateTime.split("T")[1];
+
+          if (isNextDay && endTimePart.startsWith("21:59:00")) {
+            Log.log(`Found Workday sync issue in event: ${event.summary}`);
+            const dateString = getDateStringFromEvent(event.end);
+            if (dateString === undefined) {
+              Log.log(
+                `Skipping event, inferred startDate or endDate is undefined, this is unexpected `
+              );
+              return;
+            }
+
+            // Create a synthetic all-day event for the end date
+            workdaySyncIssueFixedEvents.push({
+              id: event.id + "-workday-fixed",
+              start: {
+                date: dateString,
+              },
+              end: {
+                date: dateString,
+              },
+              summary: event.summary,
+            });
+
+            Log.log(`Fixed Workday sync issue: ${dateString} to ${dateString}`);
+          } else {
+            // Not matching the specific pattern we're looking for
+            workdaySyncIssueFixedEvents.push(event);
+          }
+        } else {
+          // Not starting at 10pm exactly
+          workdaySyncIssueFixedEvents.push(event);
+        }
+      } else {
+        // Not a specific time event, add as is
+        workdaySyncIssueFixedEvents.push(event);
+      }
+    });
+
+    const normalizedEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
+    workdaySyncIssueFixedEvents.forEach((event) => {
       // OOO holds are always at midnight in the creator's timezone, but practically speaking they just
       // created the all day event, it's not useful to set it midnight to midnight (which will show on
       // the previous/next day for folks in other timezones). So catch those cases and convert them
