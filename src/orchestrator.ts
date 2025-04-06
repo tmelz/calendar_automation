@@ -75,7 +75,8 @@ export namespace Orchestrator {
         timeRange.timeMin,
         timeRange.timeMax,
         settings.teamCalendarSettings.oncall,
-        isDryRun
+        isDryRun,
+        settings.teamCalendar.inviteOncallEmail
       );
     } else {
       Log.log("🚨 Team calendar oncall disabled, skipping");

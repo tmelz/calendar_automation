@@ -29,6 +29,7 @@ export namespace UserSettings {
     teamCalendar: {
       outOfOffice: boolean;
       oncall: boolean;
+      inviteOncallEmail: boolean;
     };
     teamCalendarSettings: {
       outOfOffice: { calendarId: string; groupEmail: string }[];
@@ -107,6 +108,7 @@ export namespace UserSettings {
       teamCalendar: {
         outOfOffice: false,
         oncall: false,
+        inviteOncallEmail: false,
       },
       teamCalendarSettings: {
         outOfOffice: [],

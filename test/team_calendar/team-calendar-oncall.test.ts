@@ -323,6 +323,18 @@ describe("TeamCalendarOncall", () => {
       expect(result).toBe(true);
     });
 
+    it("should return true for a valid oncall event with attendees (for inviteOncallEmail)", () => {
+      const validEvent = {
+        summary: "[oncall] Someone (someone@example.com), schedule: Standard",
+        eventType: "default",
+        attendees: [{ email: "someone@example.com" }],
+        conferenceData: undefined,
+      } as GoogleAppsScript.Calendar.Schema.Event;
+
+      const result = TeamCalendarOncall.isOncallEventOnTeamCalendar(validEvent);
+      expect(result).toBe(true);
+    });
+
     it("should return false if the event summary does not start with [oncall]", () => {
       const invalidEvent = {
         summary: "Meeting: Team Sync",
@@ -508,6 +520,225 @@ describe("TeamCalendarOncall", () => {
     it("should return empty map for empty input", () => {
       const result = TeamCalendarOncall.groupOncallSettingsByCalendar([]);
       expect(result.size).toBe(0);
+    });
+  });
+
+  describe("doesEventNeedUpdate", () => {
+    const oncall = {
+      start: "2023-10-02T08:00:00Z",
+      end: "2023-10-02T16:00:00Z",
+      user: { name: "Alice", email: "alice@example.com" },
+      schedule: { summary: "Primary" },
+    } as Pagerduty.OnCall;
+
+    it("should return true when inviteOncallEmail is true but event has no attendees", () => {
+      const event = {
+        id: "1",
+        summary: "[oncall] Alice (alice@example.com), schedule: Primary",
+        start: { dateTime: "2023-10-02T08:00:00Z" },
+        end: { dateTime: "2023-10-02T16:00:00Z" },
+        eventType: "default",
+        attendees: undefined,
+        transparency: "opaque",
+      } as GoogleAppsScript.Calendar.Schema.Event;
+
+      const result = TeamCalendarOncall.doesEventNeedUpdate(
+        event,
+        oncall,
+        true
+      );
+      expect(result).toBe(true);
+    });
+
+    it("should return true when inviteOncallEmail is true but event is not transparent", () => {
+      const event = {
+        id: "1",
+        summary: "[oncall] Alice (alice@example.com), schedule: Primary",
+        start: { dateTime: "2023-10-02T08:00:00Z" },
+        end: { dateTime: "2023-10-02T16:00:00Z" },
+        eventType: "default",
+        attendees: [{ email: "alice@example.com" }],
+        transparency: "opaque",
+      } as GoogleAppsScript.Calendar.Schema.Event;
+
+      const result = TeamCalendarOncall.doesEventNeedUpdate(
+        event,
+        oncall,
+        true
+      );
+      expect(result).toBe(true);
+    });
+
+    it("should return false when inviteOncallEmail is true and event is properly configured", () => {
+      const event = {
+        id: "1",
+        summary: "[oncall] Alice (alice@example.com), schedule: Primary",
+        start: { dateTime: "2023-10-02T08:00:00Z" },
+        end: { dateTime: "2023-10-02T16:00:00Z" },
+        eventType: "default",
+        attendees: [{ email: "alice@example.com" }],
+        transparency: "transparent",
+      } as GoogleAppsScript.Calendar.Schema.Event;
+
+      const result = TeamCalendarOncall.doesEventNeedUpdate(
+        event,
+        oncall,
+        true
+      );
+      expect(result).toBe(false);
+    });
+
+    it("should return true when inviteOncallEmail is false but event has attendees", () => {
+      const event = {
+        id: "1",
+        summary: "[oncall] Alice (alice@example.com), schedule: Primary",
+        start: { dateTime: "2023-10-02T08:00:00Z" },
+        end: { dateTime: "2023-10-02T16:00:00Z" },
+        eventType: "default",
+        attendees: [{ email: "alice@example.com" }],
+      } as GoogleAppsScript.Calendar.Schema.Event;
+
+      const result = TeamCalendarOncall.doesEventNeedUpdate(
+        event,
+        oncall,
+        false
+      );
+      expect(result).toBe(true);
+    });
+
+    it("should return false when inviteOncallEmail is false and event has no attendees", () => {
+      const event = {
+        id: "1",
+        summary: "[oncall] Alice (alice@example.com), schedule: Primary",
+        start: { dateTime: "2023-10-02T08:00:00Z" },
+        end: { dateTime: "2023-10-02T16:00:00Z" },
+        eventType: "default",
+        attendees: undefined,
+      } as GoogleAppsScript.Calendar.Schema.Event;
+
+      const result = TeamCalendarOncall.doesEventNeedUpdate(
+        event,
+        oncall,
+        false
+      );
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("getChanges with inviteOncallEmail parameter", () => {
+    it("should identify events that need updating when inviteOncallEmail is true", () => {
+      // Sample oncall that should match an existing event and require update
+      const oncall = {
+        start: "2023-10-02T08:00:00Z",
+        end: "2023-10-02T16:00:00Z",
+        user: { name: "Alice", email: "alice@example.com" },
+        schedule: { summary: "Primary" },
+      } as Pagerduty.OnCall;
+
+      // Create a matching event that needs update (no attendees and not transparent)
+      const event: FakeCalendarEvent = {
+        id: "1",
+        summary: "[oncall] Alice (alice@example.com), schedule: Primary",
+        start: { dateTime: "2023-10-02T08:00:00Z" },
+        end: { dateTime: "2023-10-02T16:00:00Z" },
+        eventType: "default",
+        attendees: undefined,
+        transparency: "opaque",
+      } as FakeCalendarEvent;
+
+      const changes = TeamCalendarOncall.getChanges([oncall], [event], true);
+
+      // Expect the event to be marked for update
+      expect(changes.updateEvents).toHaveLength(1);
+      expect(changes.updateEvents[0]).toMatchObject({
+        event: { id: "1" },
+        oncall: { user: { email: "alice@example.com" } },
+      });
+      expect(changes.deleteEvents).toHaveLength(0);
+      expect(changes.newTimeRangeEvents).toHaveLength(0);
+    });
+
+    it("should identify events that need updating when inviteOncallEmail is false", () => {
+      // Sample oncall that should match an existing event and require update
+      const oncall = {
+        start: "2023-10-02T08:00:00Z",
+        end: "2023-10-02T16:00:00Z",
+        user: { name: "Alice", email: "alice@example.com" },
+        schedule: { summary: "Primary" },
+      } as Pagerduty.OnCall;
+
+      // Create a matching event that needs update (has attendees but should not)
+      const event: FakeCalendarEvent = {
+        id: "1",
+        summary: "[oncall] Alice (alice@example.com), schedule: Primary",
+        start: { dateTime: "2023-10-02T08:00:00Z" },
+        end: { dateTime: "2023-10-02T16:00:00Z" },
+        eventType: "default",
+        attendees: [{ email: "alice@example.com" }],
+      } as FakeCalendarEvent;
+
+      const changes = TeamCalendarOncall.getChanges([oncall], [event], false);
+
+      // Expect the event to be marked for update
+      expect(changes.updateEvents).toHaveLength(1);
+      expect(changes.updateEvents[0]).toMatchObject({
+        event: { id: "1" },
+        oncall: { user: { email: "alice@example.com" } },
+      });
+      expect(changes.deleteEvents).toHaveLength(0);
+      expect(changes.newTimeRangeEvents).toHaveLength(0);
+    });
+
+    it("should identify events needing update, deletion, and creation all at once", () => {
+      // Sample oncalls
+      const oncall1 = {
+        start: "2023-10-02T08:00:00Z",
+        end: "2023-10-02T16:00:00Z",
+        user: { name: "Alice", email: "alice@example.com" },
+        schedule: { summary: "Primary" },
+      } as Pagerduty.OnCall;
+
+      const oncall2 = {
+        start: "2023-10-03T08:00:00Z",
+        end: "2023-10-03T16:00:00Z",
+        user: { name: "Bob", email: "bob@example.com" },
+        schedule: { summary: "Secondary" },
+      } as Pagerduty.OnCall;
+
+      // Event that needs updating (should have attendee)
+      const event1: FakeCalendarEvent = {
+        id: "1",
+        summary: "[oncall] Alice (alice@example.com), schedule: Primary",
+        start: { dateTime: "2023-10-02T08:00:00Z" },
+        end: { dateTime: "2023-10-02T16:00:00Z" },
+        eventType: "default",
+        transparency: "transparent",
+      } as FakeCalendarEvent;
+
+      // Event that should be deleted (no matching oncall)
+      const event2: FakeCalendarEvent = {
+        id: "2",
+        summary: "[oncall] Charlie (charlie@example.com), schedule: Tertiary",
+        start: { dateTime: "2023-10-04T08:00:00Z" },
+        end: { dateTime: "2023-10-04T16:00:00Z" },
+        eventType: "default",
+      } as FakeCalendarEvent;
+
+      const changes = TeamCalendarOncall.getChanges(
+        [oncall1, oncall2],
+        [event1, event2],
+        true
+      );
+
+      // Event1 should be updated, event2 should be deleted, oncall2 should create a new event
+      expect(changes.updateEvents).toHaveLength(1);
+      expect(changes.updateEvents[0].event.id).toBe("1");
+
+      expect(changes.deleteEvents).toHaveLength(1);
+      expect(changes.deleteEvents[0].id).toBe("2");
+
+      expect(changes.newTimeRangeEvents).toHaveLength(1);
+      expect(changes.newTimeRangeEvents[0].title).toContain("Bob");
     });
   });
 });

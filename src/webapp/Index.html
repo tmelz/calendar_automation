@@ -686,6 +686,27 @@
 
             <div
               v-if="settings.teamCalendar.oncall"
+              class="form-check mb-3 ms-4"
+            >
+              <input
+                class="form-check-input"
+                type="checkbox"
+                id="inviteOncallEmail"
+                v-model="settings.teamCalendar.inviteOncallEmail"
+                @change="onSettingsChanged"
+              />
+              <label class="form-check-label" for="inviteOncallEmail">
+                Invite Oncall Person to Events
+              </label>
+              <div class="form-text">
+                When enabled, the oncall person's email will be added as an
+                attendee to the calendar event. Events will also be marked as
+                "free" instead of "busy".
+              </div>
+            </div>
+
+            <div
+              v-if="settings.teamCalendar.oncall"
               class="team-calendar-section"
             >
               <h6 class="mb-3">Oncall Team Calendars</h6>

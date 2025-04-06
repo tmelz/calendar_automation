@@ -16,6 +16,10 @@ export namespace TeamCalendarOncall {
       endDateTime: string;
       title: string;
     }[];
+    updateEvents: {
+      event: GoogleAppsScript.Calendar.Schema.Event;
+      oncall: Pagerduty.OnCall;
+    }[];
   };
 
   export function groupOncallSettingsByCalendar(
@@ -52,14 +56,22 @@ export namespace TeamCalendarOncall {
       calendarId: string;
       scheduleId: string;
     }[],
-    isDryRun: boolean = false
+    isDryRun: boolean = false,
+    inviteOncallEmail: boolean = false
   ): void {
     const oncallSettingsByCalendar =
       groupOncallSettingsByCalendar(oncallSettings);
 
     // Process each calendar with all its schedule IDs
     oncallSettingsByCalendar.forEach((scheduleIds, calendarId) => {
-      syncCalendarOncall(timeMin, timeMax, calendarId, scheduleIds, isDryRun);
+      syncCalendarOncall(
+        timeMin,
+        timeMax,
+        calendarId,
+        scheduleIds,
+        isDryRun,
+        inviteOncallEmail
+      );
     });
   }
 
@@ -68,7 +80,8 @@ export namespace TeamCalendarOncall {
     timeMax: Date,
     calendarId: string,
     oncallScheduleIds: string[],
-    dryRun: boolean = false
+    dryRun: boolean = false,
+    inviteOncallEmail: boolean = false
   ): void {
     Log.logPhase(
       `Running for calendar: ${calendarId}, oncallScheduleIds: ${oncallScheduleIds}`
@@ -114,8 +127,9 @@ export namespace TeamCalendarOncall {
 
     makeChanges(
       calendarId,
-      getChanges(oncalls, teamCalendarOncallEvents),
-      dryRun
+      getChanges(oncalls, teamCalendarOncallEvents, inviteOncallEmail),
+      dryRun,
+      inviteOncallEmail
     );
   }
 
@@ -142,10 +156,15 @@ export namespace TeamCalendarOncall {
   // get changes func, oncalls as input, team calendar oncall events as input, output calendar changes
   export function getChanges(
     oncalls: Pagerduty.OnCall[],
-    teamCalendarOncallEvents: GoogleAppsScript.Calendar.Schema.Event[]
+    teamCalendarOncallEvents: GoogleAppsScript.Calendar.Schema.Event[],
+    inviteOncallEmail: boolean = false
   ): CalendarChanges {
     const eventsToDelete: GoogleAppsScript.Calendar.Schema.Event[] = [];
     const oncallsToCreateEventsFor: Pagerduty.OnCall[] = [];
+    const eventsToUpdate: {
+      event: GoogleAppsScript.Calendar.Schema.Event;
+      oncall: Pagerduty.OnCall;
+    }[] = [];
     // Track which oncalls have been matched to events to ensure 1:1 mapping
     const matchedOncalls = new Set<string>();
 
@@ -173,6 +192,19 @@ export namespace TeamCalendarOncall {
       } else {
         // Mark this oncall as matched so it won't match with other events
         matchedOncalls.add(getOncallKey(matchingOncall));
+
+        // Check if the event needs to be updated based on inviteOncallEmail setting
+        const needsUpdate = doesEventNeedUpdate(
+          event,
+          matchingOncall,
+          inviteOncallEmail
+        );
+        if (needsUpdate) {
+          Log.log(
+            `Event for ${matchingOncall.user.email} needs to be updated to match inviteOncallEmail=${inviteOncallEmail}`
+          );
+          eventsToUpdate.push({ event, oncall: matchingOncall });
+        }
       }
     });
 
@@ -201,7 +233,30 @@ export namespace TeamCalendarOncall {
           oncall.schedule.summary
         ),
       })),
+      updateEvents: eventsToUpdate,
     };
+  }
+
+  // Helper function to determine if an event needs updating
+  export function doesEventNeedUpdate(
+    event: GoogleAppsScript.Calendar.Schema.Event,
+    oncall: Pagerduty.OnCall,
+    inviteOncallEmail: boolean
+  ): boolean {
+    // Check if transparency (free/busy) or attendees need updating
+    const hasGuestEmail =
+      event.attendees?.some(
+        (attendee) => attendee.email === oncall.user.email
+      ) || false;
+    const isTransparent = event.transparency === "transparent";
+
+    if (inviteOncallEmail) {
+      // Should have the oncall person as guest and be transparent
+      return !hasGuestEmail || !isTransparent;
+    } else {
+      // Should not have the oncall person as guest
+      return hasGuestEmail;
+    }
   }
 
   export function oncallAndEventMatch(
@@ -262,7 +317,8 @@ export namespace TeamCalendarOncall {
   export function makeChanges(
     calendarId: string,
     changes: CalendarChanges,
-    dryRun: boolean = false
+    dryRun: boolean = false,
+    inviteOncallEmail: boolean = false
   ): void {
     Log.logPhase(
       `Making changes for calendar: ${calendarId} (dry run: ${dryRun})`
@@ -282,6 +338,57 @@ export namespace TeamCalendarOncall {
       }
     });
 
+    Log.log(`Updating existing events:`);
+    changes.updateEvents.forEach(({ event, oncall }) => {
+      Log.log(
+        "Updating existing event: " +
+          event.summary +
+          (inviteOncallEmail
+            ? " adding email invite"
+            : " removing email invite")
+      );
+      if (dryRun) {
+        Log.log("Dry run, not updating event");
+      } else {
+        // Get the Calendar event
+        const calendarEvent = CalendarApp.getCalendarById(
+          calendarId
+        ).getEventById(event.id!);
+
+        // Update transparency to "free"
+        const eventId = event.id!;
+        const eventJson = {
+          transparency: inviteOncallEmail ? "transparent" : "opaque",
+        };
+
+        // Update the event with transparency set appropriately
+        Calendar.Events?.update(eventJson, calendarId, eventId);
+
+        // Update attendees based on inviteOncallEmail setting
+        if (inviteOncallEmail) {
+          // Add the oncall person as a guest if not already added
+          const email = oncall.user.email;
+          if (
+            email &&
+            !(event.attendees?.some((a) => a.email === email) || false)
+          ) {
+            calendarEvent.addGuest(email);
+            Log.log(`Added guest: ${email} to event`);
+          }
+        } else {
+          // Remove the oncall person as a guest if currently added
+          const email = oncall.user.email;
+          if (
+            email &&
+            (event.attendees?.some((a) => a.email === email) || false)
+          ) {
+            calendarEvent.removeGuest(email);
+            Log.log(`Removed guest: ${email} from event`);
+          }
+        }
+      }
+    });
+
     Log.log(`Creating new time range events:`);
     changes.newTimeRangeEvents.forEach((event) => {
       Log.log(
@@ -290,16 +397,41 @@ export namespace TeamCalendarOncall {
           " from " +
           event.startDateTime +
           " to " +
-          event.endDateTime
+          event.endDateTime +
+          (inviteOncallEmail ? " with email invite" : " without email invite")
       );
       if (dryRun) {
         Log.log("Dry run, not creating event");
       } else {
-        CalendarApp.getCalendarById(calendarId).createEvent(
+        // Get the calendar
+        const calendar = CalendarApp.getCalendarById(calendarId);
+
+        // Create the event
+        const newEvent = calendar.createEvent(
           event.title,
           new Date(event.startDateTime),
           new Date(event.endDateTime)
         );
+
+        // Set the event as "free" instead of "busy" by creating an advanced event JSON
+        const eventId = newEvent.getId();
+        const eventJson = {
+          transparency: inviteOncallEmail ? "transparent" : "opaque",
+        };
+
+        // Update the event with transparency set appropriately
+        Calendar.Events?.update(eventJson, calendarId, eventId);
+
+        // If inviteOncallEmail is enabled, extract the email from the title and add as attendee
+        if (inviteOncallEmail) {
+          const email = extractEmail(event.title);
+          if (email) {
+            newEvent.addGuest(email);
+            Log.log(`Added guest: ${email} to event`);
+          } else {
+            Log.log("Could not extract email from event title");
+          }
+        }
       }
     });
   }
@@ -332,7 +464,6 @@ export namespace TeamCalendarOncall {
     return (
       (event.summary?.startsWith("[oncall]") ?? false) &&
       event.eventType === "default" &&
-      event.attendees === undefined &&
       event.conferenceData === undefined
     );
   }
