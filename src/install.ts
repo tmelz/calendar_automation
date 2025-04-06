@@ -3,6 +3,7 @@ import { Analytics } from "./analytics";
 import { UserSettings } from "./checks/user-settings";
 import { Log } from "./checks/log";
 import { Pagerduty } from "./pagerduty";
+import { ErrorBackoff } from "./error-backoff";
 
 // README
 // To install, select setupTriggers function in IDE and click run
@@ -14,31 +15,64 @@ export function logUser(): void {
 // All these top level functions are runnable from the apps script IDE;
 // namespaced functions are not selectable from the IDE
 export function runCalendarChangedChecks(): void {
-  logUser();
-  if (!checkIfEnabled()) {
-    Log.log("Triggered, but disabled. Exiting.");
+  // Check for backoff first
+  if (ErrorBackoff.shouldBackoff()) {
+    Log.log("Skipping execution due to recent error");
     return;
   }
-  Orchestrator.runFastChecks(false /* isDryRun */);
+
+  try {
+    logUser();
+    if (!checkIfEnabled()) {
+      Log.log("Triggered, but disabled. Exiting.");
+      return;
+    }
+    Orchestrator.runFastChecks(false /* isDryRun */);
+  } catch (error) {
+    ErrorBackoff.recordError(error as Error);
+    throw error;
+  }
 }
 
 export function runDailyChecks(): void {
-  logUser();
-  if (!checkIfEnabled()) {
-    Log.log("Triggered, but disabled. Exiting.");
+  // Check for backoff first
+  if (ErrorBackoff.shouldBackoff()) {
+    Log.log("Skipping execution due to recent error");
     return;
   }
-  globalTriggerHook();
-  Orchestrator.runAllChecks(false /* isDryRun */);
+
+  try {
+    logUser();
+    if (!checkIfEnabled()) {
+      Log.log("Triggered, but disabled. Exiting.");
+      return;
+    }
+    globalTriggerHook();
+    Orchestrator.runAllChecks(false /* isDryRun */);
+  } catch (error) {
+    ErrorBackoff.recordError(error as Error);
+    throw error;
+  }
 }
 
 export function runTeamCalendarFeatures(): void {
-  logUser();
-  if (!checkIfEnabled()) {
-    Log.log("Triggered, but disabled. Exiting.");
+  // Check for backoff first
+  if (ErrorBackoff.shouldBackoff()) {
+    Log.log("Skipping execution due to recent error");
     return;
   }
-  Orchestrator.runTeamCalendarFeatures(false /* isDryRun */);
+
+  try {
+    logUser();
+    if (!checkIfEnabled()) {
+      Log.log("Triggered, but disabled. Exiting.");
+      return;
+    }
+    Orchestrator.runTeamCalendarFeatures(false /* isDryRun */);
+  } catch (error) {
+    ErrorBackoff.recordError(error as Error);
+    throw error;
+  }
 }
 
 export function runTeamCalendarFeaturesDryRun(): void {
