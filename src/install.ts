@@ -7,9 +7,14 @@ import { Pagerduty } from "./pagerduty";
 // README
 // To install, select setupTriggers function in IDE and click run
 
+export function logUser(): void {
+  Log.log(`Running for user ${Session.getActiveUser().getEmail()}`);
+}
+
 // All these top level functions are runnable from the apps script IDE;
 // namespaced functions are not selectable from the IDE
 export function runCalendarChangedChecks(): void {
+  logUser();
   if (!checkIfEnabled()) {
     Log.log("Triggered, but disabled. Exiting.");
     return;
@@ -18,6 +23,7 @@ export function runCalendarChangedChecks(): void {
 }
 
 export function runDailyChecks(): void {
+  logUser();
   if (!checkIfEnabled()) {
     Log.log("Triggered, but disabled. Exiting.");
     return;
@@ -27,28 +33,30 @@ export function runDailyChecks(): void {
 }
 
 export function runTeamCalendarFeatures(): void {
+  logUser();
   if (!checkIfEnabled()) {
     Log.log("Triggered, but disabled. Exiting.");
     return;
   }
-  globalTriggerHook();
   Orchestrator.runTeamCalendarFeatures(false /* isDryRun */);
 }
 
 export function runTeamCalendarFeaturesDryRun(): void {
+  logUser();
   if (!checkIfEnabled()) {
     Log.log("Triggered, but disabled. Exiting.");
     return;
   }
-  globalTriggerHook();
   Orchestrator.runTeamCalendarFeatures(true /* isDryRun */);
 }
 
 export function runCalendarChangedChecksDryRun(): void {
+  logUser();
   Orchestrator.runFastChecks(true /* isDryRun */);
 }
 
 export function runDailyChecksDryRun(): void {
+  logUser();
   Orchestrator.runAllChecks(true /* isDryRun */);
 }
 
@@ -57,13 +65,16 @@ export function removeAllTriggers(): void {
 }
 
 export function setupTriggers(): void {
-  Install.setupTriggers();
+  Install.setupTriggers(true /* bypassAnalytics */);
 }
 
 export function checkIfEnabled(): boolean {
   return UserSettings.loadSettings().enabled;
 }
 
+// To ensure all users have the same hooks setup, auto remove all hooks
+// then install latest ones on a regular basis. About 10s overhead to
+// run this method unfortunately, so don't at this to all triggers.
 export function globalTriggerHook(): void {
   Log.log("Global trigger hook; ensuring triggers are setup to latest spec");
   setupTriggers();
