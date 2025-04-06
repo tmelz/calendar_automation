@@ -1,0 +1,572 @@
+<!-- Vue.js Application -->
+<script>
+  new Vue({
+    el: "#app",
+    data: {
+      settings: {
+        enabled: false,
+        checks: {
+          plusFiveMinutes: false,
+          outOfOffice: false,
+          conflict: false,
+          eventColor: false,
+          notes: false,
+        },
+        checkSettings: {
+          eventColors: {
+            "External attendees": "No-op",
+            "One-on-one": "No-op",
+            "Focus Time": "No-op",
+            Hold: "No-op",
+            "Team sync": "No-op",
+            "Ad-hoc": "No-op",
+            "Out of office": "No-op",
+            Other: "No-op",
+          },
+          plusFiveMinutes: {
+            oneOnOnes: false,
+            anyEventIOrganizeOrCreateWithAttendees: false,
+          },
+        },
+        teamCalendar: {
+          outOfOffice: false,
+          oncall: false,
+        },
+        teamCalendarSettings: {
+          outOfOffice: [],
+          oncall: [],
+        },
+      },
+      saving: false,
+      saved: false,
+      ellipsis: "",
+      colorOptions: [
+        "No-op",
+        "Delete",
+        "Lavender",
+        "Sage",
+        "Grape",
+        "Flamingo",
+        "Banana",
+        "Tangerine",
+        "Peacock",
+        "Graphite",
+        "Blueberry",
+        "Basil",
+        "Tomato",
+      ],
+      orderedCategories: [
+        "External attendees",
+        "One-on-one",
+        "Focus Time",
+        "Hold",
+        "Team sync",
+        "Ad-hoc",
+        "Out of office",
+        "Other",
+      ],
+      validationErrors: [],
+      originalEntries: [],
+      // New arrays for Oncall validation and originals
+      validationErrorsOncall: [],
+      originalEntriesOncall: [],
+      showColorOptions: true,
+      // https://google-calendar-simple-api.readthedocs.io/en/latest/colors.html
+      colorHexMap: {
+        "No-op": "transparent",
+        Delete: "transparent",
+        Lavender: "#7986CB",
+        Sage: "#33B679",
+        Grape: "#8E24AA",
+        Flamingo: "#E67C73",
+        Banana: "#F6BF26",
+        Tangerine: "#F4511E",
+        Peacock: "#039BE5",
+        Graphite: "#616161",
+        Blueberry: "#3F51B5",
+        Basil: "#0B8043",
+        Tomato: "#D50000",
+      },
+    },
+    created() {
+      // Merge userSettings into settings
+      this.settings.enabled = userSettings.enabled;
+      this.settings.checks = Object.assign(
+        {},
+        this.settings.checks,
+        userSettings.checks
+      );
+      this.settings.checkSettings.eventColors = Object.assign(
+        {},
+        this.settings.checkSettings.eventColors,
+        userSettings.checkSettings.eventColors
+      );
+      if (userSettings.checkSettings.plusFiveMinutes) {
+        this.settings.checkSettings.plusFiveMinutes = Object.assign(
+          {},
+          this.settings.checkSettings.plusFiveMinutes,
+          userSettings.checkSettings.plusFiveMinutes
+        );
+      }
+      this.settings.teamCalendar = Object.assign(
+        {},
+        this.settings.teamCalendar,
+        userSettings.teamCalendar
+      );
+      this.settings.teamCalendarSettings.outOfOffice =
+        userSettings.teamCalendarSettings &&
+        userSettings.teamCalendarSettings.outOfOffice
+          ? userSettings.teamCalendarSettings.outOfOffice.map((entry) => ({
+              calendarId: entry.calendarId || "",
+              groupEmail: entry.groupEmail || "",
+              editing: false,
+            }))
+          : [];
+      this.settings.teamCalendarSettings.oncall =
+        userSettings.teamCalendarSettings &&
+        userSettings.teamCalendarSettings.oncall
+          ? userSettings.teamCalendarSettings.oncall.map((entry) => ({
+              calendarId: entry.calendarId || "",
+              scheduleId: entry.scheduleId || "",
+              editing: false,
+            }))
+          : [];
+
+      // Initialize validationErrors array based on existing outOfOffice entries
+      this.validationErrors =
+        this.settings.teamCalendarSettings.outOfOffice.map(() => ({
+          calendarId: false,
+          groupEmail: false,
+        }));
+      // Initialize originalEntries for outOfOffice cancel functionality
+      this.originalEntries = this.settings.teamCalendarSettings.outOfOffice.map(
+        (entry) => ({
+          calendarId: entry.calendarId,
+          groupEmail: entry.groupEmail,
+        })
+      );
+
+      // Initialize validationErrors and originalEntries for oncall entries
+      this.validationErrorsOncall =
+        this.settings.teamCalendarSettings.oncall.map(() => ({
+          calendarId: false,
+          scheduleId: false,
+        }));
+      this.originalEntriesOncall =
+        this.settings.teamCalendarSettings.oncall.map((entry) => ({
+          calendarId: entry.calendarId,
+          scheduleId: entry.scheduleId,
+        }));
+    },
+    mounted() {
+      // Initialize Bootstrap tooltips
+      this.initializeTooltips();
+    },
+    methods: {
+      initializeTooltips() {
+        this.$nextTick(() => {
+          const tooltipTriggerList = [].slice.call(
+            document.querySelectorAll('[data-bs-toggle="tooltip"]')
+          );
+          tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+            const tooltip = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
+            if (tooltip) {
+              tooltip.dispose();
+            }
+            new bootstrap.Tooltip(tooltipTriggerEl, {
+              trigger: "hover focus",
+              boundary: "window",
+            });
+          });
+        });
+      },
+      onSettingsChanged() {
+        if (this.saving) return;
+
+        // Validate all team calendar outOfOffice entries before saving
+        let hasErrors = false;
+        this.validationErrors =
+          this.settings.teamCalendarSettings.outOfOffice.map((entry, index) => {
+            const errors = { calendarId: false, groupEmail: false };
+            if (this.settings.teamCalendar.outOfOffice) {
+              if (
+                entry.calendarId.trim() !== "" ||
+                entry.groupEmail.trim() !== ""
+              ) {
+                if (
+                  !entry.calendarId ||
+                  !entry.calendarId.endsWith("@group.calendar.google.com")
+                ) {
+                  errors.calendarId = true;
+                  hasErrors = true;
+                }
+                const emailPattern =
+                  /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
+                if (!entry.groupEmail || !emailPattern.test(entry.groupEmail)) {
+                  errors.groupEmail = true;
+                  hasErrors = true;
+                }
+              }
+            }
+            return errors;
+          });
+
+        // Validate all team calendar oncall entries before saving
+        this.validationErrorsOncall =
+          this.settings.teamCalendarSettings.oncall.map((entry, index) => {
+            const errors = { calendarId: false, scheduleId: false };
+            if (this.settings.teamCalendar.oncall) {
+              if (
+                entry.calendarId.trim() !== "" ||
+                entry.scheduleId.trim() !== ""
+              ) {
+                if (
+                  !entry.calendarId ||
+                  !entry.calendarId.endsWith("@group.calendar.google.com")
+                ) {
+                  errors.calendarId = true;
+                  hasErrors = true;
+                }
+                if (!entry.scheduleId || entry.scheduleId.trim() === "") {
+                  errors.scheduleId = true;
+                  hasErrors = true;
+                }
+              }
+            }
+            return errors;
+          });
+
+        // Check for validation errors
+        if (hasErrors) {
+          alert("Please fix validation errors before saving your settings.");
+          return;
+        }
+
+        // Filter out empty outOfOffice entries (both fields empty)
+        const filteredOutOfOfficeSettings =
+          this.settings.teamCalendarSettings.outOfOffice
+            .filter(
+              (entry) =>
+                entry.calendarId.trim() !== "" && entry.groupEmail.trim() !== ""
+            )
+            .map((entry) => ({
+              calendarId: entry.calendarId,
+              groupEmail: entry.groupEmail,
+            }));
+
+        // Filter out empty oncall entries (both fields empty)
+        const filteredOncallSettings = this.settings.teamCalendarSettings.oncall
+          .filter(
+            (entry) =>
+              entry.calendarId.trim() !== "" && entry.scheduleId.trim() !== ""
+          )
+          .map((entry) => ({
+            calendarId: entry.calendarId,
+            scheduleId: entry.scheduleId,
+          }));
+
+        // Prepare the settings object to save
+        const settingsToSave = {
+          enabled: this.settings.enabled,
+          checks: this.settings.checks,
+          checkSettings: {
+            eventColors: this.settings.checkSettings.eventColors,
+            plusFiveMinutes: this.settings.checkSettings.plusFiveMinutes,
+          },
+          teamCalendar: this.settings.teamCalendar,
+          teamCalendarSettings: {
+            outOfOffice: filteredOutOfOfficeSettings,
+            oncall: filteredOncallSettings,
+          },
+        };
+
+        this.saving = true;
+        this.saved = false;
+        this.animateEllipsis();
+
+        // Call the Google Apps Script backend method
+        google.script.run
+          .withSuccessHandler(() => {
+            this.saving = false;
+            this.saved = true;
+            this.fadeOutSavedMessage();
+            this.initializeTooltips();
+          })
+          .withFailureHandler((error) => {
+            this.saving = false;
+            alert("Error saving settings. Please try again.");
+            console.error("Save settings error:", error);
+          })
+          .onSettingsChanged(settingsToSave);
+      },
+      animateEllipsis() {
+        let count = 0;
+        const interval = setInterval(() => {
+          if (!this.saving) {
+            clearInterval(interval);
+            this.ellipsis = "";
+            return;
+          }
+          count = (count + 1) % 4;
+          this.ellipsis = ".".repeat(count);
+        }, 500);
+      },
+      fadeOutSavedMessage() {
+        setTimeout(() => {
+          this.saved = false;
+        }, 2000);
+      },
+      addTeamCalendarEntry() {
+        this.settings.teamCalendarSettings.outOfOffice.push({
+          calendarId: "",
+          groupEmail: "",
+          editing: true,
+        });
+        this.validationErrors.push({
+          calendarId: false,
+          groupEmail: false,
+        });
+        this.originalEntries.push({
+          calendarId: "",
+          groupEmail: "",
+        });
+
+        this.$nextTick(() => {
+          this.initializeTooltips();
+        });
+      },
+      saveEntry(index) {
+        const entry = this.settings.teamCalendarSettings.outOfOffice[index];
+        this.validateCalendarId(index);
+        this.validateGroupEmail(index);
+        if (
+          this.validationErrors[index].calendarId ||
+          this.validationErrors[index].groupEmail
+        ) {
+          alert("Please fix validation errors before saving.");
+          return;
+        }
+        this.settings.teamCalendarSettings.outOfOffice[index].editing = false;
+        this.originalEntries[index] = {
+          calendarId: entry.calendarId,
+          groupEmail: entry.groupEmail,
+        };
+        this.onSettingsChanged();
+
+        this.$nextTick(() => {
+          this.initializeTooltips();
+        });
+      },
+      cancelEdit(index) {
+        const original = this.originalEntries[index];
+        this.settings.teamCalendarSettings.outOfOffice[index].calendarId =
+          original.calendarId;
+        this.settings.teamCalendarSettings.outOfOffice[index].groupEmail =
+          original.groupEmail;
+        this.settings.teamCalendarSettings.outOfOffice[index].editing = false;
+        this.validationErrors[index] = {
+          calendarId: false,
+          groupEmail: false,
+        };
+
+        this.$nextTick(() => {
+          this.initializeTooltips();
+        });
+      },
+      removeTeamCalendarEntry(index, event) {
+        const span = event.currentTarget.parentElement;
+        const tooltip = bootstrap.Tooltip.getInstance(span);
+        if (tooltip) {
+          tooltip.hide();
+        }
+
+        if (confirm("Are you sure you want to delete this entry?")) {
+          this.settings.teamCalendarSettings.outOfOffice.splice(index, 1);
+          this.validationErrors.splice(index, 1);
+          this.originalEntries.splice(index, 1);
+          this.onSettingsChanged();
+
+          this.$nextTick(() => {
+            this.initializeTooltips();
+          });
+        }
+      },
+      validateCalendarId(index) {
+        const entry = this.settings.teamCalendarSettings.outOfOffice[index];
+        if (
+          entry.calendarId &&
+          entry.calendarId.endsWith("@group.calendar.google.com")
+        ) {
+          this.validationErrors[index].calendarId = false;
+        } else if (
+          entry.calendarId.trim() === "" &&
+          entry.groupEmail.trim() === ""
+        ) {
+          this.validationErrors[index].calendarId = false;
+        } else {
+          this.validationErrors[index].calendarId = true;
+        }
+      },
+      validateGroupEmail(index) {
+        const entry = this.settings.teamCalendarSettings.outOfOffice[index];
+        const emailPattern = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
+        if (entry.groupEmail && emailPattern.test(entry.groupEmail)) {
+          this.validationErrors[index].groupEmail = false;
+        } else if (
+          entry.calendarId.trim() === "" &&
+          entry.groupEmail.trim() === ""
+        ) {
+          this.validationErrors[index].groupEmail = false;
+        } else {
+          this.validationErrors[index].groupEmail = true;
+        }
+      },
+      canSave(index) {
+        return (
+          this.settings.teamCalendarSettings.outOfOffice[
+            index
+          ].calendarId.trim() !== "" &&
+          this.settings.teamCalendarSettings.outOfOffice[
+            index
+          ].groupEmail.trim() !== "" &&
+          !this.validationErrors[index].calendarId &&
+          !this.validationErrors[index].groupEmail &&
+          this.settings.enabled
+        );
+      },
+      hasChanges(index) {
+        const current = this.settings.teamCalendarSettings.outOfOffice[index];
+        const original = this.originalEntries[index];
+        return (
+          current.calendarId !== original.calendarId ||
+          current.groupEmail !== original.groupEmail
+        );
+      },
+      // Methods for Oncall entries
+      validateOncallCalendarId(index) {
+        const entry = this.settings.teamCalendarSettings.oncall[index];
+        if (
+          entry.calendarId &&
+          entry.calendarId.endsWith("@group.calendar.google.com")
+        ) {
+          this.validationErrorsOncall[index].calendarId = false;
+        } else if (
+          entry.calendarId.trim() === "" &&
+          entry.scheduleId.trim() === ""
+        ) {
+          this.validationErrorsOncall[index].calendarId = false;
+        } else {
+          this.validationErrorsOncall[index].calendarId = true;
+        }
+      },
+      validateScheduleId(index) {
+        const entry = this.settings.teamCalendarSettings.oncall[index];
+        if (entry.scheduleId && entry.scheduleId.trim() !== "") {
+          this.validationErrorsOncall[index].scheduleId = false;
+        } else if (
+          entry.calendarId.trim() === "" &&
+          entry.scheduleId.trim() === ""
+        ) {
+          this.validationErrorsOncall[index].scheduleId = false;
+        } else {
+          this.validationErrorsOncall[index].scheduleId = true;
+        }
+      },
+      addOncallEntry() {
+        this.settings.teamCalendarSettings.oncall.push({
+          calendarId: "",
+          scheduleId: "",
+          editing: true,
+        });
+        this.validationErrorsOncall.push({
+          calendarId: false,
+          scheduleId: false,
+        });
+        this.originalEntriesOncall.push({
+          calendarId: "",
+          scheduleId: "",
+        });
+        this.$nextTick(() => {
+          this.initializeTooltips();
+        });
+      },
+      saveOncallEntry(index) {
+        const entry = this.settings.teamCalendarSettings.oncall[index];
+        this.validateOncallCalendarId(index);
+        this.validateScheduleId(index);
+        if (
+          this.validationErrorsOncall[index].calendarId ||
+          this.validationErrorsOncall[index].scheduleId
+        ) {
+          alert("Please fix validation errors before saving.");
+          return;
+        }
+        this.settings.teamCalendarSettings.oncall[index].editing = false;
+        this.originalEntriesOncall[index] = {
+          calendarId: entry.calendarId,
+          scheduleId: entry.scheduleId,
+        };
+        this.onSettingsChanged();
+        this.$nextTick(() => {
+          this.initializeTooltips();
+        });
+      },
+      cancelOncallEdit(index) {
+        const original = this.originalEntriesOncall[index];
+        this.settings.teamCalendarSettings.oncall[index].calendarId =
+          original.calendarId;
+        this.settings.teamCalendarSettings.oncall[index].scheduleId =
+          original.scheduleId;
+        this.settings.teamCalendarSettings.oncall[index].editing = false;
+        this.validationErrorsOncall[index] = {
+          calendarId: false,
+          scheduleId: false,
+        };
+        this.$nextTick(() => {
+          this.initializeTooltips();
+        });
+      },
+      removeOncallEntry(index, event) {
+        const span = event.currentTarget.parentElement;
+        const tooltip = bootstrap.Tooltip.getInstance(span);
+        if (tooltip) {
+          tooltip.hide();
+        }
+        if (confirm("Are you sure you want to delete this entry?")) {
+          this.settings.teamCalendarSettings.oncall.splice(index, 1);
+          this.validationErrorsOncall.splice(index, 1);
+          this.originalEntriesOncall.splice(index, 1);
+          this.onSettingsChanged();
+          this.$nextTick(() => {
+            this.initializeTooltips();
+          });
+        }
+      },
+      canSaveOncall(index) {
+        const entry = this.settings.teamCalendarSettings.oncall[index];
+        return (
+          entry.calendarId.trim() !== "" &&
+          entry.scheduleId.trim() !== "" &&
+          !this.validationErrorsOncall[index].calendarId &&
+          !this.validationErrorsOncall[index].scheduleId &&
+          this.settings.enabled
+        );
+      },
+      hasOncallChanges(index) {
+        const current = this.settings.teamCalendarSettings.oncall[index];
+        const original = this.originalEntriesOncall[index];
+        return (
+          current.calendarId !== original.calendarId ||
+          current.scheduleId !== original.scheduleId
+        );
+      },
+      selectColor(category, colorOption) {
+        this.settings.checkSettings.eventColors[category] = colorOption;
+        this.onSettingsChanged();
+      },
+      toggleColorOptions() {
+        this.showColorOptions = !this.showColorOptions;
+      },
+    },
+  });
+</script>

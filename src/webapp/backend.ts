@@ -133,6 +133,11 @@ function doGet(e: GoogleAppsScript.Events.DoGet) {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
+// Helper function for HTML templates to include other files
+function include(filename: string) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
 function serializeInputs(inputs) {
   return {
     myEvents: mapToObject(inputs.myEvents),
