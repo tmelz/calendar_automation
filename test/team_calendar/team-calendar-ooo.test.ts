@@ -843,6 +843,50 @@ describe("TeamCalendarOOO.getChangesPerPerson", () => {
       oooEvents
     );
 
+    console.log(JSON.stringify(actualChanges, null, 2));
+    expect(actualChanges).toEqual(expectedChanges);
+  });
+
+  it("should handle multi-day Workday sync events (10pm to 9:59pm across days)", () => {
+    const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      // Event that spans from 10pm on April 3rd to 9:59pm on April 6th (Pacific Time)
+      // This should be converted to an all-day event spanning April 4th through April 7th
+      createMockEvent(
+        "1",
+        "Multi-day OOO",
+        {
+          dateTime: "2025-04-03T22:00:00-07:00", // 10:00 PM Pacific
+          timeZone: "America/Los_Angeles",
+        },
+        {
+          dateTime: "2025-04-06T21:59:00-07:00", // 9:59 PM Pacific
+          timeZone: "America/Los_Angeles",
+        },
+        "outOfOffice"
+      ),
+    ];
+
+    const teamCalendarOOOEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
+
+    const expectedChanges: TeamCalendarOOO.CalendarChanges = {
+      deleteEvents: [],
+      newAllDayEvents: [
+        {
+          start: "2025-04-04", // Should start on April 4th
+          end: "2025-04-07", // End date is exclusive in the API (means through April 6th)
+          title: "[OOO] John Doe (john.doe@example.com)",
+        },
+      ],
+      newTimeRangeEvents: [],
+    };
+
+    const actualChanges = getChangesPerPerson(
+      mockGroupMember,
+      teamCalendarOOOEvents,
+      oooEvents
+    );
+
+    console.log(JSON.stringify(actualChanges, null, 2));
     expect(actualChanges).toEqual(expectedChanges);
   });
 });

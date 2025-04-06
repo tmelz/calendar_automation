@@ -247,36 +247,48 @@ export namespace TeamCalendarOOO {
 
         // Check if it starts exactly at 10pm (22:00:00)
         if (startTimePart.startsWith("22:00:00")) {
-          const startDate = new Date(startDateTime);
-          const endDate = new Date(endDateTime);
-
-          // Check if end date is the next day and end time is 21:59
-          const isNextDay = endDate.getDate() - startDate.getDate() === 1;
+          // Check if end time is 21:59 (regardless of day)
           const endTimePart = endDateTime.split("T")[1];
 
-          if (isNextDay && endTimePart.startsWith("21:59:00")) {
+          if (endTimePart.startsWith("21:59:00")) {
             Log.log(`Found Workday sync issue in event: ${event.summary}`);
-            const dateString = getDateStringFromEvent(event.end);
-            if (dateString === undefined) {
+
+            // Extract start date (just the YYYY-MM-DD part, accounting for timezone)
+            const startParts = startDateTime.split("T")[0];
+            // Adding a day to get the first day of OOO
+            const startDateObj = new Date(startParts);
+            startDateObj.setDate(startDateObj.getDate() + 1);
+            const startDateString = startDateObj.toISOString().split("T")[0];
+
+            // Extract end date (just the YYYY-MM-DD part, accounting for timezone)
+            const endParts = endDateTime.split("T")[0];
+            // Adding a day to get the last day of OOO plus 1 (exclusive end date)
+            const endDateObj = new Date(endParts);
+            endDateObj.setDate(endDateObj.getDate() + 1);
+            const endDateString = endDateObj.toISOString().split("T")[0];
+
+            if (startDateString === undefined || endDateString === undefined) {
               Log.log(
-                `Skipping event, inferred startDate or endDate is undefined, this is unexpected `
+                `Skipping event, inferred startDate or endDate is undefined, this is unexpected`
               );
               return;
             }
 
-            // Create a synthetic all-day event for the end date
+            // Create a synthetic all-day event that spans from day after start to day after end
             workdaySyncIssueFixedEvents.push({
               id: event.id + "-workday-fixed",
               start: {
-                date: dateString,
+                date: startDateString,
               },
               end: {
-                date: dateString,
+                date: endDateString,
               },
               summary: event.summary,
             });
 
-            Log.log(`Fixed Workday sync issue: ${dateString} to ${dateString}`);
+            Log.log(
+              `Fixed Workday sync issue: ${startDateString} to ${endDateString}`
+            );
           } else {
             // Not matching the specific pattern we're looking for
             workdaySyncIssueFixedEvents.push(event);
