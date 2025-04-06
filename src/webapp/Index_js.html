@@ -87,6 +87,11 @@
         Basil: "#0B8043",
         Tomato: "#D50000",
       },
+      // New properties for manual automation
+      isPersonalRunning: false,
+      isTeamRunning: false,
+      consoleOutput: [],
+      isConsoleExpanded: false,
     },
     created() {
       // Merge userSettings into settings
@@ -161,6 +166,13 @@
     mounted() {
       // Initialize Bootstrap tooltips
       this.initializeTooltips();
+
+      // Add keyboard listener for Escape key to collapse console
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && this.isConsoleExpanded) {
+          this.toggleConsoleExpand();
+        }
+      });
     },
     methods: {
       initializeTooltips() {
@@ -566,6 +578,122 @@
       },
       toggleColorOptions() {
         this.showColorOptions = !this.showColorOptions;
+      },
+      // Method to toggle console expansion
+      toggleConsoleExpand() {
+        this.isConsoleExpanded = !this.isConsoleExpanded;
+
+        // If expanded, add a body class to prevent scrolling
+        if (this.isConsoleExpanded) {
+          document.body.style.overflow = "hidden";
+        } else {
+          document.body.style.overflow = "";
+        }
+
+        // Focus on the console when expanded
+        this.$nextTick(() => {
+          const consoleWindow = document.querySelector(".console-window");
+          if (consoleWindow && this.isConsoleExpanded) {
+            consoleWindow.focus();
+          }
+        });
+      },
+      // Methods for manual automation
+      runPersonalCalendar() {
+        if (this.isPersonalRunning || this.isTeamRunning) return;
+
+        this.isPersonalRunning = true;
+        this.consoleOutput = ["Running personal calendar automation..."];
+
+        // Reset expansion state
+        if (this.isConsoleExpanded) {
+          this.toggleConsoleExpand();
+        }
+
+        google.script.run
+          .withSuccessHandler((result) => {
+            this.isPersonalRunning = false;
+            if (result.success) {
+              this.consoleOutput = result.logs;
+              this.consoleOutput.push(
+                "✅ Personal calendar automation completed successfully!"
+              );
+            } else {
+              this.consoleOutput = result.logs;
+              this.consoleOutput.push(
+                "❌ Personal calendar automation failed!"
+              );
+            }
+            // Scroll to bottom of console
+            this.$nextTick(() => {
+              const consoleWindow = document.querySelector(".console-window");
+              if (consoleWindow) {
+                consoleWindow.scrollTop = consoleWindow.scrollHeight;
+              }
+            });
+          })
+          .withFailureHandler((error) => {
+            this.isPersonalRunning = false;
+            this.consoleOutput.push(`❌ Error: ${error.message || error}`);
+            // Scroll to bottom of console
+            this.$nextTick(() => {
+              const consoleWindow = document.querySelector(".console-window");
+              if (consoleWindow) {
+                consoleWindow.scrollTop = consoleWindow.scrollHeight;
+              }
+            });
+          })
+          .runPersonalCalendarAutomation();
+      },
+
+      runTeamCalendar() {
+        if (this.isPersonalRunning || this.isTeamRunning) return;
+
+        this.isTeamRunning = true;
+        this.consoleOutput = ["Running team calendar automation..."];
+
+        // Reset expansion state
+        if (this.isConsoleExpanded) {
+          this.toggleConsoleExpand();
+        }
+
+        google.script.run
+          .withSuccessHandler((result) => {
+            this.isTeamRunning = false;
+            if (result.success) {
+              this.consoleOutput = result.logs;
+              this.consoleOutput.push(
+                "✅ Team calendar automation completed successfully!"
+              );
+            } else {
+              this.consoleOutput = result.logs;
+              this.consoleOutput.push("❌ Team calendar automation failed!");
+            }
+            // Scroll to bottom of console
+            this.$nextTick(() => {
+              const consoleWindow = document.querySelector(".console-window");
+              if (consoleWindow) {
+                consoleWindow.scrollTop = consoleWindow.scrollHeight;
+              }
+            });
+          })
+          .withFailureHandler((error) => {
+            this.isTeamRunning = false;
+            this.consoleOutput.push(`❌ Error: ${error.message || error}`);
+            // Scroll to bottom of console
+            this.$nextTick(() => {
+              const consoleWindow = document.querySelector(".console-window");
+              if (consoleWindow) {
+                consoleWindow.scrollTop = consoleWindow.scrollHeight;
+              }
+            });
+          })
+          .runTeamCalendarAutomation();
+      },
+    },
+    computed: {
+      isRunning() {
+        return this.isPersonalRunning || this.isTeamRunning;
       },
     },
   });

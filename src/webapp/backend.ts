@@ -385,3 +385,47 @@ function runRealAutomation() {
   Log.hook = undefined;
   return logMessages.join("\n");
 }
+
+// Run personal calendar automation manually
+function runPersonalCalendarAutomation(): { success: boolean; logs: string[] } {
+  const logMessages: string[] = [];
+
+  // Set up log hook to capture messages
+  Log.hook = (message: string) => {
+    logMessages.push(message);
+  };
+
+  try {
+    // Run the daily checks automation
+    Orchestrator.runAllChecks(false /* isDryRun */);
+    return { success: true, logs: logMessages };
+  } catch (error) {
+    logMessages.push(`Error: ${error.message}`);
+    return { success: false, logs: logMessages };
+  } finally {
+    // Clear the log hook
+    Log.hook = undefined;
+  }
+}
+
+// Run team calendar automation manually
+function runTeamCalendarAutomation(): { success: boolean; logs: string[] } {
+  const logMessages: string[] = [];
+
+  // Set up log hook to capture messages
+  Log.hook = (message: string) => {
+    logMessages.push(message);
+  };
+
+  try {
+    // Run the team calendar features
+    Orchestrator.runTeamCalendarFeatures(false /* isDryRun */);
+    return { success: true, logs: logMessages };
+  } catch (error) {
+    logMessages.push(`Error: ${error.message}`);
+    return { success: false, logs: logMessages };
+  } finally {
+    // Clear the log hook
+    Log.hook = undefined;
+  }
+}
