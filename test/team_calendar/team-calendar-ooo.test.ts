@@ -970,3 +970,294 @@ describe("TeamCalendarOOO utility functions", () => {
     });
   });
 });
+
+describe("TeamCalendarOOO.deduplicatePersonalOOOEvents", () => {
+  const { deduplicatePersonalOOOEvents } = TeamCalendarOOO;
+
+  // Helper function to create mock events
+  const createMockEvent = (
+    id: string,
+    summary: string,
+    start: { date?: string; dateTime?: string; timeZone?: string },
+    end: { date?: string; dateTime?: string; timeZone?: string },
+    eventType?:
+      | "default"
+      | "outOfOffice"
+      | "focusTime"
+      | "workingLocation"
+      | undefined
+  ): GoogleAppsScript.Calendar.Schema.Event => ({
+    id,
+    summary,
+    start,
+    end,
+    eventType,
+  });
+
+  it("should combine two consecutive all-day events into one chain", () => {
+    const events: GoogleAppsScript.Calendar.Schema.Event[] = [
+      createMockEvent(
+        "1",
+        "OOO Day 1",
+        { date: "2024-05-01" },
+        { date: "2024-05-02" },
+        "outOfOffice"
+      ),
+      createMockEvent(
+        "2",
+        "OOO Day 2",
+        { date: "2024-05-02" },
+        { date: "2024-05-03" },
+        "outOfOffice"
+      ),
+    ];
+
+    const result = deduplicatePersonalOOOEvents(events);
+
+    // Should produce a single combined event
+    expect(result.length).toBe(1);
+    expect(result[0].start?.date).toBe("2024-05-01");
+    expect(result[0].end?.date).toBe("2024-05-03");
+  });
+
+  it("should combine multiple consecutive all-day events into one chain", () => {
+    const events: GoogleAppsScript.Calendar.Schema.Event[] = [
+      createMockEvent(
+        "1",
+        "OOO Day 1",
+        { date: "2024-06-01" },
+        { date: "2024-06-02" },
+        "outOfOffice"
+      ),
+      createMockEvent(
+        "2",
+        "OOO Day 2",
+        { date: "2024-06-02" },
+        { date: "2024-06-03" },
+        "outOfOffice"
+      ),
+      createMockEvent(
+        "3",
+        "OOO Day 3",
+        { date: "2024-06-03" },
+        { date: "2024-06-04" },
+        "outOfOffice"
+      ),
+    ];
+
+    const result = deduplicatePersonalOOOEvents(events);
+
+    // Should produce a single combined event
+    expect(result.length).toBe(1);
+    expect(result[0].start?.date).toBe("2024-06-01");
+    expect(result[0].end?.date).toBe("2024-06-04");
+  });
+
+  it("should not combine events that don't form a chain", () => {
+    const events: GoogleAppsScript.Calendar.Schema.Event[] = [
+      createMockEvent(
+        "1",
+        "OOO Day 1",
+        { date: "2024-07-01" },
+        { date: "2024-07-02" },
+        "outOfOffice"
+      ),
+      // Gap between events
+      createMockEvent(
+        "2",
+        "OOO Day 3",
+        { date: "2024-07-03" },
+        { date: "2024-07-04" },
+        "outOfOffice"
+      ),
+    ];
+
+    const result = deduplicatePersonalOOOEvents(events);
+
+    // Should keep both events separate
+    expect(result.length).toBe(2);
+    expect(result[0].start?.date).toBe("2024-07-01");
+    expect(result[0].end?.date).toBe("2024-07-02");
+    expect(result[1].start?.date).toBe("2024-07-03");
+    expect(result[1].end?.date).toBe("2024-07-04");
+  });
+
+  it("should handle a mix of chained and non-chained events", () => {
+    const events: GoogleAppsScript.Calendar.Schema.Event[] = [
+      // First chain: July 1-3
+      createMockEvent(
+        "1",
+        "OOO Day 1",
+        { date: "2024-07-01" },
+        { date: "2024-07-02" },
+        "outOfOffice"
+      ),
+      createMockEvent(
+        "2",
+        "OOO Day 2",
+        { date: "2024-07-02" },
+        { date: "2024-07-03" },
+        "outOfOffice"
+      ),
+      // Gap
+      // Second chain: July 5-7
+      createMockEvent(
+        "3",
+        "OOO Day 5",
+        { date: "2024-07-05" },
+        { date: "2024-07-06" },
+        "outOfOffice"
+      ),
+      createMockEvent(
+        "4",
+        "OOO Day 6",
+        { date: "2024-07-06" },
+        { date: "2024-07-07" },
+        "outOfOffice"
+      ),
+      // Standalone event
+      createMockEvent(
+        "5",
+        "OOO Day 9",
+        { date: "2024-07-09" },
+        { date: "2024-07-10" },
+        "outOfOffice"
+      ),
+    ];
+
+    const result = deduplicatePersonalOOOEvents(events);
+
+    // Should produce 3 events: 2 combined chains and 1 standalone
+    expect(result.length).toBe(3);
+
+    // Find and verify the first chain (July 1-3)
+    const firstChain = result.find(
+      (event) =>
+        event.start?.date === "2024-07-01" && event.end?.date === "2024-07-03"
+    );
+    expect(firstChain).toBeDefined();
+
+    // Find and verify the second chain (July 5-7)
+    const secondChain = result.find(
+      (event) =>
+        event.start?.date === "2024-07-05" && event.end?.date === "2024-07-07"
+    );
+    expect(secondChain).toBeDefined();
+
+    // Find and verify the standalone event (July 9)
+    const standalone = result.find(
+      (event) =>
+        event.start?.date === "2024-07-09" && event.end?.date === "2024-07-10"
+    );
+    expect(standalone).toBeDefined();
+  });
+
+  it("should handle events that are not in chronological order", () => {
+    const events: GoogleAppsScript.Calendar.Schema.Event[] = [
+      // Events intentionally out of order
+      createMockEvent(
+        "2",
+        "OOO Day 2",
+        { date: "2024-08-02" },
+        { date: "2024-08-03" },
+        "outOfOffice"
+      ),
+      createMockEvent(
+        "1",
+        "OOO Day 1",
+        { date: "2024-08-01" },
+        { date: "2024-08-02" },
+        "outOfOffice"
+      ),
+      createMockEvent(
+        "3",
+        "OOO Day 3",
+        { date: "2024-08-03" },
+        { date: "2024-08-04" },
+        "outOfOffice"
+      ),
+    ];
+
+    const result = deduplicatePersonalOOOEvents(events);
+
+    // Should sort and combine into a single chain
+    expect(result.length).toBe(1);
+    expect(result[0].start?.date).toBe("2024-08-01");
+    expect(result[0].end?.date).toBe("2024-08-04");
+  });
+
+  it("should preserve specific time events while combining all-day chains", () => {
+    const events: GoogleAppsScript.Calendar.Schema.Event[] = [
+      // All-day events forming a chain
+      createMockEvent(
+        "1",
+        "OOO Day 1",
+        { date: "2024-09-01" },
+        { date: "2024-09-02" },
+        "outOfOffice"
+      ),
+      createMockEvent(
+        "2",
+        "OOO Day 2",
+        { date: "2024-09-02" },
+        { date: "2024-09-03" },
+        "outOfOffice"
+      ),
+      // Specific time event
+      createMockEvent(
+        "3",
+        "Meeting",
+        { dateTime: "2024-09-04T10:00:00Z" },
+        { dateTime: "2024-09-04T11:00:00Z" }
+      ),
+    ];
+
+    const result = deduplicatePersonalOOOEvents(events);
+
+    // Should have 2 events: 1 combined chain and 1 time-specific event
+    expect(result.length).toBe(2);
+
+    // Verify the chain
+    const chain = result.find((event) => event.start?.date !== undefined);
+    expect(chain).toBeDefined();
+    expect(chain?.start?.date).toBe("2024-09-01");
+    expect(chain?.end?.date).toBe("2024-09-03");
+
+    // Verify the time-specific event
+    const timeEvent = result.find(
+      (event) => event.start?.dateTime !== undefined
+    );
+    expect(timeEvent).toBeDefined();
+    expect(timeEvent?.start?.dateTime).toBe("2024-09-04T10:00:00Z");
+    expect(timeEvent?.end?.dateTime).toBe("2024-09-04T11:00:00Z");
+  });
+
+  it("should handle the case where events with single days have start==end", () => {
+    const events: GoogleAppsScript.Calendar.Schema.Event[] = [
+      // Single day event with start==end
+      createMockEvent(
+        "1",
+        "OOO Day 1",
+        { date: "2024-10-01" },
+        { date: "2024-10-01" },
+        "outOfOffice"
+      ),
+      // Another single day event with start==end that should chain
+      createMockEvent(
+        "2",
+        "OOO Day 2",
+        { date: "2024-10-02" },
+        { date: "2024-10-02" },
+        "outOfOffice"
+      ),
+    ];
+
+    const result = deduplicatePersonalOOOEvents(events);
+
+    // Should normalize and combine into a chain
+    expect(result.length).toBe(1);
+    expect(result[0].start?.date).toBe("2024-10-01");
+    // The end date should be normalized to start+1 for each event and then combined
+    expect(result[0].end?.date).toBe("2024-10-03");
+  });
+});

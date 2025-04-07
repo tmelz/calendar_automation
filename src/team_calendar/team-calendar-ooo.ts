@@ -552,7 +552,84 @@ export namespace TeamCalendarOOO {
       }
     });
 
-    return nonRedundantEvents;
+    // Third pass: combine chained all-day events
+    // Filter out only all-day events
+    const allDayEvents = nonRedundantEvents.filter(isAllDayEvent);
+
+    // Sort all-day events by start date
+    allDayEvents.sort((a, b) => {
+      const startDateA = new Date(a.start!.date!).getTime();
+      const startDateB = new Date(b.start!.date!).getTime();
+      return startDateA - startDateB;
+    });
+
+    // Map to track which events have been included in a chain
+    const processedEventIds = new Set<string>();
+    const combinedEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
+
+    // Process each all-day event to find chains
+    for (let i = 0; i < allDayEvents.length; i++) {
+      // Skip if this event has already been processed as part of a chain
+      if (processedEventIds.has(allDayEvents[i].id!)) {
+        continue;
+      }
+
+      const seedEvent = allDayEvents[i];
+      let chainEndDate = new Date(seedEvent.end!.date!);
+      let eventsInChain = [seedEvent.id!];
+      let foundChain = false;
+
+      // Look for events that continue the chain
+      for (let j = 0; j < allDayEvents.length; j++) {
+        if (i === j || processedEventIds.has(allDayEvents[j].id!)) {
+          continue;
+        }
+
+        const candidateEvent = allDayEvents[j];
+        const candidateStartDate = new Date(candidateEvent.start!.date!);
+
+        // Check if this event starts exactly when the current chain ends
+        if (candidateStartDate.getTime() === chainEndDate.getTime()) {
+          // We found a continuation of the chain
+          foundChain = true;
+          chainEndDate = new Date(candidateEvent.end!.date!);
+          eventsInChain.push(candidateEvent.id!);
+          processedEventIds.add(candidateEvent.id!);
+        }
+      }
+
+      if (foundChain) {
+        // Create a new combined event representing the entire chain
+        Log.log(
+          `Combining chained all-day events: ${eventsInChain.join(", ")}`
+        );
+
+        combinedEvents.push({
+          id: `chain-${eventsInChain.join("-")}`,
+          start: { date: seedEvent.start!.date! },
+          end: { date: chainEndDate.toISOString().split("T")[0] },
+          summary: seedEvent.summary || "OOO", // Use the first event's summary
+        });
+
+        // Mark the seed event as processed
+        processedEventIds.add(seedEvent.id!);
+      } else if (!processedEventIds.has(seedEvent.id!)) {
+        // If not part of a chain, keep the original event
+        combinedEvents.push(seedEvent);
+      }
+    }
+
+    // Combine the processed all-day events with non-all-day events
+    const finalEvents = [
+      ...combinedEvents,
+      ...nonRedundantEvents.filter((event) => !isAllDayEvent(event)),
+    ];
+
+    Log.log(
+      `After combining chained all-day events: ${finalEvents.length} events (from ${nonRedundantEvents.length} non-redundant events)`
+    );
+
+    return finalEvents;
   }
 
   export function getChangesPerPerson(
