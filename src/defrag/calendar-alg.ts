@@ -51,6 +51,8 @@ export namespace CalendarAlg {
       recurrence === EventRecurrence.RecurrenceType.DAILY
     ) {
       possibleDayDeltas = [0];
+    } else if (recurrence === EventRecurrence.RecurrenceType.TWICE_A_WEEK) {
+      possibleDayDeltas = [0];
     } else if (recurrence === EventRecurrence.RecurrenceType.WEEKLY) {
       possibleDayDeltas = [0, -1, 1];
       if (eventDayOfWeek === 1) {
@@ -165,11 +167,25 @@ export namespace CalendarAlg {
         Log.log("\tProposed start time: " + proposedStart.toISOString());
 
         const hasConflict = (
+          theirEmail: string | undefined,
           events: GoogleAppsScript.Calendar.Schema.Event[],
           solution: Map<string, CalendarCost.EventTiming>
         ) =>
           events.some((otherEvent) => {
             if (otherEvent.id === event.id) {
+              return false;
+            }
+
+            // if this current start time is the original events start time
+            // AND they rsvp'd yes to the original event
+            // AND the other event they haven't RSVP'd yes to yet
+            // then let's say this can't be a conflict
+            if (
+              theirEmail !== undefined &&
+              proposedStart.getTime() === originalStartDate.getTime() &&
+              EventUtil.didRSVPYes(event, theirEmail) &&
+              !EventUtil.didRSVPYes(otherEvent, theirEmail)
+            ) {
               return false;
             }
 
@@ -230,14 +246,14 @@ export namespace CalendarAlg {
             return conflict;
           });
 
-        if (hasConflict(myEventsList, currentSolution)) {
+        if (hasConflict(undefined, myEventsList, currentSolution)) {
           continue;
         }
 
         // for each of theirEmails, check if there is a conflict with theirEvents
         const hasConflictWithAnyOfThem = theirEmails.some((theirEmail) => {
           const events = theirEvents.get(theirEmail) ?? [];
-          if (hasConflict(events, currentSolution)) {
+          if (hasConflict(theirEmail, events, currentSolution)) {
             return true;
           }
         });
@@ -306,48 +322,48 @@ export namespace CalendarAlg {
       .map((email) => EventUtil.standardizeEmail(email))
       .forEach((email) => otherPeople.add(email));
 
-    const otherPeopleEvents = GetEvents.getEventsForDateRangeMultipleCalendarsWithErrorCatch(
-      startDate,
-      endDate,
-      Array.from(otherPeople)
-    ) ?? {};
+    const otherPeopleEvents =
+      GetEvents.getEventsForDateRangeMultipleCalendarsWithErrorCatch(
+        startDate,
+        endDate,
+        Array.from(otherPeople)
+      ) ?? {};
 
     Object.keys(otherPeopleEvents).forEach((email: string) => {
-      const events = otherPeopleEvents
-        ? otherPeopleEvents[email]
-        : undefined;
+      const events = otherPeopleEvents ? otherPeopleEvents[email] : undefined;
 
-        if (events === undefined) {
-          Log.log(
-            "Error fetching events for " +
-              email +
-              ", perhaps they're not an employee anymore? Skipping them"
-          );
-          return;
-        }
-        theirEvents.set(
-          email!,
-          events.filter(
-            (event) =>
-              // TODO does this include out of office?
-              (event.eventType === "default" &&
-                event.attendees === undefined &&
-                !event.summary?.toLowerCase().includes("focus time")) ||
-              // consider events that they haven't declined
-              // could be interesting to exclude events they havent RSVPd-Yes to
-              // but would need to be smart about that, could maybe see historically
-              // if they never RSVP to that event
-              (event.eventType === "default" &&
-                !EventUtil.didRSVPNo(event, email)) ||
-              event.eventType === "outOfOffice"
-          )
+      if (events === undefined) {
+        Log.log(
+          "Error fetching events for " +
+            email +
+            ", perhaps they're not an employee anymore? Skipping them"
         );
-      });
+        return;
+      }
+      theirEvents.set(
+        email!,
+        events.filter(
+          (event) =>
+            // TODO does this include out of office?
+            (event.eventType === "default" &&
+              event.attendees === undefined &&
+              !event.summary?.toLowerCase().includes("focus time")) ||
+            // consider events that they haven't declined
+            // could be interesting to exclude events they havent RSVPd-Yes to
+            // but would need to be smart about that, could maybe see historically
+            // if they never RSVP to that event
+            (event.eventType === "default" &&
+              !EventUtil.didRSVPNo(event, email)) ||
+            event.eventType === "outOfOffice"
+        )
+      );
+    });
 
-      const today = new Date();
-      const lookBack = new Date(today);
-      lookBack.setMonth(lookBack.getMonth() - 2);
-      const otherPeopleLongRangeEvents = GetEvents.getEventsForDateRangeMultipleCalendarsWithErrorCatch(
+    const today = new Date();
+    const lookBack = new Date(today);
+    lookBack.setMonth(lookBack.getMonth() - 2);
+    const otherPeopleLongRangeEvents =
+      GetEvents.getEventsForDateRangeMultipleCalendarsWithErrorCatch(
         lookBack,
         today,
         Array.from(otherPeople),
@@ -355,17 +371,17 @@ export namespace CalendarAlg {
         2500
       ) ?? {};
 
-      Object.keys(otherPeopleLongRangeEvents).forEach((email: string) => {
-        const events = otherPeopleLongRangeEvents
-          ? otherPeopleLongRangeEvents[email]
-          : undefined;
+    Object.keys(otherPeopleLongRangeEvents).forEach((email: string) => {
+      const events = otherPeopleLongRangeEvents
+        ? otherPeopleLongRangeEvents[email]
+        : undefined;
 
-        Log.log("Getting their working hours");
-        theirWorkingHours.set(
-          email!,
-          WorkingHours.estimateWorkingHours(email!, events)
-        );
-      });
+      Log.log("Getting their working hours");
+      theirWorkingHours.set(
+        email!,
+        WorkingHours.estimateWorkingHours(email!, events)
+      );
+    });
 
     const moveableEventTimings = new Map<string, CalendarCost.EventTiming>();
 
@@ -457,12 +473,6 @@ export namespace CalendarAlg {
       if (new Date(event.start!.dateTime!).getTime() < new Date().getTime()) {
         return false;
       }
-    }
-
-    if (
-      event.attendees?.some((attendee) => attendee.email === "azra@block.xyz")
-    ) {
-      return false;
     }
 
     if (EventUtil.isOneOnOneWithMe(event)) {

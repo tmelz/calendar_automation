@@ -37,5 +37,12 @@ describe("parseRecurrenceRule", () => {
         recurrence: ["RRULE:FREQ=WEEKLY;WKST=MO;INTERVAL=4;BYDAY=FR"],
       })
     ).toBe(EventRecurrence.RecurrenceType.THREE_WEEKS_PLUS);
+
+    expect(
+      EventRecurrence.parseRecurrenceRule({
+        ...myOneOnOneEvent,
+        recurrence: ["RRULE:FREQ=WEEKLY;BYDAY=MO,TH"],
+      })
+    ).toBe(EventRecurrence.RecurrenceType.TWICE_A_WEEK);
   });
 });

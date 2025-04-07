@@ -4,6 +4,7 @@ import { Log } from "../checks/log";
 export namespace EventRecurrence {
   export enum RecurrenceType {
     DAILY,
+    TWICE_A_WEEK,
     WEEKLY,
     EVERY_TWO_WEEKS,
     THREE_WEEKS_PLUS,
@@ -47,10 +48,18 @@ export namespace EventRecurrence {
     // RRULE:FREQ=WEEKLY;WKST=MO;INTERVAL=2;BYDAY=MO
     // RRULE:FREQ=MONTHLY;BYDAY=2FR
     // RRULE:FREQ=WEEKLY;WKST=MO;INTERVAL=4;BYDAY=FR
+    // RRULE:FREQ=WEEKLY;BYDAY=MO,TH (twice a week)
     if (recurrenceRule.includes("DAILY")) {
       Log.log(`Appears to be daily recurrence.`);
       return EventRecurrence.RecurrenceType.DAILY;
     } else if (recurrenceRule.includes("WEEKLY")) {
+      // Check for twice a week pattern (e.g., BYDAY=MO,TH)
+      const bydayMatch = recurrenceRule.match(/BYDAY=([^;]+)/);
+      if (bydayMatch && bydayMatch[1].includes(",")) {
+        Log.log(`Appears to be twice a week.`);
+        return EventRecurrence.RecurrenceType.TWICE_A_WEEK;
+      }
+
       if (recurrenceRule.includes("INTERVAL=2")) {
         Log.log(`Appears to be every two week.`);
         return EventRecurrence.RecurrenceType.EVERY_TWO_WEEKS;
