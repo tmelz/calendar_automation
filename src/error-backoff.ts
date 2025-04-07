@@ -1,18 +1,19 @@
 import { Log } from "./checks/log";
 
 // Constants for error backoff
-export const ERROR_BACKOFF_DURATION_MS = 30 * 1000; // 30 seconds
-const LAST_ERROR_TIMESTAMP_KEY = "lastErrorTimestamp";
 
-export class ErrorBackoff {
+// eslint-disable-next-line @typescript-eslint/no-namespace
+export namespace ErrorBackoff {
+  export const ERROR_BACKOFF_DURATION_MS = 30 * 1000; // 30 seconds
+  export const LAST_ERROR_TIMESTAMP_KEY = "lastErrorTimestamp";
   /**
    * Check if we should backoff based on the last error timestamp
    * @returns true if we should backoff (skip execution), false otherwise
    */
-  static shouldBackoff(): boolean {
+  export function shouldBackoff(): boolean {
     const userProperties = PropertiesService.getUserProperties();
     const lastErrorTimestamp = userProperties.getProperty(
-      LAST_ERROR_TIMESTAMP_KEY
+      ErrorBackoff.LAST_ERROR_TIMESTAMP_KEY
     );
 
     if (!lastErrorTimestamp) {
@@ -24,7 +25,7 @@ export class ErrorBackoff {
 
     // Check if we're within the backoff window
     const shouldBackoff =
-      currentTime - lastErrorTime < ERROR_BACKOFF_DURATION_MS;
+      currentTime - lastErrorTime < ErrorBackoff.ERROR_BACKOFF_DURATION_MS;
 
     if (shouldBackoff) {
       Log.log(
@@ -39,9 +40,12 @@ export class ErrorBackoff {
    * Record that an error occurred now
    * @param error The error that occurred
    */
-  static recordError(error: Error): void {
+  export function recordError(error: Error): void {
     const userProperties = PropertiesService.getUserProperties();
-    userProperties.setProperty(LAST_ERROR_TIMESTAMP_KEY, Date.now().toString());
+    userProperties.setProperty(
+      ErrorBackoff.LAST_ERROR_TIMESTAMP_KEY,
+      Date.now().toString()
+    );
     Log.log(`⚠️ Recording error for backoff: ${error.message}`);
 
     // Log the user for easier debugging
@@ -57,7 +61,7 @@ export class ErrorBackoff {
    * Try to execute a function with error backoff
    * @returns true if the function executed, false if it was skipped due to backoff
    */
-  static tryExecute(func: () => void): boolean {
+  export function tryExecute(func: () => void): boolean {
     // Check if we should backoff first
     if (ErrorBackoff.shouldBackoff()) {
       Log.log("Exiting early due to backoff period");
