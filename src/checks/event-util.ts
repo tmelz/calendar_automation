@@ -104,7 +104,16 @@ export namespace EventUtil {
   export function isAttendeeLikelyAnEmailList(
     attendee: GoogleAppsScript.Calendar.Schema.EventAttendee
   ): boolean {
-    return attendee.email?.startsWith(`${attendee.displayName}@`) ?? false;
+    if (!attendee.email) {
+      return false;
+    }
+
+    const [username] = attendee.email.split("@");
+    if (username.includes("-")) {
+      return true;
+    }
+
+    return attendee.email.startsWith(`${attendee.displayName}@`);
   }
 
   export function amITheCreator(

@@ -276,6 +276,43 @@ describe("doAllAttendeesHaveSameBusinessEmailDomain", () => {
   });
 });
 
+describe("EventUtil.isAttendeeLikelyAnEmailList", () => {
+  test("should return true when email username contains a hyphen", () => {
+    const attendee = {
+      email: "team-leads@example.com",
+      displayName: "Team Leads",
+      responseStatus: "needsAction",
+    };
+    expect(EventUtil.isAttendeeLikelyAnEmailList(attendee)).toBe(true);
+  });
+
+  test("should return true when email starts with display name", () => {
+    const attendee = {
+      email: "engineering@example.com",
+      displayName: "engineering",
+      responseStatus: "needsAction",
+    };
+    expect(EventUtil.isAttendeeLikelyAnEmailList(attendee)).toBe(true);
+  });
+
+  test("should return false when email does not contain hyphen and does not start with display name", () => {
+    const attendee = {
+      email: "john.doe@example.com",
+      displayName: "John Doe",
+      responseStatus: "needsAction",
+    };
+    expect(EventUtil.isAttendeeLikelyAnEmailList(attendee)).toBe(false);
+  });
+
+  test("should return false when email is undefined", () => {
+    const attendee = {
+      displayName: "John Doe",
+      responseStatus: "needsAction",
+    };
+    expect(EventUtil.isAttendeeLikelyAnEmailList(attendee)).toBe(false);
+  });
+});
+
 describe("EventUtil.didRSVPYes", () => {
   const eventTemplate = {
     attendees: [],
