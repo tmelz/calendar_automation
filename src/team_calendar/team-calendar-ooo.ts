@@ -56,7 +56,7 @@ export namespace TeamCalendarOOO {
       ).filter(
         (event) =>
           event.eventType === "outOfOffice" ||
-          event.summary === CheckOOO.OOO_WORKDAY_EVENT_TITLE
+          CheckOOO.isWorkdayOOOTitle(event.summary)
       );
       memberEvents.set(member.email, oooEvents);
     });

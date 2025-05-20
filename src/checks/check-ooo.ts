@@ -18,7 +18,17 @@ export namespace CheckOOO {
   export const OOO_TITLE_PREFIX_NOTICE: string = "[🚨OOO] ";
   export const OOO_DESCRIPTION_BLURB: string =
     "\n<small><i>[🚨OOO: detected that an attendee is OOO at this time]</i></small>";
-  export const OOO_WORKDAY_EVENT_TITLE: string = "OOO- Automated by Workday";
+  export const OOO_WORKDAY_EVENT_TITLES = [
+    "OOO- Automated by Workday",
+    "Out of Office",
+  ] as const;
+
+  /** Whether a summary matches any known Workday-generated OOO titles */
+  export function isWorkdayOOOTitle(title: string | undefined): boolean {
+    if (!title) return false;
+    const trimmed = title.trim();
+    return CheckOOO.OOO_WORKDAY_EVENT_TITLES.some((t) => trimmed === t);
+  }
 
   type CompareEvents = (
     myEvent: GoogleAppsScript.Calendar.Schema.Event,
@@ -130,7 +140,7 @@ export namespace CheckOOO {
 
     if (
       theirEvent.eventType !== CheckOOO.OOO_EVENT_TYPE &&
-      theirEvent.summary !== CheckOOO.OOO_WORKDAY_EVENT_TITLE
+      !CheckOOO.isWorkdayOOOTitle(theirEvent.summary)
     ) {
       Log.log(`👎 Not a OOO event,`);
       return false;
