@@ -154,72 +154,88 @@ export namespace CheckOOO {
       theirEvent.end?.date &&
       myEvent.start?.dateTime
     ) {
+      // For all-day events, we need to compare the dates in the event's timezone
       const myEventDate = new Date(myEvent.start.dateTime);
-      Log.log(`Debug: myEventDate=${myEventDate}`);
-      myEventDate.setHours(0, 0, 0, 0);
-      // Ugh this was annoying and janky but it works :shrug:. Basically these values are simple dates like "09-03-2023", but
-      // javascript will interpret them as UTC and subtract 7 hours from pacific, so effectively the dates are -1.
-      // Ugly hack for that is add back the delta between UTC and current timezone. Probably a much better way but this seems
-      // stable and I'm lazy and don't want to spend too much time on this.
+      const myEventTimezone = myEvent.start.timeZone || 'UTC';
+      
+      // Convert the date to the event's timezone and get just the date part
+      const myEventDateInTimezone = new Date(myEventDate.toLocaleString('en-US', { timeZone: myEventTimezone }));
+      myEventDateInTimezone.setHours(0, 0, 0, 0);
+      
+      // For all-day events, parse the dates directly
       const theirOOOStart = new Date(theirEvent.start.date);
-      Log.log(
-        `Debug: theirOOOStartWithoutOffset=${theirOOOStart}, offset=${theirOOOStart.getTimezoneOffset()}`
-      );
-      theirOOOStart.setMinutes(
-        theirOOOStart.getMinutes() + theirOOOStart.getTimezoneOffset()
-      );
-      Log.log(`Debug: theirOOOStart=${theirOOOStart}`);
       theirOOOStart.setHours(0, 0, 0, 0);
+      
       const theirOOOEnd = new Date(theirEvent.end.date);
-      Log.log(
-        `Debug: theirOOOEndWithoutOffset=${theirOOOEnd}, offset=${theirOOOEnd.getTimezoneOffset()}`
-      );
-      theirOOOEnd.setMinutes(
-        theirOOOEnd.getMinutes() + theirOOOEnd.getTimezoneOffset()
-      );
-      Log.log(`Debug: theirOOOEnd=${theirOOOEnd}`);
       theirOOOEnd.setHours(0, 0, 0, 0);
+      // If start and end are the same, treat as a single-day event (inclusive)
+      if (theirEvent.start.date === theirEvent.end.date) {
+        theirOOOEnd.setDate(theirOOOEnd.getDate()); // no change, inclusive of that day
+      } else {
+        // Adjust end date to be exclusive (as per Google Calendar's behavior)
+        theirOOOEnd.setDate(theirOOOEnd.getDate() - 1);
+      }
 
-      if (myEventDate <= theirOOOEnd && myEventDate >= theirOOOStart) {
+      // Compare dates in UTC to avoid timezone issues
+      const myEventDateUTC = new Date(Date.UTC(
+        myEventDateInTimezone.getFullYear(),
+        myEventDateInTimezone.getMonth(),
+        myEventDateInTimezone.getDate()
+      ));
+      
+      const theirOOOStartUTC = new Date(Date.UTC(
+        theirOOOStart.getFullYear(),
+        theirOOOStart.getMonth(),
+        theirOOOStart.getDate()
+      ));
+      
+      const theirOOOEndUTC = new Date(Date.UTC(
+        theirOOOEnd.getFullYear(),
+        theirOOOEnd.getMonth(),
+        theirOOOEnd.getDate()
+      ));
+
+      if (myEventDateUTC <= theirOOOEndUTC && myEventDateUTC >= theirOOOStartUTC) {
         Log.log(
-          `✅ Yep, that OOO event overlaps! Will modify and flag the even (only date check, not mins/hours): oooStart=${theirOOOStart}, oooEnd=${theirOOOEnd}, myEventDate=${myEventDate}`
+          `✅ Yep, that OOO event overlaps! Will modify and flag the event (all-day event check): oooStart=${theirOOOStartUTC}, oooEnd=${theirOOOEndUTC}, myEventDate=${myEventDateUTC}`
         );
-
         return true;
       } else {
         Log.log(
-          `👎 No, that OOO doensnt appear to overlap (only date check, not mins/hours): oooStart=${theirOOOStart}, oooEnd=${theirOOOEnd}, myEventDate=${myEventDate}`
+          `👎 No, that OOO doesn't appear to overlap (all-day event check): oooStart=${theirOOOStartUTC}, oooEnd=${theirOOOEndUTC}, myEventDate=${myEventDateUTC}`
         );
         return false;
       }
-      // Specific start/end time handling
-    } else if (
+    } 
+    // Specific start/end time handling
+    else if (
       theirEvent.start?.dateTime &&
       theirEvent.end?.dateTime &&
       myEvent.start?.dateTime &&
       myEvent.end?.dateTime
     ) {
+      // Convert all times to UTC for comparison
       const theirOOOStart = new Date(theirEvent.start.dateTime);
       const theirOOOEnd = new Date(theirEvent.end.dateTime);
-
       const myEventStart = new Date(myEvent.start.dateTime);
       const myEventEnd = new Date(myEvent.end.dateTime);
 
-      if (myEventStart >= theirOOOStart && myEventEnd <= theirOOOEnd) {
+      // Check if there's any overlap between the events
+      if (myEventStart < theirOOOEnd && myEventEnd > theirOOOStart) {
         Log.log(
           "✅ Yep, that OOO event overlaps! Will modify and flag the event"
         );
         return true;
       } else {
         Log.log(
-          `👎 No, that OOO doensnt appear to overlap (interval check): oooStart=${theirOOOStart}, oooEnd=${theirOOOEnd}, myEventStart=${myEventStart}, myEventEnd=${myEventEnd}`
+          `👎 No, that OOO doesn't appear to overlap (interval check): oooStart=${theirOOOStart}, oooEnd=${theirOOOEnd}, myEventStart=${myEventStart}, myEventEnd=${myEventEnd}`
         );
         return false;
       }
     }
 
     Log.log(
-      `👎 No, that OOO doensnt appear to overlap (hit edge case where date set strangely...)`
+      `👎 No, that OOO doesn't appear to overlap (hit edge case where date set strangely...)`
     );
     return false;
   }

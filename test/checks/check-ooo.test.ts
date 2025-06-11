@@ -108,6 +108,95 @@ describe("checkIfEventIsOOOAndOverlaps", () => {
       )
     ).toBe(false);
   });
+
+  describe("timezone handling", () => {
+    it("should handle OOO event across timezone boundaries correctly", () => {
+      // Create an event in Melbourne timezone (UTC+10)
+      const melbourneEvent: GoogleAppsScript.Calendar.Schema.Event = {
+        ...myOneOnOneEventWithOOOConflict,
+        start: {
+          dateTime: "2024-07-31T09:00:00+10:00", // Wednesday 9am Melbourne
+          timeZone: "Australia/Melbourne",
+        },
+        end: {
+          dateTime: "2024-07-31T10:00:00+10:00",
+          timeZone: "Australia/Melbourne",
+        },
+      };
+
+      // Create an OOO event in US East timezone (UTC-4)
+      const usEastOOOEvent: GoogleAppsScript.Calendar.Schema.Event = {
+        ...theirOOOAllDayEvent,
+        start: { date: "2024-07-30" }, // Tuesday in US East
+        end: { date: "2024-07-31" },
+      };
+
+      // The event should NOT be marked as OOO since it's Wednesday in Melbourne
+      expect(
+        CheckOOO.checkIfEventIsOOOAndOverlaps(melbourneEvent, usEastOOOEvent)
+      ).toBe(false);
+    });
+
+    it("should handle OOO event in same timezone correctly", () => {
+      // Create an event in US East timezone
+      const usEastEvent: GoogleAppsScript.Calendar.Schema.Event = {
+        ...myOneOnOneEventWithOOOConflict,
+        start: {
+          dateTime: "2024-07-30T09:00:00-04:00", // Tuesday 9am US East
+          timeZone: "America/New_York",
+        },
+        end: {
+          dateTime: "2024-07-30T10:00:00-04:00",
+          timeZone: "America/New_York",
+        },
+      };
+
+      // Create an OOO event in same timezone
+      const usEastOOOEvent: GoogleAppsScript.Calendar.Schema.Event = {
+        ...theirOOOAllDayEvent,
+        start: { date: "2024-07-30" }, // Tuesday in US East
+        end: { date: "2024-07-31" },
+      };
+
+      // The event should be marked as OOO since it's Tuesday in US East
+      expect(
+        CheckOOO.checkIfEventIsOOOAndOverlaps(usEastEvent, usEastOOOEvent)
+      ).toBe(true);
+    });
+
+    it("should handle OOO event with specific time in different timezone", () => {
+      // Create an event in Melbourne timezone
+      const melbourneEvent: GoogleAppsScript.Calendar.Schema.Event = {
+        ...myOneOnOneEventWithOOOConflict,
+        start: {
+          dateTime: "2024-07-31T09:00:00+10:00", // Wednesday 9am Melbourne
+          timeZone: "Australia/Melbourne",
+        },
+        end: {
+          dateTime: "2024-07-31T10:00:00+10:00",
+          timeZone: "Australia/Melbourne",
+        },
+      };
+
+      // Create a specific time OOO event in US East timezone
+      const usEastOOOEvent: GoogleAppsScript.Calendar.Schema.Event = {
+        ...theirOOOSpecificTimeEvent,
+        start: {
+          dateTime: "2024-07-30T09:00:00-04:00", // Tuesday 9am US East
+          timeZone: "America/New_York",
+        },
+        end: {
+          dateTime: "2024-07-30T17:00:00-04:00",
+          timeZone: "America/New_York",
+        },
+      };
+
+      // The event should NOT be marked as OOO since it's Wednesday in Melbourne
+      expect(
+        CheckOOO.checkIfEventIsOOOAndOverlaps(melbourneEvent, usEastOOOEvent)
+      ).toBe(false);
+    });
+  });
 });
 
 describe("modifyEventLocally", () => {
