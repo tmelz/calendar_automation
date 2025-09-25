@@ -292,6 +292,52 @@ describe("TeamCalendarOOO.getChangesPerPerson", () => {
     expect(actualChanges).toEqual(expectedChanges);
   });
 
+  it("deletes duplicate team calendar entries", () => {
+    const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      createMockEvent(
+        "personal-1",
+        "Out of Office",
+        { date: "2025-10-06" },
+        { date: "2025-10-07" },
+        "outOfOffice"
+      ),
+    ];
+
+    const teamCalendarOOOEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      createMockEvent(
+        "team-1",
+        "[OOO] John Doe (john.doe@example.com)",
+        { date: "2025-10-06" },
+        { date: "2025-10-07" }
+      ),
+      createMockEvent(
+        "team-2",
+        "[OOO] John Doe (john.doe@example.com)",
+        { date: "2025-10-06" },
+        { date: "2025-10-07" }
+      ),
+      createMockEvent(
+        "team-3",
+        "[OOO] John Doe (john.doe@example.com)",
+        { date: "2025-10-06" },
+        { date: "2025-10-07" }
+      ),
+    ];
+
+    const actualChanges = getChangesPerPerson(
+      mockGroupMember,
+      teamCalendarOOOEvents,
+      oooEvents
+    );
+
+    expect(actualChanges.deleteEvents).toEqual([
+      teamCalendarOOOEvents[1],
+      teamCalendarOOOEvents[2],
+    ]);
+    expect(actualChanges.newAllDayEvents).toEqual([]);
+    expect(actualChanges.newTimeRangeEvents).toEqual([]);
+  });
+
   it("should avoid creating duplicate new events and filter subset all-day events", () => {
     const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
       // Parent all-day event

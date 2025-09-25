@@ -581,7 +581,6 @@ export namespace TeamCalendarOOO {
     // clone oooEvents
     const eventsMayNeedToCreate: GoogleAppsScript.Calendar.Schema.Event[] =
       deduplicatePersonalOOOEvents(oooEvents);
-    const matchedEventIds = new Set<string>();
 
     teamCalendarOOOEvents.forEach((teamCalendarOOOEvent) => {
       Log.log(
@@ -589,7 +588,7 @@ export namespace TeamCalendarOOO {
       );
 
       // Find the first matching event instead of all matching events
-      const matchingEvent = eventsMayNeedToCreate.find((event) => {
+      const matchingEventIndex = eventsMayNeedToCreate.findIndex((event) => {
         // Pretty gross logic. Sometimes single day events have start==end. Sometimes
         // they have end==start +1. Idk.
         if (
@@ -616,13 +615,12 @@ export namespace TeamCalendarOOO {
         return false;
       });
 
-      if (matchingEvent) {
+      if (matchingEventIndex !== -1) {
+        const [matchingEvent] = eventsMayNeedToCreate.splice(
+          matchingEventIndex,
+          1
+        );
         Log.log(`Found matching event in team calendar for ${person.email}`);
-
-        // Mark the matching event as matched
-        if (matchingEvent.id) {
-          matchedEventIds.add(matchingEvent.id);
-        }
         Log.log(
           `Matched: ${matchingEvent.summary} from ${JSON.stringify(matchingEvent.start)} to ${JSON.stringify(matchingEvent.end)}`
         );
@@ -632,10 +630,8 @@ export namespace TeamCalendarOOO {
       }
     });
 
-    // Filter out events that have already been matched with team calendar events
-    const eventsWithNoTeamCalendarMatch = eventsMayNeedToCreate.filter(
-      (event) => !event.id || !matchedEventIds.has(event.id)
-    );
+    // Remaining events did not match anything already on the team calendar
+    const eventsWithNoTeamCalendarMatch = eventsMayNeedToCreate;
 
     const newAllDayEvents: { start: string; end: string; title: string }[] = [];
     const newTimeRangeEvents: {
