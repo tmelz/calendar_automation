@@ -17,8 +17,9 @@
     "typescript-eslint": "^7.18.0"
   },
   "scripts": {
-    "test": "jest",
-    "coverage": "jest --coverage",
+    "test": "TZ=America/Los_Angeles jest",
+    "test:local": "jest",
+    "coverage": "TZ=America/Los_Angeles jest --coverage",
     "codecov": "codecov"
   },
   "dependencies": {
