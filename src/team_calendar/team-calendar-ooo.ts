@@ -334,8 +334,13 @@ export namespace TeamCalendarOOO {
           Log.log(
             `Going to represent this as an all day event when calculating changes`
           );
-          const startDate = getDateStringFromEvent(event.start!);
-          const endDate = getDateStringFromEvent(event.end!);
+          const targetTimeZone = getTeamCalendarTimeZone();
+          const startDate = getDateStringFromEvent(event.start!, {
+            targetTimeZone,
+          });
+          const endDate = getDateStringFromEvent(event.end!, {
+            targetTimeZone,
+          });
           if (startDate === undefined || endDate === undefined) {
             Log.log(
               `Skipping event, inferred startDate or endDate is undefined, this is unexpected`
@@ -363,6 +368,68 @@ export namespace TeamCalendarOOO {
           return;
         }
       }
+
+      // Handle overnight OOO events that cross midnight but aren't near-24-hours long.
+      // These show up as time-ranged events (e.g., 5pm-6am in the person's timezone)
+      // which render awkwardly for teammates in other timezones (e.g., 11pm-12pm).
+      // For longer OOO holds, represent them as all-day on the days they impact.
+      if (
+        isSpecificTimeEvent(event) &&
+        event.start?.dateTime &&
+        event.end?.dateTime
+      ) {
+        const startDateStr = getDatePortion(event.start.dateTime);
+        const endDateStr = getDatePortion(event.end.dateTime);
+        const crossesMidnight =
+          startDateStr !== undefined &&
+          endDateStr !== undefined &&
+          startDateStr !== endDateStr;
+        const startTime = new Date(event.start.dateTime);
+        const endTime = new Date(event.end.dateTime);
+        const durationHours =
+          (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+        const looksLikeOOO =
+          event.eventType === "outOfOffice" ||
+          CheckOOO.isWorkdayOOOTitle(event.summary ?? "");
+        const startsAtMidnight = isMidnight(event.start);
+        const endsAtMidnight = isMidnight(event.end);
+
+        if (
+          crossesMidnight &&
+          looksLikeOOO &&
+          durationHours >= 10 &&
+          (!startsAtMidnight || !endsAtMidnight)
+        ) {
+          Log.log(
+            `Found overnight OOO event (${durationHours.toFixed(
+              2
+            )} hours): ${event.summary} from ${JSON.stringify(
+              event.start
+            )} to ${JSON.stringify(event.end)}`
+          );
+          Log.log(
+            `Representing this overnight OOO as all-day events on the impacted dates`
+          );
+
+          if (startDateStr === undefined || endDateStr === undefined) {
+            Log.log(
+              `Skipping overnight conversion due to undefined start or end date`
+            );
+            return;
+          }
+
+          const adjustedStart = addDaysToDateString(startDateStr, 1);
+          const adjustedEnd = addDaysToDateString(endDateStr, 1);
+
+          normalizedEvents.push({
+            id: event.id + "-synthetic",
+            start: { date: adjustedStart },
+            end: { date: adjustedEnd },
+            summary: `Synthetic event created for ${event.id} which is an overnight OOO event`,
+          });
+          return;
+        }
+      }
       
       // Then check for exact midnight-to-midnight events
       if (
@@ -376,8 +443,13 @@ export namespace TeamCalendarOOO {
         Log.log(
           `Going to represent this as an all day event when calculating changes`
         );
-        const startDate = getDateStringFromEvent(event.start!);
-        const endDate = getDateStringFromEvent(event.end!);
+        const targetTimeZone = getTeamCalendarTimeZone();
+        const startDate = getDateStringFromEvent(event.start!, {
+          targetTimeZone,
+        });
+        const endDate = getDateStringFromEvent(event.end!, {
+          targetTimeZone,
+        });
         if (startDate === undefined || endDate === undefined) {
           Log.log(
             `Skipping event, inferred startDate or endDate is undefined, this is unexpected `
@@ -665,18 +737,77 @@ export namespace TeamCalendarOOO {
           return true;
         }
 
+        // Cross-type matching: Check if a synthetic all-day event matches a time-range event
+        // This handles the case where we now represent a near-24-hour event as all-day,
+        // but it was previously created as a time-range event on the team calendar
+        if (
+          isAllDayEvent(event) &&
+          isSpecificTimeEvent(teamCalendarOOOEvent) &&
+          (event.id?.includes('-near24h-synthetic') || event.id?.includes('-synthetic'))
+        ) {
+          // Convert the all-day dates to Date objects for comparison
+          const eventStartDate = new Date(event.start!.date!);
+          const eventEndDate = new Date(event.end!.date!);
+          
+          // Get the date portion of the team calendar time-range event
+          const teamStartDate = new Date(teamCalendarOOOEvent.start!.dateTime!);
+          const teamEndDate = new Date(teamCalendarOOOEvent.end!.dateTime!);
+          
+          // Extract just the date parts (YYYY-MM-DD) for comparison
+          const eventStartStr = event.start!.date!;
+          const eventEndStr = event.end!.date!;
+          const targetTimeZone = getTeamCalendarTimeZone();
+          const teamStartStr = getDateStringFromEvent(
+            teamCalendarOOOEvent.start!,
+            { targetTimeZone }
+          );
+          const teamEndStr = getDateStringFromEvent(teamCalendarOOOEvent.end!, {
+            targetTimeZone,
+          });
+          
+          // Check if the dates match
+          if (teamStartStr && teamEndStr &&
+              eventStartStr === teamStartStr &&
+              eventEndStr === teamEndStr) {
+            return true;
+          }
+        }
+
         return false;
       });
 
       if (matchingEventIndex !== -1) {
-        const [matchingEvent] = eventsMayNeedToCreate.splice(
-          matchingEventIndex,
-          1
-        );
-        Log.log(`Found matching event in team calendar for ${person.email}`);
-        Log.log(
-          `Matched: ${matchingEvent.summary} from ${JSON.stringify(matchingEvent.start)} to ${JSON.stringify(matchingEvent.end)}`
-        );
+        const matchingEvent = eventsMayNeedToCreate[matchingEventIndex];
+        
+        // Check for type mismatch: synthetic all-day vs actual time-range
+        // This handles the case where DST-affected events were created as time-range
+        // events before the fix, but should now be all-day events
+        const isSyntheticAllDay = matchingEvent.id?.includes('-near24h-synthetic') ||
+                                  matchingEvent.id?.includes('-synthetic');
+        const isTeamCalendarTimeRange = isSpecificTimeEvent(teamCalendarOOOEvent);
+        
+        if (isSyntheticAllDay && isTeamCalendarTimeRange) {
+          // Type mismatch - the team calendar has a time-range event but we now
+          // represent this as an all-day event. Delete the old one and create new.
+          Log.log(
+            `Type mismatch detected: personal event is synthetic all-day but team calendar has time-range event`
+          );
+          Log.log(
+            `Flagging team calendar event for deletion and will recreate as all-day: ${teamCalendarOOOEvent.summary}`
+          );
+          deleteEvents.push(teamCalendarOOOEvent);
+          // Don't remove from eventsMayNeedToCreate - let it be created as all-day
+          Log.log(
+            `Keeping event in eventsMayNeedToCreate so it will be recreated as all-day`
+          );
+        } else {
+          // Types match, proceed with normal matching
+          eventsMayNeedToCreate.splice(matchingEventIndex, 1);
+          Log.log(`Found matching event in team calendar for ${person.email}`);
+          Log.log(
+            `Matched: ${matchingEvent.summary} from ${JSON.stringify(matchingEvent.start)} to ${JSON.stringify(matchingEvent.end)}`
+          );
+        }
       } else {
         Log.log(`No matching, flagging for deletion`);
         deleteEvents.push(teamCalendarOOOEvent);
@@ -823,6 +954,20 @@ export namespace TeamCalendarOOO {
     return new Date(year, month - 1, day);
   }
 
+  function addDaysToDateString(dateString: string, daysToAdd: number): string {
+    const [year, month, day] = dateString.split("-").map(Number);
+    const date = new Date(Date.UTC(year, (month ?? 1) - 1, day ?? 1));
+    date.setUTCDate(date.getUTCDate() + daysToAdd);
+    return date.toISOString().split("T")[0];
+  }
+
+  function getDatePortion(dateTime: string | undefined): string | undefined {
+    if (!dateTime) {
+      return undefined;
+    }
+    return dateTime.split("T")[0];
+  }
+
   /**
    * Checks if a Google Calendar event time represents midnight in its timezone.
    * Works by directly examining the time portion of the dateTime string.
@@ -853,37 +998,40 @@ export namespace TeamCalendarOOO {
     return timePortion === "00:00:00";
   }
 
-  /**
-   * Extracts the date in "YYYY-MM-DD" format from an event object
-   * based on its dateTime and timeZone.
-   * @param eventStart - The event object with dateTime and timeZone.
-   * @returns The formatted date string, or null if dateTime or timeZone is missing.
-   */
-  export function getDateStringFromEvent(eventStart: {
-    date?: string | undefined;
-    dateTime?: string | undefined;
-    timeZone?: string | undefined;
-  }): string | undefined {
-    if (
-      eventStart.dateTime === undefined ||
-      eventStart.timeZone === undefined
-    ) {
-      return undefined;
+  let cachedTeamCalendarTimeZone: string | undefined;
+
+  function getTeamCalendarTimeZone(): string {
+    if (cachedTeamCalendarTimeZone !== undefined) {
+      return cachedTeamCalendarTimeZone;
     }
 
-    // Parse the event's dateTime into a Date object.
-    const eventDate: Date = new Date(eventStart.dateTime);
+    const globalScope = globalThis as unknown as {
+      Session?: { getScriptTimeZone?: () => string };
+    };
 
-    // Create a formatter to get year, month, and day parts.
+    try {
+      const scriptTimeZone = globalScope.Session?.getScriptTimeZone?.();
+      if (typeof scriptTimeZone === "string" && scriptTimeZone.trim().length) {
+        cachedTeamCalendarTimeZone = scriptTimeZone;
+        return cachedTeamCalendarTimeZone;
+      }
+    } catch (error) {
+      Log.log(`Unable to read script timezone, falling back to UTC: ${error}`);
+    }
+
+    cachedTeamCalendarTimeZone = "UTC";
+    return cachedTeamCalendarTimeZone;
+  }
+
+  function formatDateForTimeZone(date: Date, timeZone: string): string {
     const formatter = new Intl.DateTimeFormat("en-US", {
-      timeZone: eventStart.timeZone,
+      timeZone,
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
     });
 
-    // Use formatToParts to extract individual components.
-    const parts = formatter.formatToParts(eventDate);
+    const parts = formatter.formatToParts(date);
     let year = "";
     let month = "";
     let day = "";
@@ -899,5 +1047,40 @@ export namespace TeamCalendarOOO {
     }
 
     return `${year}-${month}-${day}`;
+  }
+
+  /**
+   * Extracts the date in "YYYY-MM-DD" format from an event object.
+   * Allows overriding the target timezone so we can normalize dates to the team calendar's timezone.
+   */
+  export function getDateStringFromEvent(
+    eventStart: {
+      date?: string | undefined;
+      dateTime?: string | undefined;
+      timeZone?: string | undefined;
+    },
+    options?: { targetTimeZone?: string }
+  ): string | undefined {
+    if (eventStart.date !== undefined) {
+      return eventStart.date;
+    }
+
+    if (eventStart.dateTime === undefined) {
+      return undefined;
+    }
+
+    const targetTimeZone =
+      options?.targetTimeZone ??
+      eventStart.timeZone ??
+      getTeamCalendarTimeZone();
+
+    try {
+      return formatDateForTimeZone(new Date(eventStart.dateTime), targetTimeZone);
+    } catch (error) {
+      Log.log(
+        `Failed to format ${eventStart.dateTime} for timezone ${targetTimeZone}, falling back to UTC: ${error}`
+      );
+      return formatDateForTimeZone(new Date(eventStart.dateTime), "UTC");
+    }
   }
 }

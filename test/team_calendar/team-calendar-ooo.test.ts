@@ -433,14 +433,14 @@ describe("TeamCalendarOOO.getChangesPerPerson", () => {
 
     const expectedChanges: TeamCalendarOOO.CalendarChanges = {
       deleteEvents: [],
-      newAllDayEvents: [],
-      newTimeRangeEvents: [
+      newAllDayEvents: [
         {
-          startDateTime: "2025-04-14T03:00:00-04:00",
-          endDateTime: "2025-04-20T03:00:00-04:00",
+          start: "2025-04-15",
+          end: "2025-04-21",
           title: "[OOO] John Doe (john.doe@example.com)",
         },
       ],
+      newTimeRangeEvents: [],
     };
 
     const actualChanges = getChangesPerPerson(
@@ -450,6 +450,49 @@ describe("TeamCalendarOOO.getChangesPerPerson", () => {
     );
 
     expect(actualChanges).toEqual(expectedChanges);
+  });
+
+  it("normalizes near 24-hour events to the team calendar timezone", () => {
+    const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      createMockEvent(
+        "melbourne-cup",
+        "OOO | Melbourne Cup",
+        {
+          timeZone: "Australia/Melbourne",
+          dateTime: "2025-11-04T00:00:00+11:00",
+        },
+        {
+          timeZone: "Australia/Melbourne",
+          dateTime: "2025-11-05T00:00:00+11:00",
+        },
+        "outOfOffice"
+      ),
+    ];
+
+    const teamCalendarOOOEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      createMockEvent(
+        "existing-team-event",
+        "[OOO] John Doe (john.doe@example.com)",
+        { date: "2025-11-04" },
+        { date: "2025-11-05" }
+      ),
+    ];
+
+    const actualChanges = getChangesPerPerson(
+      mockGroupMember,
+      teamCalendarOOOEvents,
+      oooEvents
+    );
+
+    expect(actualChanges.deleteEvents).toEqual(teamCalendarOOOEvents);
+    expect(actualChanges.newAllDayEvents).toEqual([
+      {
+        start: "2025-11-03",
+        end: "2025-11-04",
+        title: "[OOO] John Doe (john.doe@example.com)",
+      },
+    ]);
+    expect(actualChanges.newTimeRangeEvents).toEqual([]);
   });
 
   it("should handle multi day all day event with specific time overlap", () => {
@@ -889,7 +932,6 @@ describe("TeamCalendarOOO.getChangesPerPerson", () => {
       oooEvents
     );
 
-    console.log(JSON.stringify(actualChanges, null, 2));
     expect(actualChanges).toEqual(expectedChanges);
   });
 
@@ -932,7 +974,6 @@ describe("TeamCalendarOOO.getChangesPerPerson", () => {
       oooEvents
     );
 
-    console.log(JSON.stringify(actualChanges, null, 2));
     expect(actualChanges).toEqual(expectedChanges);
   });
 
@@ -961,8 +1002,8 @@ describe("TeamCalendarOOO.getChangesPerPerson", () => {
       deleteEvents: [],
       newAllDayEvents: [
         {
-          start: "2025-11-02",
-          end: "2025-11-03",
+          start: "2025-11-01",
+          end: "2025-11-02",
           title: "[OOO] John Doe (john.doe@example.com)",
         },
       ],
@@ -1003,8 +1044,8 @@ describe("TeamCalendarOOO.getChangesPerPerson", () => {
       deleteEvents: [],
       newAllDayEvents: [
         {
-          start: "2025-04-06",
-          end: "2025-04-07",
+          start: "2025-04-05",
+          end: "2025-04-06",
           title: "[OOO] John Doe (john.doe@example.com)",
         },
       ],
@@ -1018,6 +1059,264 @@ describe("TeamCalendarOOO.getChangesPerPerson", () => {
     );
 
     expect(actualChanges).toEqual(expectedChanges);
+  });
+
+  it("should replace time-range events with all-day events when DST causes type mismatch", () => {
+    // This test simulates the scenario where:
+    // 1. A user has a 24-hour OOO event in their personal calendar (Australia/Sydney timezone)
+    // 2. The team calendar has an old time-range event for the same period (created before the fix)
+    // 3. The fix should detect the type mismatch and replace the time-range event with an all-day event
+    
+    const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      // 24-hour event from Australia/Sydney that will be converted to synthetic all-day
+      createMockEvent(
+        "personal-1",
+        "Out of office",
+        {
+          dateTime: "2025-11-08T00:00:00+11:00", // Midnight AEDT
+          timeZone: "Australia/Sydney",
+        },
+        {
+          dateTime: "2025-11-09T00:00:00+11:00", // Midnight AEDT (exactly 24 hours)
+          timeZone: "Australia/Sydney",
+        },
+        "outOfOffice"
+      ),
+    ];
+
+    // Team calendar has the OLD time-range event (created before the fix)
+    const teamCalendarOOOEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      createMockEvent(
+        "team-1",
+        "[OOO] John Doe (john.doe@example.com)",
+        {
+          dateTime: "2025-11-08T00:00:00+11:00", // Same time as personal event
+          timeZone: "Australia/Sydney",
+        },
+        {
+          dateTime: "2025-11-09T00:00:00+11:00", // Same time as personal event
+          timeZone: "Australia/Sydney",
+        }
+      ),
+    ];
+
+    const expectedChanges: TeamCalendarOOO.CalendarChanges = {
+      // The old time-range event should be deleted
+      deleteEvents: [teamCalendarOOOEvents[0]],
+      // A new all-day event should be created
+      newAllDayEvents: [
+        {
+          start: "2025-11-07",
+          end: "2025-11-08",
+          title: "[OOO] John Doe (john.doe@example.com)",
+        },
+      ],
+      newTimeRangeEvents: [],
+    };
+
+    const actualChanges = getChangesPerPerson(
+      mockGroupMember,
+      teamCalendarOOOEvents,
+      oooEvents
+    );
+
+    expect(actualChanges).toEqual(expectedChanges);
+  });
+
+  it("should replace multiple time-range events with all-day events when DST causes type mismatch", () => {
+    // Test with multiple events to ensure the logic works for batch operations
+    
+    const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      createMockEvent(
+        "personal-1",
+        "Out of office",
+        {
+          dateTime: "2025-11-08T00:00:00+11:00",
+          timeZone: "Australia/Sydney",
+        },
+        {
+          dateTime: "2025-11-09T00:00:00+11:00",
+          timeZone: "Australia/Sydney",
+        },
+        "outOfOffice"
+      ),
+      createMockEvent(
+        "personal-2",
+        "Out of office",
+        {
+          dateTime: "2025-11-15T00:00:00+11:00",
+          timeZone: "Australia/Sydney",
+        },
+        {
+          dateTime: "2025-11-16T00:00:00+11:00",
+          timeZone: "Australia/Sydney",
+        },
+        "outOfOffice"
+      ),
+    ];
+
+    const teamCalendarOOOEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      createMockEvent(
+        "team-1",
+        "[OOO] John Doe (john.doe@example.com)",
+        {
+          dateTime: "2025-11-08T00:00:00+11:00",
+          timeZone: "Australia/Sydney",
+        },
+        {
+          dateTime: "2025-11-09T00:00:00+11:00",
+          timeZone: "Australia/Sydney",
+        }
+      ),
+      createMockEvent(
+        "team-2",
+        "[OOO] John Doe (john.doe@example.com)",
+        {
+          dateTime: "2025-11-15T00:00:00+11:00",
+          timeZone: "Australia/Sydney",
+        },
+        {
+          dateTime: "2025-11-16T00:00:00+11:00",
+          timeZone: "Australia/Sydney",
+        }
+      ),
+    ];
+
+    const expectedChanges: TeamCalendarOOO.CalendarChanges = {
+      deleteEvents: [teamCalendarOOOEvents[0], teamCalendarOOOEvents[1]],
+      newAllDayEvents: [
+        {
+          start: "2025-11-07",
+          end: "2025-11-08",
+          title: "[OOO] John Doe (john.doe@example.com)",
+        },
+        {
+          start: "2025-11-14",
+          end: "2025-11-15",
+          title: "[OOO] John Doe (john.doe@example.com)",
+        },
+      ],
+      newTimeRangeEvents: [],
+    };
+
+    const actualChanges = getChangesPerPerson(
+      mockGroupMember,
+      teamCalendarOOOEvents,
+      oooEvents
+    );
+
+    expect(actualChanges).toEqual(expectedChanges);
+  });
+
+  it("should convert 13-hour overnight out-of-office events to all-day events", () => {
+    // This verifies events like aat@'s 17:00-06:00 (13 hours) are normalized to full-day holds
+
+    const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      createMockEvent(
+        "personal-1",
+        "Out of office",
+        {
+          dateTime: "2025-10-20T17:00:00+11:00", // 5 PM AEDT
+          timeZone: "Australia/Sydney",
+        },
+        {
+          dateTime: "2025-10-21T06:00:00+11:00", // 6 AM AEDT next day (13 hours)
+          timeZone: "Australia/Sydney",
+        },
+        "outOfOffice"
+      ),
+    ];
+
+    const teamCalendarOOOEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
+
+    const expectedChanges: TeamCalendarOOO.CalendarChanges = {
+      deleteEvents: [],
+      newAllDayEvents: [
+        {
+          start: "2025-10-21",
+          end: "2025-10-22",
+          title: "[OOO] John Doe (john.doe@example.com)",
+        },
+      ],
+      newTimeRangeEvents: [],
+    };
+
+    const actualChanges = getChangesPerPerson(
+      mockGroupMember,
+      teamCalendarOOOEvents,
+      oooEvents
+    );
+
+    expect(actualChanges).toEqual(expectedChanges);
+  });
+});
+
+describe("TeamCalendarOOO.deduplicatePersonalOOOEvents", () => {
+  const { deduplicatePersonalOOOEvents } = TeamCalendarOOO;
+
+  const createMockEvent = (
+    id: string,
+    summary: string,
+    start: { date?: string; dateTime?: string; timeZone?: string },
+    end: { date?: string; dateTime?: string; timeZone?: string },
+    eventType?:
+      | "default"
+      | "outOfOffice"
+      | "focusTime"
+      | "workingLocation"
+      | undefined
+  ): GoogleAppsScript.Calendar.Schema.Event => ({
+    id,
+    summary,
+    start,
+    end,
+    eventType,
+  });
+
+  it("converts overnight out-of-office events into all-day events", () => {
+    const overnightEvent = createMockEvent(
+      "overnight-1",
+      "Out of office",
+      {
+        dateTime: "2025-10-20T17:00:00+11:00",
+        timeZone: "Australia/Sydney",
+      },
+      {
+        dateTime: "2025-10-21T06:00:00+11:00",
+        timeZone: "Australia/Sydney",
+      },
+      "outOfOffice"
+    );
+
+    const result = deduplicatePersonalOOOEvents([overnightEvent]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].start?.date).toBe("2025-10-21");
+    expect(result[0].end?.date).toBe("2025-10-22");
+    expect(result[0].start?.dateTime).toBeUndefined();
+    expect(result[0].id).toContain("-synthetic");
+  });
+
+  it("does not convert short non-OOO overnight events", () => {
+    const overnightMeeting = createMockEvent(
+      "late-meeting",
+      "Late night work session",
+      {
+        dateTime: "2025-10-20T22:00:00-07:00",
+        timeZone: "America/Los_Angeles",
+      },
+      {
+        dateTime: "2025-10-21T00:30:00-07:00",
+        timeZone: "America/Los_Angeles",
+      },
+      "default"
+    );
+
+    const result = deduplicatePersonalOOOEvents([overnightMeeting]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].start?.dateTime).toBe("2025-10-20T22:00:00-07:00");
+    expect(result[0].end?.dateTime).toBe("2025-10-21T00:30:00-07:00");
   });
 });
 
@@ -1165,11 +1464,11 @@ describe("TeamCalendarOOO utility functions", () => {
       expect(getDateStringFromEvent(eventStart)).toBeUndefined();
     });
 
-    it("should return null if timeZone is missing", () => {
+    it("should default to the team calendar timezone if timeZone is missing", () => {
       const eventStart = {
         dateTime: "2024-12-31T23:00:00-05:00",
       };
-      expect(getDateStringFromEvent(eventStart)).toBeUndefined();
+      expect(getDateStringFromEvent(eventStart)).toBe("2025-01-01");
     });
   });
 });
