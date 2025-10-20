@@ -4,7 +4,7 @@ import { LogLevel, Log } from "./log";
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace GetEvents {
   const CALENDAR_ID: string = "primary";
-  export const MAX_EVENTS_ALLOWED_TO_FETCH: number = 200;
+  export const MAX_EVENTS_ALLOWED_TO_FETCH: number = 400;
   const MAX_LOOK_AHEAD_DAYS: number = 10;
 
   export type EventFetcher = (
