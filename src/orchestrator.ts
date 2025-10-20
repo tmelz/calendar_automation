@@ -46,7 +46,7 @@ export namespace Orchestrator {
       return;
     }
 
-    const timeRange = Time.todayThroughThreeMoreWeeks();
+    const timeRange = Time.todayThroughFiveMoreWeeks();
 
     if (settings.teamCalendar.outOfOffice) {
       Log.log("🏃 Running Team calendar OOO checks");
@@ -91,7 +91,7 @@ export namespace Orchestrator {
     Log.logPhase("Looking up last execution details from cache 📦");
     let shouldCacheRun = !isDryRun;
 
-    const timeRange = Time.todayThroughEndOfNextWeek();
+    const timeRange = Time.todayThroughEndOfNextThreeWeeks();
     const updatedMin = Cache.calculateMostAggressiveUpdatedMin(
       Cache.getLastExecutionParams(),
       timeRange,
@@ -148,7 +148,7 @@ export namespace Orchestrator {
     Log.logPhase("Fetching events to analyze 🛜");
 
     let events = GetEvents.getEvents(
-      Time.todayThroughEndOfNextWeek(),
+      Time.todayThroughEndOfNextThreeWeeks(),
       undefined
     );
 
@@ -169,7 +169,7 @@ export namespace Orchestrator {
     // the previous modifications, which will cause an invalid seq error
     // without a re-fetch
     events = GetEvents.getEvents(
-      Time.todayThroughEndOfNextWeek(),
+      Time.todayThroughEndOfNextThreeWeeks(),
       undefined,
       true // suppress re-listing events
     );

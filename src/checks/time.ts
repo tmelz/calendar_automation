@@ -17,19 +17,21 @@ export namespace Time {
     return date;
   }
 
-  export function todayThroughEndOfNextWeek(): Range {
+  export function todayThroughEndOfNextThreeWeeks(): Range {
+    const sundayAfterThirdWeek = new Date(Time.getSundayOfNextWeek());
+    sundayAfterThirdWeek.setDate(sundayAfterThirdWeek.getDate() + 14);
     return {
       timeMin: new Date(),
-      timeMax: Time.getSundayOfNextWeek(),
+      timeMax: sundayAfterThirdWeek,
     };
   }
 
-  export function todayThroughThreeMoreWeeks(): Range {
-    const sundayThreeMoreWeeks = new Date(Time.getSundayOfNextWeek());
-    sundayThreeMoreWeeks.setDate(sundayThreeMoreWeeks.getDate() + 14);
+  export function todayThroughFiveMoreWeeks(): Range {
+    const sundayAfterFifthWeek = new Date(Time.getSundayOfNextWeek());
+    sundayAfterFifthWeek.setDate(sundayAfterFifthWeek.getDate() + 28);
     return {
       timeMin: new Date(),
-      timeMax: sundayThreeMoreWeeks,
+      timeMax: sundayAfterFifthWeek,
     };
   }
 
