@@ -1022,6 +1022,79 @@ describe("TeamCalendarOOO.getChangesPerPerson", () => {
 });
 
 describe("TeamCalendarOOO utility functions", () => {
+  describe("shouldExcludeOOOEvent", () => {
+    const { shouldExcludeOOOEvent } = TeamCalendarOOO;
+
+    it("should exclude events with 'sleep' in the title", () => {
+      const event: GoogleAppsScript.Calendar.Schema.Event = {
+        id: "1",
+        summary: "Sleep time",
+        start: { date: "2024-05-01" },
+        end: { date: "2024-05-02" },
+      };
+      expect(shouldExcludeOOOEvent(event)).toBe(true);
+    });
+
+    it("should exclude events with 'hours' in the title", () => {
+      const event: GoogleAppsScript.Calendar.Schema.Event = {
+        id: "2",
+        summary: "Working hours",
+        start: { date: "2024-05-01" },
+        end: { date: "2024-05-02" },
+      };
+      expect(shouldExcludeOOOEvent(event)).toBe(true);
+    });
+
+    it("should exclude events with keywords in uppercase", () => {
+      const event: GoogleAppsScript.Calendar.Schema.Event = {
+        id: "3",
+        summary: "SLEEP TIME",
+        start: { date: "2024-05-01" },
+        end: { date: "2024-05-02" },
+      };
+      expect(shouldExcludeOOOEvent(event)).toBe(true);
+    });
+
+    it("should exclude events with keywords in mixed case", () => {
+      const event: GoogleAppsScript.Calendar.Schema.Event = {
+        id: "4",
+        summary: "Office Hours",
+        start: { date: "2024-05-01" },
+        end: { date: "2024-05-02" },
+      };
+      expect(shouldExcludeOOOEvent(event)).toBe(true);
+    });
+
+    it("should not exclude events without excluded keywords", () => {
+      const event: GoogleAppsScript.Calendar.Schema.Event = {
+        id: "5",
+        summary: "Out of Office",
+        start: { date: "2024-05-01" },
+        end: { date: "2024-05-02" },
+      };
+      expect(shouldExcludeOOOEvent(event)).toBe(false);
+    });
+
+    it("should not exclude events with undefined summary", () => {
+      const event: GoogleAppsScript.Calendar.Schema.Event = {
+        id: "6",
+        start: { date: "2024-05-01" },
+        end: { date: "2024-05-02" },
+      };
+      expect(shouldExcludeOOOEvent(event)).toBe(false);
+    });
+
+    it("should exclude events with keywords as part of larger words", () => {
+      const event: GoogleAppsScript.Calendar.Schema.Event = {
+        id: "7",
+        summary: "Sleepover party",
+        start: { date: "2024-05-01" },
+        end: { date: "2024-05-02" },
+      };
+      expect(shouldExcludeOOOEvent(event)).toBe(true);
+    });
+  });
+
   describe("isMidnight", () => {
     const { isMidnight } = TeamCalendarOOO;
 

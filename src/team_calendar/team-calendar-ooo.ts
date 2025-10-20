@@ -55,8 +55,9 @@ export namespace TeamCalendarOOO {
         member.email
       ).filter(
         (event) =>
-          event.eventType === "outOfOffice" ||
-          CheckOOO.isWorkdayOOOTitle(event.summary)
+          (event.eventType === "outOfOffice" ||
+          CheckOOO.isWorkdayOOOTitle(event.summary)) &&
+          !shouldExcludeOOOEvent(event)
       );
       memberEvents.set(member.email, oooEvents);
     });
@@ -738,6 +739,19 @@ export namespace TeamCalendarOOO {
     } else {
       return `[OOO] ${personName} (${email})`;
     }
+  }
+
+  export function shouldExcludeOOOEvent(
+    event: GoogleAppsScript.Calendar.Schema.Event
+  ): boolean {
+    if (!event.summary) {
+      return false;
+    }
+    
+    const lowerTitle = event.summary.toLowerCase();
+    const excludeKeywords = ["sleep", "hours"];
+    
+    return excludeKeywords.some(keyword => lowerTitle.includes(keyword));
   }
 
   export function isOOOEventOnTeamCalendar(
