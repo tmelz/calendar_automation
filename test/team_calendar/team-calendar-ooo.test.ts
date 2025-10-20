@@ -935,6 +935,90 @@ describe("TeamCalendarOOO.getChangesPerPerson", () => {
     console.log(JSON.stringify(actualChanges, null, 2));
     expect(actualChanges).toEqual(expectedChanges);
   });
+
+  it("should handle DST-affected 23-hour OOO events from Australia/Sydney", () => {
+    const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      // Event that is 23 hours due to DST transition in Australia/Sydney
+      // November 2, 2025: DST starts, clocks move forward 1 hour at 2am
+      createMockEvent(
+        "1",
+        "Out of office",
+        {
+          dateTime: "2025-11-02T00:00:00+11:00", // Midnight AEDT
+          timeZone: "Australia/Sydney",
+        },
+        {
+          dateTime: "2025-11-03T00:00:00+11:00", // Midnight AEDT (23 hours later due to DST)
+          timeZone: "Australia/Sydney",
+        },
+        "outOfOffice"
+      ),
+    ];
+
+    const teamCalendarOOOEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
+
+    const expectedChanges: TeamCalendarOOO.CalendarChanges = {
+      deleteEvents: [],
+      newAllDayEvents: [
+        {
+          start: "2025-11-02",
+          end: "2025-11-03",
+          title: "[OOO] John Doe (john.doe@example.com)",
+        },
+      ],
+      newTimeRangeEvents: [],
+    };
+
+    const actualChanges = getChangesPerPerson(
+      mockGroupMember,
+      teamCalendarOOOEvents,
+      oooEvents
+    );
+
+    expect(actualChanges).toEqual(expectedChanges);
+  });
+
+  it("should handle DST-affected 25-hour OOO events from Australia/Sydney", () => {
+    const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      // Event that is 25 hours due to DST transition in Australia/Sydney
+      // April 6, 2025: DST ends, clocks move back 1 hour at 3am
+      createMockEvent(
+        "1",
+        "Out of office",
+        {
+          dateTime: "2025-04-06T00:00:00+11:00", // Midnight AEDT
+          timeZone: "Australia/Sydney",
+        },
+        {
+          dateTime: "2025-04-07T00:00:00+10:00", // Midnight AEST (25 hours later due to DST)
+          timeZone: "Australia/Sydney",
+        },
+        "outOfOffice"
+      ),
+    ];
+
+    const teamCalendarOOOEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
+
+    const expectedChanges: TeamCalendarOOO.CalendarChanges = {
+      deleteEvents: [],
+      newAllDayEvents: [
+        {
+          start: "2025-04-06",
+          end: "2025-04-07",
+          title: "[OOO] John Doe (john.doe@example.com)",
+        },
+      ],
+      newTimeRangeEvents: [],
+    };
+
+    const actualChanges = getChangesPerPerson(
+      mockGroupMember,
+      teamCalendarOOOEvents,
+      oooEvents
+    );
+
+    expect(actualChanges).toEqual(expectedChanges);
+  });
 });
 
 describe("TeamCalendarOOO utility functions", () => {

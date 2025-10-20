@@ -312,6 +312,58 @@ export namespace TeamCalendarOOO {
       //
       // For specific time OOO events that are not midnight to midnight, we'll show them normally.
       // This is useful for something like a 3 hour OOO afternoon.
+      
+      // First check for near-24-hour events that should be treated as all-day
+      // This handles DST-affected events that are 23 or 25 hours instead of exactly 24
+      if (
+        isSpecificTimeEvent(event) &&
+        event.start?.dateTime &&
+        event.end?.dateTime
+      ) {
+        const startTime = new Date(event.start.dateTime);
+        const endTime = new Date(event.end.dateTime);
+        const durationMs = endTime.getTime() - startTime.getTime();
+        const durationHours = durationMs / (1000 * 60 * 60);
+        
+        // Check if duration is close to 24 hours (between 23 and 25 hours to account for DST)
+        if (durationHours >= 23 && durationHours <= 25) {
+          Log.log(
+            `Found near-24-hour OOO event (${durationHours.toFixed(2)} hours): ${event.summary} from ${JSON.stringify(event.start)} to ${JSON.stringify(event.end)}`
+          );
+          Log.log(
+            `Going to represent this as an all day event when calculating changes`
+          );
+          const startDate = getDateStringFromEvent(event.start!);
+          const endDate = getDateStringFromEvent(event.end!);
+          if (startDate === undefined || endDate === undefined) {
+            Log.log(
+              `Skipping event, inferred startDate or endDate is undefined, this is unexpected`
+            );
+            return;
+          }
+
+          // Calculate the end date as start date + 1 for single-day events
+          const startDateObj = new Date(startDate);
+          const endDateObj = new Date(endDate);
+          
+          // If start and end are the same day, make it a single-day all-day event
+          let finalEndDate = endDate;
+          if (startDate === endDate) {
+            startDateObj.setDate(startDateObj.getDate() + 1);
+            finalEndDate = startDateObj.toISOString().split("T")[0];
+          }
+
+          normalizedEvents.push({
+            id: event.id + "-near24h-synthetic",
+            start: { date: startDate },
+            end: { date: finalEndDate },
+            summary: `Synthetic event created for ${event.id} which is a near-24-hour OOO event`,
+          });
+          return;
+        }
+      }
+      
+      // Then check for exact midnight-to-midnight events
       if (
         isSpecificTimeEvent(event) &&
         isMidnight(event.start!) &&
