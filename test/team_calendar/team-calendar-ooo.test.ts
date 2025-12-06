@@ -1392,6 +1392,26 @@ describe("TeamCalendarOOO utility functions", () => {
       };
       expect(shouldExcludeOOOEvent(event)).toBe(true);
     });
+
+    it("should exclude time-ranged events that are an hour or less", () => {
+      const event: GoogleAppsScript.Calendar.Schema.Event = {
+        id: "8",
+        summary: "OOO quick errand",
+        start: { dateTime: "2024-05-01T10:00:00Z" },
+        end: { dateTime: "2024-05-01T11:00:00Z" },
+      };
+      expect(shouldExcludeOOOEvent(event)).toBe(true);
+    });
+
+    it("should not exclude time-ranged events longer than an hour", () => {
+      const event: GoogleAppsScript.Calendar.Schema.Event = {
+        id: "9",
+        summary: "OOO appointment",
+        start: { dateTime: "2024-05-01T10:00:00Z" },
+        end: { dateTime: "2024-05-01T11:30:00Z" },
+      };
+      expect(shouldExcludeOOOEvent(event)).toBe(false);
+    });
   });
 
   describe("isMidnight", () => {

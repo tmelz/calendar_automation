@@ -875,6 +875,20 @@ export namespace TeamCalendarOOO {
   export function shouldExcludeOOOEvent(
     event: GoogleAppsScript.Calendar.Schema.Event
   ): boolean {
+    if (
+      isSpecificTimeEvent(event) &&
+      event.start?.dateTime &&
+      event.end?.dateTime
+    ) {
+      const start = new Date(event.start.dateTime);
+      const end = new Date(event.end.dateTime);
+      const durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+
+      if (durationMinutes <= 60) {
+        return true;
+      }
+    }
+
     if (!event.summary) {
       return false;
     }
