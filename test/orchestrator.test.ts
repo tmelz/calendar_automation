@@ -72,6 +72,7 @@ describe("checkEvents", () => {
       plusFiveMinutes: {
         oneOnOnes: true,
         anyEventIOrganizeOrCreateWithAttendees: true,
+        allowExternalAttendees: true,
       },
     },
     teamCalendar: {

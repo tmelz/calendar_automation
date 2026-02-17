@@ -17,6 +17,7 @@ export namespace CheckPlus5m {
   export type Settings = {
     oneOnOnes: boolean;
     anyEventIOrganizeOrCreateWithAttendees: boolean;
+    allowExternalAttendees: boolean;
     // anyEventWithFiveOrFewerPeopleAndNoEmailListAttendees: boolean;
   };
   export const OPT_OUT: string = "[opt_out_plus5m]";
@@ -104,6 +105,14 @@ export namespace CheckPlus5m {
 
     if (event.description?.includes(CheckPlus5m.OPT_OUT)) {
       Log.log(`👎 skipping, has opt out`);
+      return undefined;
+    }
+
+    if (
+      !settings.allowExternalAttendees &&
+      !EventUtil.doAllAttendeesHaveSameBusinessEmailDomain(event.attendees)
+    ) {
+      Log.log(`👎 skipping, has external attendees`);
       return undefined;
     }
 
