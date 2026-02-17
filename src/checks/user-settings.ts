@@ -24,6 +24,7 @@ export namespace UserSettings {
       plusFiveMinutes: {
         oneOnOnes: boolean;
         anyEventIOrganizeOrCreateWithAttendees: boolean;
+        allowExternalAttendees: boolean;
       };
     };
     teamCalendar: {
@@ -101,6 +102,7 @@ export namespace UserSettings {
         plusFiveMinutes: {
           oneOnOnes: false,
           anyEventIOrganizeOrCreateWithAttendees: false,
+          allowExternalAttendees: false,
           // anyEventWithFiveOrFewerPeopleAndNoEmailListAttendees: false,
         },
       },

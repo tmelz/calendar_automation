@@ -497,6 +497,22 @@
                   calendar holds)
                 </label>
               </div>
+              <div class="form-check mb-1">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="plusFiveMinutesAllowExternal"
+                  v-model="settings.checkSettings.plusFiveMinutes.allowExternalAttendees"
+                  @change="onSettingsChanged"
+                />
+                <label class="form-check-label" for="plusFiveMinutesAllowExternal">
+                  Allow for meetings with external attendees
+                </label>
+                <div class="form-text">
+                  If unchecked, meetings with attendees outside your company will
+                  not be shifted +5m.
+                </div>
+              </div>
             </div>
             <!-- Event Color Setting -->
             <div
@@ -880,6 +896,7 @@
           plusFiveMinutes: {
             oneOnOnes: false,
             anyEventIOrganizeOrCreateWithAttendees: false,
+            allowExternalAttendees: false,
           },
         },
         teamCalendar: {

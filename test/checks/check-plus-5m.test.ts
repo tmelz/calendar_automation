@@ -10,6 +10,7 @@ describe("CheckPlus5m.checkShouldModifyEvent", () => {
     settings = {
       oneOnOnes: true,
       anyEventIOrganizeOrCreateWithAttendees: false,
+      allowExternalAttendees: true,
     };
   });
 
@@ -209,6 +210,7 @@ describe("CheckPlus5m.checkShouldModifyEvent", () => {
     const customSettings = {
       oneOnOnes: false,
       anyEventIOrganizeOrCreateWithAttendees: true,
+      allowExternalAttendees: true,
     };
     const modifiedEvent = {
       ...myOneOnOneEvent,
@@ -238,6 +240,7 @@ describe("CheckPlus5m.checkShouldModifyEvent", () => {
     const customSettings = {
       oneOnOnes: false,
       anyEventIOrganizeOrCreateWithAttendees: true,
+      allowExternalAttendees: true,
     };
     const modifiedEvent = {
       ...myOneOnOneEvent,
@@ -268,6 +271,7 @@ describe("CheckPlus5m.checkShouldModifyEvent", () => {
     const customSettings = {
       oneOnOnes: false,
       anyEventIOrganizeOrCreateWithAttendees: true,
+      allowExternalAttendees: true,
     };
     const modifiedEvent = {
       ...myOneOnOneEvent,
@@ -297,6 +301,7 @@ describe("CheckPlus5m.checkShouldModifyEvent", () => {
     const customSettings = {
       oneOnOnes: false,
       anyEventIOrganizeOrCreateWithAttendees: true,
+      allowExternalAttendees: true,
     };
     const modifiedEvent = {
       ...myOneOnOneEvent,
@@ -326,6 +331,7 @@ describe("CheckPlus5m.checkShouldModifyEvent", () => {
     const customSettings = {
       oneOnOnes: false,
       anyEventIOrganizeOrCreateWithAttendees: true,
+      allowExternalAttendees: true,
     };
     const modifiedEvent = {
       ...myOneOnOneEvent,
@@ -355,6 +361,7 @@ describe("CheckPlus5m.checkShouldModifyEvent", () => {
     const customSettings = {
       oneOnOnes: false,
       anyEventIOrganizeOrCreateWithAttendees: true,
+      allowExternalAttendees: true,
     };
     expect(
       CheckPlus5m.checkShouldModifyEvent(theirOOOAllDayEvent, customSettings)
@@ -365,6 +372,7 @@ describe("CheckPlus5m.checkShouldModifyEvent", () => {
     const customSettings = {
       oneOnOnes: false,
       anyEventIOrganizeOrCreateWithAttendees: true,
+      allowExternalAttendees: true,
     };
     expect(CheckPlus5m.checkShouldModifyEvent(holdEvent, customSettings)).toBe(
       undefined
@@ -384,6 +392,90 @@ describe("CheckPlus5m.checkShouldModifyEvent", () => {
     expect(CheckPlus5m.checkShouldModifyEvent(modifiedEvent, settings)).toBe(
       undefined
     );
+  });
+
+  test("should return undefined for an event with external attendees when allowExternalAttendees is false", () => {
+    const customSettings = {
+      oneOnOnes: true,
+      anyEventIOrganizeOrCreateWithAttendees: false,
+      allowExternalAttendees: false,
+    };
+    const modifiedEvent = {
+      ...myOneOnOneEvent,
+      start: {
+        ...myOneOnOneEvent.start,
+        dateTime: "2024-07-26T14:00:00-07:00",
+      },
+      end: { ...myOneOnOneEvent.end, dateTime: "2024-07-26T14:30:00-07:00" },
+      attendees: [
+        {
+          responseStatus: "accepted",
+          self: true,
+          organizer: true,
+          email: "john.doe@block.xyz",
+        },
+        { email: "external@gmail.com", responseStatus: "needsAction" },
+      ],
+    };
+    expect(
+      CheckPlus5m.checkShouldModifyEvent(modifiedEvent, customSettings)
+    ).toBe(undefined);
+  });
+
+  test("should return YES for an event with external attendees when allowExternalAttendees is true", () => {
+    const customSettings = {
+      oneOnOnes: true,
+      anyEventIOrganizeOrCreateWithAttendees: false,
+      allowExternalAttendees: true,
+    };
+    const modifiedEvent = {
+      ...myOneOnOneEvent,
+      start: {
+        ...myOneOnOneEvent.start,
+        dateTime: "2024-07-26T14:00:00-07:00",
+      },
+      end: { ...myOneOnOneEvent.end, dateTime: "2024-07-26T14:30:00-07:00" },
+      attendees: [
+        {
+          responseStatus: "accepted",
+          self: true,
+          organizer: true,
+          email: "john.doe@block.xyz",
+        },
+        { email: "external@gmail.com", responseStatus: "needsAction" },
+      ],
+    };
+    expect(
+      CheckPlus5m.checkShouldModifyEvent(modifiedEvent, customSettings)
+    ).toBe(CheckTypes.ModificationType.YES_ADD_LABEL);
+  });
+
+  test("should return YES for an internal-only event when allowExternalAttendees is false", () => {
+    const customSettings = {
+      oneOnOnes: true,
+      anyEventIOrganizeOrCreateWithAttendees: false,
+      allowExternalAttendees: false,
+    };
+    const modifiedEvent = {
+      ...myOneOnOneEvent,
+      start: {
+        ...myOneOnOneEvent.start,
+        dateTime: "2024-07-26T14:00:00-07:00",
+      },
+      end: { ...myOneOnOneEvent.end, dateTime: "2024-07-26T14:30:00-07:00" },
+      attendees: [
+        {
+          responseStatus: "accepted",
+          self: true,
+          organizer: true,
+          email: "john.doe@block.xyz",
+        },
+        { email: "jane.doe@squareup.com", responseStatus: "needsAction" },
+      ],
+    };
+    expect(
+      CheckPlus5m.checkShouldModifyEvent(modifiedEvent, customSettings)
+    ).toBe(CheckTypes.ModificationType.YES_ADD_LABEL);
   });
 });
 
