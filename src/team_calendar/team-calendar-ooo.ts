@@ -5,6 +5,9 @@ import { EventUtil } from "../checks/event-util";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace TeamCalendarOOO {
+  const MERGE_GAP_TOLERANCE_MS = 5 * 60 * 1000;
+  const SUPPRESSED_TIMED_OOO_MIN_DURATION_MINUTES = 10 * 60;
+
   export type GroupMember = {
     email: string;
     name: string | undefined;
@@ -43,7 +46,7 @@ export namespace TeamCalendarOOO {
           name: getNameByEmail(user.getEmail()),
         };
       });
-    Log.log(`Group members: ${JSON.stringify(groupMembers)}}`);
+    Log.log(`Group members: ${JSON.stringify(groupMembers)}`);
 
     // get all events for those people
     const memberEvents: Map<string, GoogleAppsScript.Calendar.Schema.Event[]> =
@@ -319,7 +322,7 @@ export namespace TeamCalendarOOO {
     });
 
     const normalizedEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
-    workdaySyncIssueFixedEvents.forEach((event) => {
+    mergeAdjacentOOOEvents(workdaySyncIssueFixedEvents).forEach((event) => {
       // OOO holds are always at midnight in the creator's timezone, but practically speaking they just
       // created the all day event, it's not useful to set it midnight to midnight (which will show on
       // the previous/next day for folks in other timezones). So catch those cases and convert them
@@ -383,64 +386,47 @@ export namespace TeamCalendarOOO {
         }
       }
 
-      // Handle overnight OOO events that cross midnight but aren't near-24-hours long.
-      // These show up as time-ranged events (e.g., 5pm-6am in the person's timezone)
-      // which render awkwardly for teammates in other timezones (e.g., 11pm-12pm).
-      // For longer OOO holds, represent them as all-day on the days they impact.
       if (
         isSpecificTimeEvent(event) &&
         event.start?.dateTime &&
         event.end?.dateTime
       ) {
-        const startDateStr = getDatePortion(event.start.dateTime);
-        const endDateStr = getDatePortion(event.end.dateTime);
-        const crossesMidnight =
-          startDateStr !== undefined &&
-          endDateStr !== undefined &&
-          startDateStr !== endDateStr;
-        const startTime = new Date(event.start.dateTime);
-        const endTime = new Date(event.end.dateTime);
-        const durationHours =
-          (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-        const looksLikeOOO =
-          event.eventType === "outOfOffice" ||
-          CheckOOO.isWorkdayOOOTitle(event.summary ?? "");
-        const startsAtMidnight = isMidnight(event.start);
-        const endsAtMidnight = isMidnight(event.end);
-
-        if (
-          crossesMidnight &&
-          looksLikeOOO &&
-          durationHours >= 10 &&
-          (!startsAtMidnight || !endsAtMidnight)
-        ) {
+        if (shouldRepresentTimedOOOAsAllDay(event)) {
           Log.log(
-            `Found overnight OOO event (${durationHours.toFixed(
-              2
-            )} hours): ${event.summary} from ${JSON.stringify(
-              event.start
-            )} to ${JSON.stringify(event.end)}`
+            `Found full-day timed OOO event: ${event.summary} from ${JSON.stringify(event.start)} to ${JSON.stringify(event.end)}`
           );
           Log.log(
-            `Representing this overnight OOO as all-day events on the impacted dates`
+            `Going to represent this as an all day event when calculating changes`
           );
-
-          if (startDateStr === undefined || endDateStr === undefined) {
+          const targetTimeZone = getTeamCalendarTimeZone();
+          const startDate = getDateStringFromEvent(event.start!, {
+            targetTimeZone,
+          });
+          const endDate = getDateStringFromEvent(event.end!, {
+            targetTimeZone,
+          });
+          if (startDate === undefined || endDate === undefined) {
             Log.log(
-              `Skipping overnight conversion due to undefined start or end date`
+              `Skipping event, inferred startDate or endDate is undefined, this is unexpected`
             );
             return;
           }
 
-          const adjustedStart = addDaysToDateString(startDateStr, 1);
-          const adjustedEnd = addDaysToDateString(endDateStr, 1);
-
           normalizedEvents.push({
             id: event.id + "-synthetic",
-            start: { date: adjustedStart },
-            end: { date: adjustedEnd },
-            summary: `Synthetic event created for ${event.id} which is an overnight OOO event`,
+            start: { date: startDate },
+            end: { date: endDate },
+            summary: `Synthetic event created for ${event.id} which is a full-day timed OOO event`,
           });
+          return;
+        }
+
+        if (shouldSuppressTimedOOOEvent(event)) {
+          Log.log(
+            `Suppressing long overnight timed OOO event: ${event.summary} from ${JSON.stringify(
+              event.start
+            )} to ${JSON.stringify(event.end)}`
+          );
           return;
         }
       }
@@ -547,8 +533,10 @@ export namespace TeamCalendarOOO {
       }
     });
 
+    const mergedEvents = mergeAdjacentOOOEvents(deduplicatedEvents);
+
     // First, sort events by duration (longest first) to ensure larger events are processed first
-    const sortedEvents = [...deduplicatedEvents].sort((a, b) => {
+    const sortedEvents = [...mergedEvents].sort((a, b) => {
       // Calculate duration for event A
       let durationA: number;
       if (isAllDayEvent(a)) {
@@ -723,7 +711,7 @@ export namespace TeamCalendarOOO {
 
     teamCalendarOOOEvents.forEach((teamCalendarOOOEvent) => {
       Log.log(
-        `Examing team calendar OOO event: ${teamCalendarOOOEvent.summary} ${JSON.stringify(teamCalendarOOOEvent.start)} to ${JSON.stringify(teamCalendarOOOEvent.end)}`
+        `Examining team calendar OOO event: ${teamCalendarOOOEvent.summary} ${JSON.stringify(teamCalendarOOOEvent.start)} to ${JSON.stringify(teamCalendarOOOEvent.end)}`
       );
 
       // Find the first matching event instead of all matching events
@@ -992,18 +980,232 @@ export namespace TeamCalendarOOO {
     return new Date(year, month - 1, day);
   }
 
-  function addDaysToDateString(dateString: string, daysToAdd: number): string {
-    const [year, month, day] = dateString.split("-").map(Number);
-    const date = new Date(Date.UTC(year, (month ?? 1) - 1, day ?? 1));
-    date.setUTCDate(date.getUTCDate() + daysToAdd);
-    return date.toISOString().split("T")[0];
-  }
-
   function getDatePortion(dateTime: string | undefined): string | undefined {
     if (!dateTime) {
       return undefined;
     }
     return dateTime.split("T")[0];
+  }
+
+  function mergeAdjacentOOOEvents(
+    events: GoogleAppsScript.Calendar.Schema.Event[]
+  ): GoogleAppsScript.Calendar.Schema.Event[] {
+    const sortedEvents = [...events].sort((a, b) => {
+      const rangeA = getEventRange(a);
+      const rangeB = getEventRange(b);
+
+      if (rangeA.startMs !== rangeB.startMs) {
+        return rangeA.startMs - rangeB.startMs;
+      }
+
+      return rangeA.endMs - rangeB.endMs;
+    });
+
+    const mergedEvents: GoogleAppsScript.Calendar.Schema.Event[] = [];
+
+    sortedEvents.forEach((event) => {
+      const previousEvent = mergedEvents[mergedEvents.length - 1];
+      if (previousEvent && canMergeOOOEvents(previousEvent, event)) {
+        mergedEvents[mergedEvents.length - 1] = mergeOOOEvents(
+          previousEvent,
+          event
+        );
+        return;
+      }
+
+      mergedEvents.push(event);
+    });
+
+    return mergedEvents;
+  }
+
+  function shouldSuppressTimedOOOEvent(
+    event: GoogleAppsScript.Calendar.Schema.Event
+  ): boolean {
+    if (
+      !isSpecificTimeEvent(event) ||
+      event.start?.dateTime === undefined ||
+      event.end?.dateTime === undefined
+    ) {
+      return false;
+    }
+
+    const startDate = getDatePortion(event.start.dateTime);
+    const endDate = getDatePortion(event.end.dateTime);
+
+    if (
+      startDate === undefined ||
+      endDate === undefined
+    ) {
+      return false;
+    }
+
+    const durationMinutes =
+      (new Date(event.end.dateTime).getTime() -
+        new Date(event.start.dateTime).getTime()) /
+      (1000 * 60);
+    if (
+      durationMinutes <= SUPPRESSED_TIMED_OOO_MIN_DURATION_MINUTES
+    ) {
+      return false;
+    }
+
+    return startDate !== endDate;
+  }
+
+  function shouldRepresentTimedOOOAsAllDay(
+    event: GoogleAppsScript.Calendar.Schema.Event
+  ): boolean {
+    if (
+      !isSpecificTimeEvent(event) ||
+      event.start?.dateTime === undefined ||
+      event.end?.dateTime === undefined
+    ) {
+      return false;
+    }
+
+    const durationMinutes =
+      (new Date(event.end.dateTime).getTime() -
+        new Date(event.start.dateTime).getTime()) /
+      (1000 * 60);
+    if (durationMinutes < 24 * 60) {
+      return false;
+    }
+
+    return getLocalTimePortion(event.start.dateTime) === getLocalTimePortion(event.end.dateTime);
+  }
+
+  function getLocalTimePortion(dateTime: string | undefined): string | undefined {
+    if (!dateTime) {
+      return undefined;
+    }
+
+    const timePart = dateTime.split("T")[1];
+    if (!timePart) {
+      return undefined;
+    }
+
+    return timePart.replace(/([+-]\d{2}:\d{2}|Z)$/, "");
+  }
+
+  function canMergeOOOEvents(
+    firstEvent: GoogleAppsScript.Calendar.Schema.Event,
+    secondEvent: GoogleAppsScript.Calendar.Schema.Event
+  ): boolean {
+    if (isAllDayEvent(firstEvent) && isAllDayEvent(secondEvent)) {
+      return firstEvent.start?.date !== undefined &&
+        firstEvent.end?.date !== undefined &&
+        secondEvent.start?.date !== undefined &&
+        secondEvent.end?.date !== undefined
+        ? new Date(secondEvent.start.date).getTime() <=
+            new Date(firstEvent.end.date).getTime()
+        : false;
+    }
+
+    if (isSpecificTimeEvent(firstEvent) && isSpecificTimeEvent(secondEvent)) {
+      return (
+        new Date(secondEvent.start!.dateTime!).getTime() <=
+        new Date(firstEvent.end!.dateTime!).getTime() + MERGE_GAP_TOLERANCE_MS
+      );
+    }
+
+    return false;
+  }
+
+  function mergeOOOEvents(
+    firstEvent: GoogleAppsScript.Calendar.Schema.Event,
+    secondEvent: GoogleAppsScript.Calendar.Schema.Event
+  ): GoogleAppsScript.Calendar.Schema.Event {
+    if (isAllDayEvent(firstEvent) && isAllDayEvent(secondEvent)) {
+      const mergedStart =
+        new Date(firstEvent.start!.date!).getTime() <=
+        new Date(secondEvent.start!.date!).getTime()
+          ? firstEvent.start!.date!
+          : secondEvent.start!.date!;
+      const mergedEnd =
+        new Date(firstEvent.end!.date!).getTime() >=
+        new Date(secondEvent.end!.date!).getTime()
+          ? firstEvent.end!.date!
+          : secondEvent.end!.date!;
+
+      return {
+        ...firstEvent,
+        id: buildMergedEventId(firstEvent, secondEvent),
+        start: { date: mergedStart },
+        end: { date: mergedEnd },
+        eventType: firstEvent.eventType ?? secondEvent.eventType,
+      };
+    }
+
+    const mergedStart =
+      new Date(firstEvent.start!.dateTime!).getTime() <=
+      new Date(secondEvent.start!.dateTime!).getTime()
+        ? firstEvent.start!
+        : secondEvent.start!;
+    const mergedEnd =
+      new Date(firstEvent.end!.dateTime!).getTime() >=
+      new Date(secondEvent.end!.dateTime!).getTime()
+        ? firstEvent.end!
+        : secondEvent.end!;
+
+    return {
+      ...firstEvent,
+      id: buildMergedEventId(firstEvent, secondEvent),
+      start: {
+        dateTime: mergedStart.dateTime,
+        timeZone: mergedStart.timeZone,
+      },
+      end: {
+        dateTime: mergedEnd.dateTime,
+        timeZone: mergedEnd.timeZone,
+      },
+      eventType: firstEvent.eventType ?? secondEvent.eventType,
+    };
+  }
+
+  function buildMergedEventId(
+    firstEvent: GoogleAppsScript.Calendar.Schema.Event,
+    secondEvent: GoogleAppsScript.Calendar.Schema.Event
+  ): string {
+    const firstId = firstEvent.id ?? "event";
+    const secondId = secondEvent.id ?? "event";
+    const syntheticSuffix =
+      firstId.includes("-synthetic") ||
+      secondId.includes("-synthetic") ||
+      firstId.includes("-near24h-synthetic") ||
+      secondId.includes("-near24h-synthetic")
+        ? "-synthetic"
+        : "";
+
+    return `${firstId}${syntheticSuffix}-merged-${secondId}`;
+  }
+
+  function getEventRange(event: GoogleAppsScript.Calendar.Schema.Event): {
+    startMs: number;
+    endMs: number;
+  } {
+    if (isAllDayEvent(event) && event.start?.date && event.end?.date) {
+      return {
+        startMs: new Date(event.start.date).getTime(),
+        endMs: new Date(event.end.date).getTime(),
+      };
+    }
+
+    if (
+      isSpecificTimeEvent(event) &&
+      event.start?.dateTime &&
+      event.end?.dateTime
+    ) {
+      return {
+        startMs: new Date(event.start.dateTime).getTime(),
+        endMs: new Date(event.end.dateTime).getTime(),
+      };
+    }
+
+    return {
+      startMs: Number.MAX_SAFE_INTEGER,
+      endMs: Number.MAX_SAFE_INTEGER,
+    };
   }
 
   /**

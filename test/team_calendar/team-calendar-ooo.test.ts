@@ -589,8 +589,8 @@ describe("TeamCalendarOOO.getChangesPerPerson", () => {
       deleteEvents: [],
       newAllDayEvents: [
         {
-          start: "2025-04-15",
-          end: "2025-04-21",
+          start: "2025-04-14",
+          end: "2025-04-20",
           title: "[OOO] John Doe (john.doe@example.com)",
         },
       ],
@@ -1362,8 +1362,8 @@ describe("TeamCalendarOOO.getChangesPerPerson", () => {
     expect(actualChanges).toEqual(expectedChanges);
   });
 
-  it("should convert 13-hour overnight out-of-office events to all-day events", () => {
-    // This verifies events like aat@'s 17:00-06:00 (13 hours) are normalized to full-day holds
+  it("suppresses timed overnight out-of-office events longer than 10 hours", () => {
+    // This verifies events like aat@'s 17:00-06:00 (13 hours) do not get surfaced on the team calendar
 
     const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
       createMockEvent(
@@ -1385,13 +1385,7 @@ describe("TeamCalendarOOO.getChangesPerPerson", () => {
 
     const expectedChanges: TeamCalendarOOO.CalendarChanges = {
       deleteEvents: [],
-      newAllDayEvents: [
-        {
-          start: "2025-10-21",
-          end: "2025-10-22",
-          title: "[OOO] John Doe (john.doe@example.com)",
-        },
-      ],
+      newAllDayEvents: [],
       newTimeRangeEvents: [],
     };
 
@@ -1402,6 +1396,260 @@ describe("TeamCalendarOOO.getChangesPerPerson", () => {
     );
 
     expect(actualChanges).toEqual(expectedChanges);
+  });
+
+  it("keeps timed overnight out-of-office events that are exactly 10 hours", () => {
+    const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      createMockEvent(
+        "ten-hour-ooo",
+        "Out of office",
+        {
+          dateTime: "2025-10-20T20:00:00-07:00",
+          timeZone: "America/Los_Angeles",
+        },
+        {
+          dateTime: "2025-10-21T06:00:00-07:00",
+          timeZone: "America/Los_Angeles",
+        },
+        "outOfOffice"
+      ),
+    ];
+
+    const actualChanges = getChangesPerPerson(mockGroupMember, [], oooEvents);
+
+    expect(actualChanges).toEqual({
+      deleteEvents: [],
+      newAllDayEvents: [],
+      newTimeRangeEvents: [
+        {
+          startDateTime: "2025-10-20T20:00:00-07:00",
+          endDateTime: "2025-10-21T06:00:00-07:00",
+          title: "[OOO] John Doe (john.doe@example.com)",
+        },
+      ],
+    });
+  });
+
+  it("merges adjacent all-day OOO events into a single multi-day event", () => {
+    const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      createMockEvent(
+        "day-1",
+        "OOO- Automated by Workday",
+        { date: "2026-04-13" },
+        { date: "2026-04-14" },
+        "outOfOffice"
+      ),
+      createMockEvent(
+        "day-2",
+        "OOO- Automated by Workday",
+        { date: "2026-04-14" },
+        { date: "2026-04-15" },
+        "outOfOffice"
+      ),
+      createMockEvent(
+        "day-3",
+        "OOO- Automated by Workday",
+        { date: "2026-04-15" },
+        { date: "2026-04-16" },
+        "outOfOffice"
+      ),
+    ];
+
+    const actualChanges = getChangesPerPerson(mockGroupMember, [], oooEvents);
+
+    expect(actualChanges).toEqual({
+      deleteEvents: [],
+      newAllDayEvents: [
+        {
+          start: "2026-04-13",
+          end: "2026-04-16",
+          title: "[OOO] John Doe (john.doe@example.com)",
+        },
+      ],
+      newTimeRangeEvents: [],
+    });
+  });
+
+  it("excludes near-adjacent overnight OOO segments when they form outside-hours coverage", () => {
+    const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      createMockEvent(
+        "night-1",
+        "Out of office",
+        {
+          dateTime: "2026-04-13T16:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        {
+          dateTime: "2026-04-14T00:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        "outOfOffice"
+      ),
+      createMockEvent(
+        "night-2",
+        "Out of office",
+        {
+          dateTime: "2026-04-14T00:04:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        {
+          dateTime: "2026-04-14T08:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        "outOfOffice"
+      ),
+      createMockEvent(
+        "night-3",
+        "Out of office",
+        {
+          dateTime: "2026-04-14T16:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        {
+          dateTime: "2026-04-15T00:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        "outOfOffice"
+      ),
+      createMockEvent(
+        "night-4",
+        "Out of office",
+        {
+          dateTime: "2026-04-15T00:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        {
+          dateTime: "2026-04-15T08:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        "outOfOffice"
+      ),
+    ];
+
+    const actualChanges = getChangesPerPerson(mockGroupMember, [], oooEvents);
+
+    expect(actualChanges).toEqual({
+      deleteEvents: [],
+      newAllDayEvents: [],
+      newTimeRangeEvents: [],
+    });
+  });
+
+  it("ignores local outside-hours OOO blocks like Sean's Toronto schedule", () => {
+    const oooEvents: GoogleAppsScript.Calendar.Schema.Event[] = [
+      createMockEvent(
+        "ooo-0",
+        "Out of office",
+        {
+          dateTime: "2026-04-12T16:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        {
+          dateTime: "2026-04-13T00:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        "outOfOffice"
+      ),
+      createMockEvent(
+        "ooo-1",
+        "Out of office",
+        {
+          dateTime: "2026-04-13T00:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        {
+          dateTime: "2026-04-13T08:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        "outOfOffice"
+      ),
+      createMockEvent(
+        "ooo-2",
+        "Out of office",
+        {
+          dateTime: "2026-04-13T16:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        {
+          dateTime: "2026-04-14T00:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        "outOfOffice"
+      ),
+      createMockEvent(
+        "ooo-3",
+        "Out of office",
+        {
+          dateTime: "2026-04-14T00:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        {
+          dateTime: "2026-04-14T08:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        "outOfOffice"
+      ),
+      createMockEvent(
+        "ooo-4",
+        "Out of office",
+        {
+          dateTime: "2026-04-14T16:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        {
+          dateTime: "2026-04-15T00:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        "outOfOffice"
+      ),
+      createMockEvent(
+        "ooo-5",
+        "Out of office",
+        {
+          dateTime: "2026-04-15T00:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        {
+          dateTime: "2026-04-15T08:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        "outOfOffice"
+      ),
+      createMockEvent(
+        "ooo-6",
+        "Out of office",
+        {
+          dateTime: "2026-04-15T16:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        {
+          dateTime: "2026-04-16T00:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        "outOfOffice"
+      ),
+      createMockEvent(
+        "ooo-7",
+        "Out of office",
+        {
+          dateTime: "2026-04-16T00:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        {
+          dateTime: "2026-04-16T08:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        "outOfOffice"
+      ),
+    ];
+
+    const actualChanges = getChangesPerPerson(mockGroupMember, [], oooEvents);
+
+    expect(actualChanges).toEqual({
+      deleteEvents: [],
+      newAllDayEvents: [],
+      newTimeRangeEvents: [],
+    });
   });
 });
 
@@ -1427,7 +1675,7 @@ describe("TeamCalendarOOO.deduplicatePersonalOOOEvents", () => {
     eventType,
   });
 
-  it("converts overnight out-of-office events into all-day events", () => {
+  it("suppresses overnight out-of-office events longer than 10 hours during deduplication", () => {
     const overnightEvent = createMockEvent(
       "overnight-1",
       "Out of office",
@@ -1444,11 +1692,7 @@ describe("TeamCalendarOOO.deduplicatePersonalOOOEvents", () => {
 
     const result = deduplicatePersonalOOOEvents([overnightEvent]);
 
-    expect(result).toHaveLength(1);
-    expect(result[0].start?.date).toBe("2025-10-21");
-    expect(result[0].end?.date).toBe("2025-10-22");
-    expect(result[0].start?.dateTime).toBeUndefined();
-    expect(result[0].id).toContain("-synthetic");
+    expect(result).toEqual([]);
   });
 
   it("does not convert short non-OOO overnight events", () => {
@@ -1471,6 +1715,97 @@ describe("TeamCalendarOOO.deduplicatePersonalOOOEvents", () => {
     expect(result).toHaveLength(1);
     expect(result[0].start?.dateTime).toBe("2025-10-20T22:00:00-07:00");
     expect(result[0].end?.dateTime).toBe("2025-10-21T00:30:00-07:00");
+  });
+
+  it("merges adjacent all-day OOO events during deduplication", () => {
+    const result = deduplicatePersonalOOOEvents([
+      createMockEvent(
+        "day-1",
+        "OOO- Automated by Workday",
+        { date: "2026-05-11" },
+        { date: "2026-05-12" },
+        "outOfOffice"
+      ),
+      createMockEvent(
+        "day-2",
+        "OOO- Automated by Workday",
+        { date: "2026-05-12" },
+        { date: "2026-05-13" },
+        "outOfOffice"
+      ),
+    ]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].start?.date).toBe("2026-05-11");
+    expect(result[0].end?.date).toBe("2026-05-13");
+  });
+
+  it("keeps near-adjacent daytime timed OOO when it does not look like outside-hours coverage", () => {
+    const result = deduplicatePersonalOOOEvents([
+      createMockEvent(
+        "day-1",
+        "Out of office",
+        {
+          dateTime: "2026-04-13T10:00:00-04:00",
+          timeZone: "America/New_York",
+        },
+        {
+          dateTime: "2026-04-13T12:00:00-04:00",
+          timeZone: "America/New_York",
+        },
+        "outOfOffice"
+      ),
+      createMockEvent(
+        "day-2",
+        "Out of office",
+        {
+          dateTime: "2026-04-13T12:04:00-04:00",
+          timeZone: "America/New_York",
+        },
+        {
+          dateTime: "2026-04-13T14:00:00-04:00",
+          timeZone: "America/New_York",
+        },
+        "outOfOffice"
+      ),
+    ]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].start?.dateTime).toBe("2026-04-13T10:00:00-04:00");
+    expect(result[0].end?.dateTime).toBe("2026-04-13T14:00:00-04:00");
+  });
+
+  it("filters merged outside-hours OOO coverage before deduplication", () => {
+    const result = deduplicatePersonalOOOEvents([
+      createMockEvent(
+        "ooo-1",
+        "Out of office",
+        {
+          dateTime: "2026-04-13T16:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        {
+          dateTime: "2026-04-14T00:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        "outOfOffice"
+      ),
+      createMockEvent(
+        "ooo-2",
+        "Out of office",
+        {
+          dateTime: "2026-04-14T00:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        {
+          dateTime: "2026-04-14T08:00:00-04:00",
+          timeZone: "America/Toronto",
+        },
+        "outOfOffice"
+      ),
+    ]);
+
+    expect(result).toEqual([]);
   });
 });
 
