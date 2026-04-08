@@ -1,4 +1,12 @@
+import { GetEvents } from "../../src/checks/get-events";
 import { Time } from "../../src/checks/time";
+
+jest.mock("../../src/checks/log", () => ({
+  Log: {
+    log: jest.fn(),
+    logPhase: jest.fn(),
+  },
+}));
 
 describe("getSundayOfCurrentWeek", () => {
   it("should return the previous Sunday if today is Monday", () => {
@@ -47,5 +55,45 @@ describe("getSundayOfCurrentWeek", () => {
     expect(result.getTime()).toBe(expectedSunday.getTime());
 
     jest.restoreAllMocks();
+  });
+});
+
+describe("GetEvents.getEventsForDateRangeCustomCalendarResult", () => {
+  beforeEach(() => {
+    jest.restoreAllMocks();
+    const globalAny = globalThis as any;
+    globalAny.Calendar = {
+      Events: {
+        list: jest.fn(),
+      },
+    };
+  });
+
+  it("returns an empty events array when the calendar has no events", () => {
+    const globalAny = globalThis as any;
+    globalAny.Calendar.Events.list.mockReturnValue({ items: [] });
+
+    expect(
+      GetEvents.getEventsForDateRangeCustomCalendarResult(
+        new Date("2026-04-07T00:00:00Z"),
+        new Date("2026-04-08T00:00:00Z"),
+        "empty-calendar@block.xyz"
+      )
+    ).toEqual({ events: [] });
+  });
+
+  it("includes the API error message when fetching fails", () => {
+    const globalAny = globalThis as any;
+    globalAny.Calendar.Events.list.mockImplementation(() => {
+      throw new Error("Not Found");
+    });
+
+    expect(() =>
+      GetEvents.getEventsForDateRangeCustomCalendar(
+        new Date("2026-04-07T00:00:00Z"),
+        new Date("2026-04-08T00:00:00Z"),
+        "missing-calendar@block.xyz"
+      )
+    ).toThrow("Error fetching events: Not Found");
   });
 });

@@ -2,6 +2,7 @@
 
 import { jest } from "@jest/globals";
 import { TeamCalendarOOO } from "../../src/team_calendar/team-calendar-ooo";
+import { GetEvents } from "../../src/checks/get-events";
 
 // Mock the Log module to prevent actual logging during tests
 jest.mock("../../src/checks/log", () => ({
@@ -13,6 +14,159 @@ jest.mock("../../src/checks/log", () => ({
 
 // Mock utility functions if necessary
 // Assuming isAllDayEvent, isSpecificTimeEvent, createEventTitle are part of TeamCalendarOOO
+
+describe("TeamCalendarOOO.syncCalendarOOO", () => {
+  beforeEach(() => {
+    jest.restoreAllMocks();
+    const globalAny = globalThis as any;
+
+    globalAny.GroupsApp = {
+      getGroupByEmail: jest.fn(() => ({
+        getUsers: jest.fn(() => [
+          { getEmail: () => "active.member@block.xyz" },
+          { getEmail: () => "departed.member@block.xyz" },
+        ]),
+      })),
+    };
+    globalAny.CacheService = {
+      getUserCache: jest.fn(() => ({
+        get: jest.fn(() => null),
+        put: jest.fn(),
+      })),
+    };
+    globalAny.AdminDirectory = {
+      Users: {
+        get: jest.fn((email: string) => {
+          if (email === "active.member@block.xyz") {
+            return {
+              name: {
+                fullName: "Active Member",
+              },
+            };
+          }
+
+          throw new Error(`Resource Not Found: ${email}`);
+        }),
+      },
+    };
+    globalAny.Logger = {
+      log: jest.fn(),
+    };
+  });
+
+  it("continues syncing when a departed member calendar is missing", () => {
+    const deleteEvent = jest.fn();
+    const createAllDayEvent = jest.fn();
+    (globalThis as { [key: string]: unknown }).CalendarApp = {
+      getCalendarById: jest.fn(() => ({
+        getEventById: jest.fn(() => ({
+          deleteEvent,
+        })),
+        createAllDayEvent,
+      })),
+    };
+    jest
+      .spyOn(GetEvents, "getEventsForDateRangeCustomCalendarResult")
+      .mockImplementation((_timeMin, _timeMax, calendarId) => {
+        if (calendarId === "active.member@block.xyz") {
+          return {
+            events: [
+              {
+                id: "active-ooo",
+                summary: "Out of Office",
+                start: { date: "2026-04-10" },
+                end: { date: "2026-04-11" },
+                eventType: "outOfOffice",
+              },
+            ],
+          };
+        }
+
+        if (calendarId === "departed.member@block.xyz") {
+          return {
+            events: undefined,
+            errorMessage:
+              "API call to calendar.events.list failed with error: Not Found",
+          };
+        }
+
+        if (calendarId === "team-calendar@group.calendar.google.com") {
+          return {
+            events: [
+              {
+                id: "stale-departed-event",
+                summary: "[OOO] departed.member@block.xyz",
+                start: { date: "2026-04-12" },
+                end: { date: "2026-04-13" },
+                eventType: "default",
+              },
+            ],
+          };
+        }
+
+        return { events: [] };
+      });
+    jest
+      .spyOn(GetEvents, "getEventsForDateRangeCustomCalendar")
+      .mockImplementation((_timeMin, _timeMax, calendarId) => {
+        if (calendarId === "team-calendar@group.calendar.google.com") {
+          return [
+            {
+              id: "stale-departed-event",
+              summary: "[OOO] departed.member@block.xyz",
+              start: { date: "2026-04-12" },
+              end: { date: "2026-04-13" },
+              eventType: "default",
+            },
+          ];
+        }
+
+        return [];
+      });
+
+    TeamCalendarOOO.syncCalendarOOO(
+      new Date("2026-04-07T00:00:00Z"),
+      new Date("2026-04-21T00:00:00Z"),
+      "team-calendar@group.calendar.google.com",
+      "mdx-android@squareup.com",
+      false
+    );
+
+    expect(deleteEvent).toHaveBeenCalledTimes(1);
+    expect(createAllDayEvent).toHaveBeenCalledWith(
+      "[OOO] Active Member (active.member@block.xyz)",
+      new Date(2026, 3, 10),
+      new Date(2026, 3, 11)
+    );
+  });
+
+  it("still throws for unexpected member calendar fetch errors", () => {
+    jest
+      .spyOn(GetEvents, "getEventsForDateRangeCustomCalendarResult")
+      .mockImplementation((_timeMin, _timeMax, calendarId) => {
+        if (calendarId === "active.member@block.xyz") {
+          return {
+            events: undefined,
+            errorMessage: "Service invoked too many times for one day",
+          };
+        }
+
+        return { events: [] };
+      });
+
+    expect(() =>
+      TeamCalendarOOO.syncCalendarOOO(
+        new Date("2026-04-07T00:00:00Z"),
+        new Date("2026-04-21T00:00:00Z"),
+        "team-calendar@group.calendar.google.com",
+        "mdx-android@squareup.com",
+        true
+      )
+    ).toThrow(
+      "Failed to fetch events for group member active.member@block.xyz: Service invoked too many times for one day"
+    );
+  });
+});
 
 describe("TeamCalendarOOO.getChangesPerPerson", () => {
   const { getChangesPerPerson } = TeamCalendarOOO;

@@ -22,6 +22,11 @@ export namespace GetEvents {
     suppressEventListLogInput: boolean | undefined
   ) => GoogleAppsScript.Calendar.Schema.Event[] | undefined;
 
+  export type EventFetchResult = {
+    events: GoogleAppsScript.Calendar.Schema.Event[] | undefined;
+    errorMessage?: string;
+  };
+
   export function getEvents(
     timeRange: Time.Range,
     updatedMin: Date | undefined,
@@ -99,18 +104,23 @@ export namespace GetEvents {
     maxResults: number | undefined = undefined,
     suppressEventListLog: boolean | undefined = undefined
   ): GoogleAppsScript.Calendar.Schema.Event[] {
+    const fetchResult = getEventsForDateRangeCustomCalendarResult(
+      timeMin,
+      timeMax,
+      calendarId,
+      updatedMin,
+      maxResults,
+      suppressEventListLog
+    );
     const result: GoogleAppsScript.Calendar.Schema.Event[] | undefined =
-      getEventsForDateRangeCustomCalendarWithErrorCatch(
-        timeMin,
-        timeMax,
-        calendarId,
-        updatedMin,
-        maxResults,
-        suppressEventListLog
-      );
+      fetchResult.events;
 
     if (result === undefined) {
-      throw new Error("Error fetching events");
+      throw new Error(
+        fetchResult.errorMessage === undefined
+          ? "Error fetching events"
+          : `Error fetching events: ${fetchResult.errorMessage}`
+      );
     }
 
     return result;
@@ -124,6 +134,24 @@ export namespace GetEvents {
     maxResultsInput: number | undefined = GetEvents.MAX_EVENTS_ALLOWED_TO_FETCH,
     suppressEventListLogInput: boolean | undefined
   ): GoogleAppsScript.Calendar.Schema.Event[] | undefined {
+    return getEventsForDateRangeCustomCalendarResult(
+      timeMin,
+      timeMax,
+      calendarId,
+      updatedMin,
+      maxResultsInput,
+      suppressEventListLogInput
+    ).events;
+  }
+
+  export function getEventsForDateRangeCustomCalendarResult(
+    timeMin: Date,
+    timeMax: Date,
+    calendarId: string,
+    updatedMin: Date | undefined = undefined,
+    maxResultsInput: number | undefined = GetEvents.MAX_EVENTS_ALLOWED_TO_FETCH,
+    suppressEventListLogInput: boolean | undefined = undefined
+  ): EventFetchResult {
     const suppressEventListLog =
       suppressEventListLogInput === undefined
         ? false
@@ -161,7 +189,7 @@ export namespace GetEvents {
 
       if (events.length === 0) {
         Log.log("No events found.");
-        return [];
+        return { events: [] };
       }
 
       Log.log(
@@ -175,11 +203,15 @@ export namespace GetEvents {
           );
         }
       }
-      return cappedResults;
+      return { events: cappedResults };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      Log.log(`Error fetching events: ${error.message}`);
-      return undefined;
+      const errorMessage = error?.message ?? String(error);
+      Log.log(`Error fetching events: ${errorMessage}`);
+      return {
+        events: undefined,
+        errorMessage,
+      };
     }
   }
 

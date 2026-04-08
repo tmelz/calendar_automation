@@ -49,11 +49,25 @@ export namespace TeamCalendarOOO {
     const memberEvents: Map<string, GoogleAppsScript.Calendar.Schema.Event[]> =
       new Map();
     groupMembers.forEach((member) => {
-      const oooEvents = GetEvents.getEventsForDateRangeCustomCalendar(
+      const fetchResult = GetEvents.getEventsForDateRangeCustomCalendarResult(
         timeMin,
         timeMax,
         member.email
-      ).filter(
+      );
+      if (fetchResult.events === undefined) {
+        if (isMissingCalendarError(fetchResult.errorMessage)) {
+          Log.log(
+            `Skipping missing calendar for group member ${member.email} and treating them as having no OOO events`
+          );
+          memberEvents.set(member.email, []);
+          return;
+        }
+        throw new Error(
+          `Failed to fetch events for group member ${member.email}: ${fetchResult.errorMessage ?? "unknown error"}`
+        );
+      }
+
+      const oooEvents = fetchResult.events.filter(
         (event) =>
           (event.eventType === "outOfOffice" ||
           CheckOOO.isWorkdayOOOTitle(event.summary)) &&
@@ -908,6 +922,16 @@ export namespace TeamCalendarOOO {
       event.attendees === undefined &&
       event.conferenceData === undefined
     );
+  }
+
+  export function isMissingCalendarError(
+    errorMessage: string | undefined
+  ): boolean {
+    if (errorMessage === undefined) {
+      return false;
+    }
+
+    return errorMessage.includes("Not Found");
   }
 
   export function getNameByEmail(email: string): string | undefined {
