@@ -4,6 +4,8 @@ import { Pagerduty } from "../pagerduty";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace TeamCalendarOncall {
+  const IGNORED_ONCALL_EMAILS = new Set(["noreply@messaging.squareup.com"]);
+
   export type GroupMember = {
     email: string;
     name: string | undefined;
@@ -89,9 +91,9 @@ export namespace TeamCalendarOncall {
       return;
     }
 
-    const oncalls = deduplicateOncalls(oncallResponse);
+    const oncalls = deduplicateOncalls(filterIgnoredOncalls(oncallResponse));
     Log.log(`Got oncalls: before deduplication: ${oncallResponse?.length}`);
-    Log.log(`After deduplication: ${oncalls?.length}`);
+    Log.log(`After filtering and deduplication: ${oncalls?.length}`);
     Log.log("List of oncalls:");
     oncalls.forEach((oncall) => {
       Log.log(
@@ -139,11 +141,21 @@ export namespace TeamCalendarOncall {
     );
   }
 
+  export function filterIgnoredOncalls(
+    oncalls: Pagerduty.OnCall[]
+  ): Pagerduty.OnCall[] {
+    return oncalls.filter(
+      (oncall) =>
+        !IGNORED_ONCALL_EMAILS.has(oncall.user.email.trim().toLowerCase())
+    );
+  }
+
   // get changes func, oncalls as input, team calendar oncall events as input, output calendar changes
   export function getChanges(
     oncalls: Pagerduty.OnCall[],
     teamCalendarOncallEvents: GoogleAppsScript.Calendar.Schema.Event[]
   ): CalendarChanges {
+    const filteredOncalls = filterIgnoredOncalls(oncalls);
     const eventsToDelete: GoogleAppsScript.Calendar.Schema.Event[] = [];
     const oncallsToCreateEventsFor: Pagerduty.OnCall[] = [];
     // Track which oncalls have been matched to events to ensure 1:1 mapping
@@ -156,7 +168,7 @@ export namespace TeamCalendarOncall {
 
     teamCalendarOncallEvents.forEach((event) => {
       // Find a matching oncall that hasn't been matched yet
-      const matchingOncall = oncalls?.find((oncall) => {
+      const matchingOncall = filteredOncalls?.find((oncall) => {
         return (
           !matchedOncalls.has(getOncallKey(oncall)) &&
           oncallAndEventMatch(oncall, event)
@@ -176,7 +188,7 @@ export namespace TeamCalendarOncall {
       }
     });
 
-    oncalls.forEach((oncall) => {
+    filteredOncalls.forEach((oncall) => {
       const matchingEvent = teamCalendarOncallEvents.find((event) =>
         oncallAndEventMatch(oncall, event)
       );

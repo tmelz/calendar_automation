@@ -243,6 +243,50 @@ describe("TeamCalendarOncall", () => {
         newTimeRangeEvents: [],
       });
     });
+
+    it("should not create events for empty Nobody oncall placeholders", () => {
+      const nobodyOncall = {
+        start: "2023-10-02T08:00:00Z",
+        end: "2023-10-02T16:00:00Z",
+        user: { name: "Nobody", email: "noreply@messaging.squareup.com" },
+        schedule: { summary: "Backend Frameworks and Deploy - PST" },
+      } as Pagerduty.OnCall;
+
+      const changes = TeamCalendarOncall.getChanges([nobodyOncall], []);
+
+      expect(changes).toEqual({
+        deleteEvents: [],
+        newTimeRangeEvents: [],
+      });
+    });
+
+    it("should delete existing events for empty Nobody oncall placeholders", () => {
+      const nobodyOncall = {
+        start: "2023-10-02T08:00:00Z",
+        end: "2023-10-02T16:00:00Z",
+        user: { name: "Nobody", email: "noreply@messaging.squareup.com" },
+        schedule: { summary: "Backend Frameworks and Deploy - PST" },
+      } as Pagerduty.OnCall;
+
+      const nobodyEvent: FakeCalendarEvent = {
+        id: "nobody",
+        summary:
+          "[oncall] Nobody (noreply@messaging.squareup.com), schedule: Backend Frameworks and Deploy - PST",
+        start: { dateTime: "2023-10-02T08:00:00Z" },
+        end: { dateTime: "2023-10-02T16:00:00Z" },
+        eventType: "default",
+      } as FakeCalendarEvent;
+
+      const changes = TeamCalendarOncall.getChanges(
+        [nobodyOncall],
+        [nobodyEvent]
+      );
+
+      expect(changes).toEqual({
+        deleteEvents: [nobodyEvent],
+        newTimeRangeEvents: [],
+      });
+    });
   });
 
   describe("oncallAndEventMatch", () => {
