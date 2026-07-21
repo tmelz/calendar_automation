@@ -5,6 +5,7 @@ import {
 } from "./event-data";
 import { CheckOOO } from "../../src/checks/check-ooo";
 import { CheckTypes } from "../../src/checks/check-types";
+import { GetEvents } from "../../src/checks/get-events";
 
 describe("checkShouldModifyEvent", () => {
   it("should return undefined if theirEmail is null", () => {
@@ -17,7 +18,7 @@ describe("checkShouldModifyEvent", () => {
     const result = CheckOOO.checkShouldModifyEvent(
       event,
       (_, __, ___) => {
-        return [event];
+        return { events: [event] };
       },
       (_, __) => {
         return false;
@@ -28,14 +29,10 @@ describe("checkShouldModifyEvent", () => {
 
   it("should return YES if checkIfEventIsOOOAndOverlaps returns true for any event", () => {
     const getEventMock = jest.fn();
-    getEventMock.mockReturnValue([theirIrrelevantEvent]);
+    getEventMock.mockReturnValue({ events: [theirIrrelevantEvent] });
     const result = CheckOOO.checkShouldModifyEvent(
       myOneOnOneEventWithOOOConflict,
-      getEventMock as (
-        timeMin: Date,
-        timeMax: Date,
-        calendarId: string
-      ) => GoogleAppsScript.Calendar.Schema.Event[],
+      getEventMock as GetEvents.EventResultFetcher,
       (_, __) => {
         return true;
       }
@@ -52,16 +49,34 @@ describe("checkShouldModifyEvent", () => {
     );
   });
 
-  it("should return false if get undefined for events", () => {
-    const getEventMock = jest.fn();
-    getEventMock.mockReturnValue(undefined);
+  it("should pass the fetched calendar timezone to the overlap check", () => {
+    const compareMock = jest.fn().mockReturnValue(true);
     const result = CheckOOO.checkShouldModifyEvent(
       myOneOnOneEventWithOOOConflict,
-      getEventMock as (
-        timeMin: Date,
-        timeMax: Date,
-        calendarId: string
-      ) => GoogleAppsScript.Calendar.Schema.Event[] | undefined,
+      (_, __, ___) => {
+        return { events: [theirIrrelevantEvent], timeZone: "Australia/Sydney" };
+      },
+      compareMock as (
+        myEvent: GoogleAppsScript.Calendar.Schema.Event,
+        theirEvent: GoogleAppsScript.Calendar.Schema.Event,
+        theirTimeZone?: string
+      ) => boolean
+    );
+
+    expect(result).toBe(CheckTypes.ModificationType.YES_ADD_LABEL);
+    expect(compareMock).toHaveBeenCalledWith(
+      myOneOnOneEventWithOOOConflict,
+      theirIrrelevantEvent,
+      "Australia/Sydney"
+    );
+  });
+
+  it("should return false if get undefined for events", () => {
+    const getEventMock = jest.fn();
+    getEventMock.mockReturnValue({ events: undefined });
+    const result = CheckOOO.checkShouldModifyEvent(
+      myOneOnOneEventWithOOOConflict,
+      getEventMock as GetEvents.EventResultFetcher,
       (_, __) => {
         return true;
       }
@@ -74,7 +89,7 @@ describe("checkShouldModifyEvent", () => {
     const result = CheckOOO.checkShouldModifyEvent(
       myOneOnOneEventWithOOOConflict,
       (_, __, ___) => {
-        return [theirIrrelevantEvent];
+        return { events: [theirIrrelevantEvent] };
       },
       (_, __) => {
         return false;
@@ -91,7 +106,7 @@ describe("checkShouldModifyEvent", () => {
     const result = CheckOOO.checkShouldModifyEvent(
       event,
       (_, __, ___) => {
-        return [theirIrrelevantEvent];
+        return { events: [theirIrrelevantEvent] };
       },
       (_, __) => {
         return false;

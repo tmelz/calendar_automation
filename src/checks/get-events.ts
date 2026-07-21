@@ -24,8 +24,19 @@ export namespace GetEvents {
 
   export type EventFetchResult = {
     events: GoogleAppsScript.Calendar.Schema.Event[] | undefined;
+    // The fetched calendar's timezone, when the API provides it
+    timeZone?: string;
     errorMessage?: string;
   };
+
+  export type EventResultFetcher = (
+    timeMin: Date,
+    timeMax: Date,
+    calendarId: string,
+    updatedMin: Date | undefined,
+    maxResultsInput: number | undefined,
+    suppressEventListLogInput: boolean | undefined
+  ) => EventFetchResult;
 
   export function getEvents(
     timeRange: Time.Range,
@@ -184,12 +195,13 @@ export namespace GetEvents {
         args.updatedMin = updatedMin.toISOString();
       }
 
+      const response = Calendar.Events?.list(calendarId, args);
       const events: GoogleAppsScript.Calendar.Schema.Event[] =
-        Calendar.Events?.list(calendarId, args)?.items ?? [];
+        response?.items ?? [];
 
       if (events.length === 0) {
         Log.log("No events found.");
-        return { events: [] };
+        return { events: [], timeZone: response?.timeZone };
       }
 
       Log.log(
@@ -203,7 +215,7 @@ export namespace GetEvents {
           );
         }
       }
-      return { events: cappedResults };
+      return { events: cappedResults, timeZone: response?.timeZone };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       const errorMessage = error?.message ?? String(error);

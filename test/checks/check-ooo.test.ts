@@ -95,6 +95,84 @@ describe("checkIfEventIsOOOAndOverlaps", () => {
     ).toBe(false);
   });
 
+  // Regression tests for the cross-timezone bug: a Workday all-day OOO block
+  // for an Australian Monday spans Sun 07:00 - Mon 07:00 Pacific, so US Monday
+  // meetings after that must NOT be flagged.
+  describe("attendee in a different timezone (Australia)", () => {
+    // Workday convention: single-day all-day event with end.date == start.date
+    const theirAussieMondayOOO: GoogleAppsScript.Calendar.Schema.Event = {
+      ...theirOOOAllDayEvent,
+      start: { date: "2026-07-13" },
+      end: { date: "2026-07-13" },
+    };
+
+    it("should not flag a US Monday meeting after their Monday OOO ended", () => {
+      const myMondayAfternoonMeeting: GoogleAppsScript.Calendar.Schema.Event =
+        {
+          ...myOneOnOneEventWithOOOConflict,
+          // Mon Jul 13 3:05PM PT == Tue Jul 14 8:05AM in Sydney
+          start: { dateTime: "2026-07-13T15:05:00-07:00" },
+          end: { dateTime: "2026-07-13T15:30:00-07:00" },
+        };
+      expect(
+        CheckOOO.checkIfEventIsOOOAndOverlaps(
+          myMondayAfternoonMeeting,
+          theirAussieMondayOOO,
+          "Australia/Sydney"
+        )
+      ).toBe(false);
+    });
+
+    it("should flag a US Sunday meeting that falls during their Monday OOO", () => {
+      const mySundayMeeting: GoogleAppsScript.Calendar.Schema.Event = {
+        ...myOneOnOneEventWithOOOConflict,
+        // Sun Jul 12 4:00PM PT == Mon Jul 13 9:00AM in Sydney
+        start: { dateTime: "2026-07-12T16:00:00-07:00" },
+        end: { dateTime: "2026-07-12T16:30:00-07:00" },
+      };
+      expect(
+        CheckOOO.checkIfEventIsOOOAndOverlaps(
+          mySundayMeeting,
+          theirAussieMondayOOO,
+          "Australia/Sydney"
+        )
+      ).toBe(true);
+    });
+
+    it("should flag a US Monday morning meeting that still overlaps their Monday OOO", () => {
+      const myEarlyMondayMeeting: GoogleAppsScript.Calendar.Schema.Event = {
+        ...myOneOnOneEventWithOOOConflict,
+        // Mon Jul 13 6:00AM PT == Mon Jul 13 11:00PM in Sydney
+        start: { dateTime: "2026-07-13T06:00:00-07:00" },
+        end: { dateTime: "2026-07-13T06:30:00-07:00" },
+      };
+      expect(
+        CheckOOO.checkIfEventIsOOOAndOverlaps(
+          myEarlyMondayMeeting,
+          theirAussieMondayOOO,
+          "Australia/Sydney"
+        )
+      ).toBe(true);
+    });
+  });
+
+  it("should respect the exclusive end date of standard all-day events", () => {
+    // Google's convention: a single-day all-day event on Jul 30 has end Jul 31
+    const theirStandardAllDayOOO: GoogleAppsScript.Calendar.Schema.Event = {
+      ...theirOOOAllDayEvent,
+      start: { date: "2024-07-30" },
+      end: { date: "2024-07-31" },
+    };
+    // Meeting is on Jul 31 PT; the old inclusive check would over-flag it
+    expect(
+      CheckOOO.checkIfEventIsOOOAndOverlaps(
+        myOneOnOneEventWithOOOConflict,
+        theirStandardAllDayOOO,
+        "America/Los_Angeles"
+      )
+    ).toBe(false);
+  });
+
   it("should return false if their OOO all day event is in the future", () => {
     const theirOOOEventInTheFuture: GoogleAppsScript.Calendar.Schema.Event = {
       ...theirOOOAllDayEvent,

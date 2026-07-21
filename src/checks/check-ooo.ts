@@ -1,6 +1,7 @@
 import { EventUtil } from "./event-util";
 import { CheckTypes } from "./check-types";
 import { GetEvents } from "./get-events";
+import { Time } from "./time";
 import { ModifyEvent } from "./modify-event";
 import { LogLevel, Log } from "./log";
 import { Analytics } from "../analytics";
@@ -32,12 +33,13 @@ export namespace CheckOOO {
 
   type CompareEvents = (
     myEvent: GoogleAppsScript.Calendar.Schema.Event,
-    theirEvent: GoogleAppsScript.Calendar.Schema.Event
+    theirEvent: GoogleAppsScript.Calendar.Schema.Event,
+    theirTimeZone?: string
   ) => boolean;
 
   export function checkShouldModifyEvent(
     event: GoogleAppsScript.Calendar.Schema.Event,
-    getEvents: GetEvents.EventFetcherWithError = GetEvents.getEventsForDateRangeCustomCalendarWithErrorCatch,
+    getEvents: GetEvents.EventResultFetcher = GetEvents.getEventsForDateRangeCustomCalendarResult,
     checkIsOOOAndOverlaps: CompareEvents = checkIfEventIsOOOAndOverlaps
   ): CheckTypes.ModificationType | undefined {
     if (!EventUtil.isOneOnOneWithMe(event)) {
@@ -63,7 +65,7 @@ export namespace CheckOOO {
     // do a proper overlap check later regardless.
     start.setDate(start.getDate() - 2);
     const end = new Date(event.end!.dateTime!);
-    const theirEventsDuringMeeting = getEvents(
+    const fetchResult = getEvents(
       start,
       end,
       theirEmail,
@@ -71,14 +73,14 @@ export namespace CheckOOO {
       undefined,
       undefined
     );
-    if (theirEventsDuringMeeting === undefined) {
+    if (fetchResult.events === undefined) {
       Log.log("👮‍♂️ Error fetching their calendar");
       return undefined;
     }
 
     let hasOOOoverlap = false;
-    for (const theirEvent of theirEventsDuringMeeting) {
-      if (checkIsOOOAndOverlaps(event, theirEvent)) {
+    for (const theirEvent of fetchResult.events) {
+      if (checkIsOOOAndOverlaps(event, theirEvent, fetchResult.timeZone)) {
         Log.log("👮‍♂️ Marking event for modification");
         hasOOOoverlap = true;
         break;
@@ -133,7 +135,8 @@ export namespace CheckOOO {
 
   export function checkIfEventIsOOOAndOverlaps(
     myEvent: GoogleAppsScript.Calendar.Schema.Event,
-    theirEvent: GoogleAppsScript.Calendar.Schema.Event
+    theirEvent: GoogleAppsScript.Calendar.Schema.Event,
+    theirTimeZone?: string
   ): boolean {
     Log.log(`🔎 Examining their event: 📅 "${theirEvent.summary}"`);
     LogLevel.DEBUG && Log.log(`\\Raw details: "${theirEvent}"`);
@@ -154,41 +157,41 @@ export namespace CheckOOO {
       theirEvent.end?.date &&
       myEvent.start?.dateTime
     ) {
-      const myEventDate = new Date(myEvent.start.dateTime);
-      Log.log(`Debug: myEventDate=${myEventDate}`);
-      myEventDate.setHours(0, 0, 0, 0);
-      // Ugh this was annoying and janky but it works :shrug:. Basically these values are simple dates like "09-03-2023", but
-      // javascript will interpret them as UTC and subtract 7 hours from pacific, so effectively the dates are -1.
-      // Ugly hack for that is add back the delta between UTC and current timezone. Probably a much better way but this seems
-      // stable and I'm lazy and don't want to spend too much time on this.
-      const theirOOOStart = new Date(theirEvent.start.date);
-      Log.log(
-        `Debug: theirOOOStartWithoutOffset=${theirOOOStart}, offset=${theirOOOStart.getTimezoneOffset()}`
-      );
-      theirOOOStart.setMinutes(
-        theirOOOStart.getMinutes() + theirOOOStart.getTimezoneOffset()
-      );
-      Log.log(`Debug: theirOOOStart=${theirOOOStart}`);
-      theirOOOStart.setHours(0, 0, 0, 0);
-      const theirOOOEnd = new Date(theirEvent.end.date);
-      Log.log(
-        `Debug: theirOOOEndWithoutOffset=${theirOOOEnd}, offset=${theirOOOEnd.getTimezoneOffset()}`
-      );
-      theirOOOEnd.setMinutes(
-        theirOOOEnd.getMinutes() + theirOOOEnd.getTimezoneOffset()
-      );
-      Log.log(`Debug: theirOOOEnd=${theirOOOEnd}`);
-      theirOOOEnd.setHours(0, 0, 0, 0);
+      const myEventStart = new Date(myEvent.start.dateTime);
+      const myEventEnd = myEvent.end?.dateTime
+        ? new Date(myEvent.end.dateTime)
+        : myEventStart;
 
-      if (myEventDate <= theirOOOEnd && myEventDate >= theirOOOStart) {
+      // Google's all-day convention is an exclusive end date, but Workday
+      // sets end.date == start.date on the single-day OOO events it creates;
+      // treat a non-increasing end date as a single-day event.
+      const theirEndDateExclusive =
+        theirEvent.end.date > theirEvent.start.date
+          ? theirEvent.end.date
+          : Time.nextDay(theirEvent.start.date);
+
+      // Anchor the all-day dates to the OOO person's calendar timezone: their
+      // "Monday off" ends at their midnight, which for someone in Australia is
+      // mid-morning Monday in the US. Comparing calendar dates in the script's
+      // timezone flags meetings that happen after they're already back.
+      const theirOOOStart = Time.startOfDayInTimeZone(
+        theirEvent.start.date,
+        theirTimeZone
+      );
+      const theirOOOEnd = Time.startOfDayInTimeZone(
+        theirEndDateExclusive,
+        theirTimeZone
+      );
+
+      if (myEventStart < theirOOOEnd && myEventEnd > theirOOOStart) {
         Log.log(
-          `✅ Yep, that OOO event overlaps! Will modify and flag the even (only date check, not mins/hours): oooStart=${theirOOOStart}, oooEnd=${theirOOOEnd}, myEventDate=${myEventDate}`
+          `✅ Yep, that OOO event overlaps! Will modify and flag the event (all-day check in tz=${theirTimeZone}): oooStart=${theirOOOStart.toISOString()}, oooEnd=${theirOOOEnd.toISOString()}, myEventStart=${myEventStart.toISOString()}`
         );
 
         return true;
       } else {
         Log.log(
-          `👎 No, that OOO doensnt appear to overlap (only date check, not mins/hours): oooStart=${theirOOOStart}, oooEnd=${theirOOOEnd}, myEventDate=${myEventDate}`
+          `👎 No, that OOO doensnt appear to overlap (all-day check in tz=${theirTimeZone}): oooStart=${theirOOOStart.toISOString()}, oooEnd=${theirOOOEnd.toISOString()}, myEventStart=${myEventStart.toISOString()}`
         );
         return false;
       }
